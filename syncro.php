@@ -4,11 +4,11 @@ $mysql = array(
     'user' => 'root',
     'pass' => '4909099',
     'database' => 'okna',
-    'names' => 'utf8'
+    'names' => 'cp1251'
 );
 
 define('PATH', 'c:/www/okna/');
 define('CACHE_PREFIX', 'okna_');
 
 $_GET['viewer_id'] = 982006;
-$_GET['api_id'] = 2031819;
+$_GET['api_id'] = 3978722;

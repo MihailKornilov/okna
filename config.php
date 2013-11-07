@@ -1,7 +1,7 @@
 <?php
 define('TIME', microtime(true));
 
-$SA[982006] = 1; // РљРѕСЂРЅРёР»РѕРІ РњРёС…Р°РёР»
+$SA[982006] = 1; // Корнилов Михаил
 define('SA', isset($SA[$_GET['viewer_id']]));
 if(SA) { ini_set('display_errors',1); error_reporting(E_ALL); }
 
@@ -29,9 +29,9 @@ define('REGEXP_DATE', '/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/');
 define('REGEXP_YEAR', '/^[0-9]{4}$/');
 define('REGEXP_WORD', '/^[a-z0-9]{1,20}$/i');
 define('REGEXP_MYSQLTABLE', '/^[a-z0-9_]{1,20}$/i');
-define('REGEXP_WORDFIND', '/^[a-zA-ZР°-СЏРђ-РЇ0-9,.;]{1,}$/i');
+define('REGEXP_WORDFIND', '/^[a-zA-Zа-яА-Я0-9,.;]{1,}$/i');
 
-//Р’РєР»СЋС‡Р°РµС‚ СЂР°Р±РѕС‚Сѓ РєСѓРєРѕРІ РІ IE С‡РµСЂРµР· С„СЂРµР№Рј
+//Включает работу куков в IE через фрейм
 header('P3P: CP="IDC DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"');
 
 _dbConnect();
@@ -66,7 +66,7 @@ function query_selJson($sql) {
         $send[] = '{uid:'.$sp[0].',title:"'.$sp[1].'"}';
     return '['.implode(',',$send).']';
 }
-function query_ptpJson($sql) {//РђСЃСЃРѕС†РёР°С‚РёРІРЅС‹Р№ РјР°СЃСЃРёРІ
+function query_ptpJson($sql) {//Ассоциативный массив
     $q = query($sql);
     $send = array();
     while($sp = mysql_fetch_row($q))
@@ -74,38 +74,35 @@ function query_ptpJson($sql) {//РђСЃСЃРѕС†РёР°С‚РёРІРЅС‹Р№ РјР°СЃСЃРёРІ
     return '{'.implode(',', $send).'}';
 }
 
-function _getSetupGlobal() {//РџРѕР»СѓС‡РµРЅРёРµ РіР»РѕР±Р°Р»СЊРЅС‹С… РґР°РЅРЅС‹С…
-    $g = xcache_get(CACHE_PREFIX.'setup_global');
+function _getSetupGlobal() {//Получение глобальных данных
+    $key = CACHE_PREFIX.'setup_global';
+    $g = xcache_get($key);
     if(empty($g)) {
         $sql = "SELECT * FROM `setup_global` LIMIT 1";
         $g = mysql_fetch_assoc(query($sql));
-        xcache_set(CACHE_PREFIX.'setup_global', $g, 86400);
+        xcache_set($key, $g, 86400);
     }
-    define('VERSION', $g['script_style']);
-    define('G_VALUES', $g['g_values']);
+    define('VERSION', $g['version']);
 }//end of _getSetupGlobal()
-function _getVkUser() {//РџРѕР»СѓС‡РµРЅРёРµ РґР°РЅРЅС‹С… Рѕ РїРѕР»СЊР·РѕРІР°С‚РµР»Рµ
+function _getVkUser() {//Получение данных о пользователе
     global $sqls;
     $key = CACHE_PREFIX.'viewer_'.VIEWER_ID;
     $u = xcache_get($key);
-    $from = 'Р”Р°РЅРЅС‹Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РїРѕР»СѓС‡РµРЅС‹ РёР· РєРµС€Р°.';
+    $from = 'Данные пользователя получены из кеша.';
     if(empty($u)) {
-        $from = 'Р”Р°РЅРЅС‹Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РїРѕР»СѓС‡РµРЅС‹ РёР· Р±Р°Р·С‹.';
+        $from = 'Данные пользователя получены из базы.';
         $sql = "SELECT * FROM `vk_user` WHERE `viewer_id`='".VIEWER_ID."' LIMIT 1";
         if(!$u = mysql_fetch_assoc(query($sql))) {
-            $from = 'Р”Р°РЅРЅС‹Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РїРѕР»СѓС‡РµРЅС‹ РёР· РљРѕРЅС‚Р°РєС‚Р°.';
+            $from = 'Данные пользователя получены из Контакта.';
             $u = _vkUserUpdate();
         }
         xcache_set($key, $u, 86400);
     }
     $sqls .= '<b>'.$from.'</b><br /><br />';
-    define('WS_ID', $u['ws_id'] && _getWorkshop($u['ws_id']) ? $u['ws_id'] : 0);
     define('VIEWER_NAME', $u['first_name'].' '.$u['last_name']);
-    define('VIEWER_COUNTRY_ID', $u['country_id']);
-    define('VIEWER_CITY_ID', $u['city_id']);
-    define('VIEWER_ADMIN', ($u['admin'] == 1));
+    //define('VIEWER_ADMIN', ($u['admin'] == 1));
 }//end of _getVkUser()
-function _getWorkshop($ws_id) {//РџРѕР»СѓС‡РµРЅРёРµ РґР°РЅРЅС‹С… Рѕ РјР°СЃС‚РµСЂСЃРєРѕР№
+function _getWorkshop($ws_id) {//Получение данных о мастерской
     $ws = xcache_get(CACHE_PREFIX.'workshop_'.$ws_id);
     if(empty($ws)) {
         $sql = "SELECT * FROM `workshop` WHERE `id`=".$ws_id." AND `status`=1 LIMIT 1";
