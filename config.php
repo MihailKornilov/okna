@@ -48,10 +48,14 @@ function _dbConnect() {
     query('SET NAMES `'.NAMES.'`', $dbConnect);
 }//end of _dbConnect()
 function query($sql) {
-    global $sqlQuery, $sqls;
-    $sqls .= $sql.'<br /><br />';
+    global $sqlQuery, $sqlCount, $sqlTime;
+    $t = microtime(true);
     $res = mysql_query($sql) or die($sql);
-    $sqlQuery++;
+    $t = microtime(true) - $t;
+    $sqlTime += $t;
+    $t = round($t, 3);
+    $sqlQuery .= $sql.' = <b style="color:#'.($t < 0.05 ? '999' : 'd22').'">'.$t.'</b><br /><br />';
+    $sqlCount++;
     return $res;
 }
 function query_value($sql) {

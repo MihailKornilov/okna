@@ -12,3 +12,52 @@
 #client .balans b{float:right}
 #client .unit em{background-color:#FFC;border-bottom:#FE2 solid 1px}
 #client .ajaxNext{margin:0 10px}
+
+
+/* Внесение новой заявки */
+#zayavAdd{padding:20px 10px 140px 10px;background-color:#F7F7F7}
+#zayavAdd .headName{margin-bottom:15px}
+#zayavAdd .label{width:160px;text-align:right}
+#zayavAdd #nomer_dog{width:130px}
+#zayavAdd #nomer_vg{width:130px}
+#zayavAdd .product_edit{position:relative;top:-2px;left:5px}
+#zayavAdd #adres_set{width:260px}
+#zayavAdd #comm{width:260px;height:40px}
+#zayavAdd .vkButton{margin:10px 7px 0 176px}
+
+/* список заявок */
+#zayav #filter_break{float:right}
+#zayav #spisok{padding-bottom:10px;background-color:#f7f7f7;vertical-align:top}
+#zayav .right{border:0;width:155px;padding-bottom:300px}
+#zayav .condLost.hide{display:none}
+.zayav_unit{
+    cursor:pointer;
+    margin:10px 5px 0 10px;
+    border:#ccc solid 1px;
+    border-radius:2px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+}
+.zayav_unit:hover{border:#bbb solid 1px;box-shadow: 0 0 5px rgba(0,0,0,0.4);}
+.zayav_unit .name{display:block;margin:4px 0 2px 6px;font-size:12px}
+.zayav_unit .name b{font-size:12px}
+.zayav_unit H2{float:right;font-size:10px;color:#777;margin:4px}
+.zayav_unit H2.finded{background:#FFC;color:#444;text-decoration:underline}
+.zayav_unit em{background:#FFC;border-bottom:1px solid #FE2;font-size:12px}
+.zayav_unit b em{font-weight:bold}
+.zayav_unit .label{width:90px;padding-left:10px}
+#zayav .ajaxNext{margin:6px 5px 0 8px}
+#zayav #find{margin-top:15px}
+#zayav #desc_check{margin-top:10px}
+#zayav ._empty{margin-right:6px;}
+
+
+
+
+#setup .left{padding:15px}
+#setup .headName{margin:0 0 15px}
+#setup .right{padding:0;width:170px;border-left:0}
+#setup .rightLinks a.sel{border-color:#6B8EB5}
+
+#setup_product .name{width:250px}
+#setup_product td.name{cursor:move}
+#setup_product .set{width:40px}

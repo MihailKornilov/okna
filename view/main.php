@@ -109,6 +109,7 @@ function _hashCookieSet() {
 function _cacheClear() {
     xcache_unset(CACHE_PREFIX.'setup_global');
     xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
+    xcache_unset(CACHE_PREFIX.'product_name');
 }//ens of _cacheClear()
 
 function _header() {
@@ -119,7 +120,7 @@ function _header() {
 
         '<head>'.
         '<meta http-equiv="content-type" content="text/html; charset=windows-1251" />'.
-        '<title>Приложение 3978722 - Пластиковые окна</title>'.
+        '<title>Пластиковые окна - Приложение 3978722</title>'.
 
         //Отслеживание ошибок в скриптах
         (SA ? '<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/js/errors-utf8.js?'.VERSION.'"></script>' : '').
@@ -156,20 +157,20 @@ function _header() {
 }//end of _header()
 
 function _footer() {
-    global $html, $sqlQuery, $sqls;
+    global $html, $sqlQuery, $sqlCount, $sqlTime;
     if(SA) {
         $d = empty($_GET['d']) ? '' :'&pre_d='.$_GET['d'];
         $d1 = empty($_GET['d1']) ? '' :'&pre_d1='.$_GET['d1'];
         $id = empty($_GET['id']) ? '' :'&pre_id='.$_GET['id'];
         $html .= '<div id="admin">'.
-            ($_GET['p'] != 'sa' && !SA_VIEWER_ID ? '<a href="'.URL.'&p=sa&pre_p='.$_GET['p'].$d.$d1.$id.'">Admin</a> :: ' : '').
+          //  ($_GET['p'] != 'sa' && !SA_VIEWER_ID ? '<a href="'.URL.'&p=sa&pre_p='.$_GET['p'].$d.$d1.$id.'">Admin</a> :: ' : '').
             '<a class="debug_toggle'.(DEBUG ? ' on' : '').'">В'.(DEBUG ? 'ы' : '').'ключить Debug</a> :: '.
             '<a id="cache_clear">Очисить кэш ('.VERSION.')</a> :: '.
-            'sql '.$sqlQuery.' :: '.
+            'sql <b>'.$sqlCount.'</b> ('.round($sqlTime, 3).') :: '.
             'php '.round(microtime(true) - TIME, 3).' :: '.
             'js <EM></EM>'.
             '</div>'
-            .(DEBUG ? $sqls : '');
+            .(DEBUG ? $sqlQuery : '');
     }
     $getArr = array(
         'start' => 1,
@@ -495,7 +496,35 @@ function _viewersInfo($arr=VIEWER_ID) {
     return $id ? $send[$id] : $send;
 }//end of _viewersInfo()
 
-
+function _product($product_id=false, $type='array') {//Список изделий для заявок
+    if(!defined('PRODUCT_LOADED') || $product_id === false) {
+        $key = CACHE_PREFIX.'product_name';
+        $arr = xcache_get($key);
+        if(empty($arr)) {
+            $sql = "SELECT `id`,`name` FROM `setup_product` ORDER BY `sort`";
+            $q = query($sql);
+            while($r = mysql_fetch_assoc($q))
+                $arr[$r['id']] = $r['name'];
+            xcache_set($key, $arr, 86400);
+        }
+        if(!defined('PRODUCT_LOADED')) {
+            foreach($arr as $id => $name)
+                define('PRODUCT_'.$id, $name);
+            define('PRODUCT_0', '');
+            define('PRODUCT_LOADED', true);
+        }
+    }
+    if($product_id !== false)
+        return constant('PRODUCT_'.$product_id);
+    switch($type) {
+        case 'json':
+            $json = array();
+            foreach($arr as $id => $name)
+                $json[] = '{uid:'.$id.',title:"'.$name.'"}';
+            return '['.implode(',', $json).']';
+        default: return $arr;
+    }
+}//end of _colorName()
 
 
 function _mainLinks() {
@@ -535,6 +564,23 @@ function _mainLinks() {
 
 // ---===! client !===--- Секция клиентов
 
+function _clientLink($arr) {
+    if(empty($arr))
+        return array();
+    $id = false;
+    if(!is_array($arr)) {
+        $id = $arr;
+        $arr = array($arr);
+    }
+    $sql = "SELECT `id`,`fio` FROM `client` WHERE `id` IN (".implode(',', $arr).")";
+    $q = query($sql);
+    $send = array();
+    while($r = mysql_fetch_assoc($q))
+        $send[$r['id']] = '<a href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
+    if($id)
+        return $send[$id];
+    return $send;
+}//end of _clientsLink()
 function clientFilter($v) {
     if(!preg_match(REGEXP_WORDFIND, win1251($v['fast'])))
         $v['fast'] = '';
@@ -557,9 +603,11 @@ function client_data($page=1, $filter=array()) {
         $engRus = _engRusChar($filter['fast']);
         $cond .= " AND (`fio` LIKE '%".$filter['fast']."%'
 					 OR `telefon` LIKE '%".$filter['fast']."%'
+					 OR `adres` LIKE '%".$filter['fast']."%'
 					 ".($engRus ?
-                "OR `fio` LIKE '%".$engRus."%'
-							OR `telefon` LIKE '%".$engRus."%'"
+                        "OR `fio` LIKE '%".$engRus."%'
+					    OR `telefon` LIKE '%".$engRus."%'
+						OR `adres` LIKE '%".$engRus."%'"
                 : '')."
 					 )";
         $reg = '/('.$filter['fast'].')/i';
@@ -594,17 +642,22 @@ function client_data($page=1, $filter=array()) {
 			LIMIT ".$start.",".$limit;
     $q = query($sql);
     while($r = mysql_fetch_assoc($q)) {
+        $spisok[$r['id']] = $r;
+        unset($spisok[$r['id']]['adres']);
         if(!empty($filter['fast'])) {
             if(preg_match($reg, $r['fio']))
-                $r['fio'] = preg_replace($reg, '<em>\\1</em>', $r['fio'], 1);
+                $spisok[$r['id']]['fio'] = preg_replace($reg, '<em>\\1</em>', $r['fio'], 1);
             if(preg_match($reg, $r['telefon']))
-                $r['telefon'] = preg_replace($reg, '<em>\\1</em>', $r['telefon'], 1);
+                $spisok[$r['id']]['telefon'] = preg_replace($reg, '<em>\\1</em>', $r['telefon'], 1);
+            if(preg_match($reg, $r['adres']))
+                $spisok[$r['id']]['adres'] = preg_replace($reg, '<em>\\1</em>', $r['adres'], 1);
             if($regEngRus && preg_match($regEngRus, $r['fio']))
-                $r['fio'] = preg_replace($regEngRus, '<em>\\1</em>', $r['fio'], 1);
+                $spisok[$r['id']]['fio'] = preg_replace($regEngRus, '<em>\\1</em>', $r['fio'], 1);
             if($regEngRus && preg_match($regEngRus, $r['telefon']))
-                $r['telefon'] = preg_replace($regEngRus, '<em>\\1</em>', $r['telefon'], 1);
+                $spisok[$r['id']]['telefon'] = preg_replace($regEngRus, '<em>\\1</em>', $r['telefon'], 1);
+            if($regEngRus && preg_match($regEngRus, $r['adres']))
+                $spisok[$r['id']]['adres'] = preg_replace($regEngRus, '<em>\\1</em>', $r['adres'], 1);
         }
-        $spisok[$r['id']] = $r;
     }
 
     /*   $sql = "SELECT
@@ -623,11 +676,12 @@ function client_data($page=1, $filter=array()) {
         $send['spisok'] .= '<div class="unit">'.
             ($r['balans'] ? '<div class="balans">Баланс: <b style=color:#'.($r['balans'] < 0 ? 'A00' : '090').'>'.$r['balans'].'</b></div>' : '').
             '<table>'.
-            '<tr><td class="label">Имя:<td><a href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>'.
-            ($r['telefon'] ? '<tr><td class="label">Телефон:<td>'.$r['telefon'] : '').
-            (isset($r['zayav_count']) ? '<tr><td class="label">Заявки:<td>'.$r['zayav_count'] : '').
+                '<tr><td class="label">Имя:<td><a href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>'.
+                ($r['telefon'] ? '<tr><td class="label">Телефон:<td>'.$r['telefon'] : '').
+                (isset($r['adres']) ? '<tr><td class="label">Адрес:<td>'.$r['adres'] : '').
+                (isset($r['zayav_count']) ? '<tr><td class="label">Заявки:<td>'.$r['zayav_count'] : '').
             '</table>'.
-            '</div>';
+        '</div>';
     if($start + $limit < $send['all']) {
         $c = $send['all'] - $start - $limit;
         $c = $c > $limit ? $limit : $c;
@@ -637,19 +691,19 @@ function client_data($page=1, $filter=array()) {
 }//end of client_data()
 function client_list($data) {
     return
-        '<div id="client">'.
+    '<div id="client">'.
         '<div id="find"></div>'.
         '<div class="result">'.client_count($data['all']).'</div>'.
         '<table class="tabLR">'.
-        '<tr><td class="left">'.$data['spisok'].
-        '<td class="right">'.
-        '<div id="buttonCreate"><a>Новый клиент</a></div>'.
-        '<div class="filter">'.
-        _checkbox('dolg', 'Должники').
-        _checkbox('active', 'С активными заявками').
-        '</div>'.
+            '<tr><td class="left">'.$data['spisok'].
+                '<td class="right">'.
+                    '<div id="buttonCreate"><a>Новый клиент</a></div>'.
+                    '<div class="filter">'.
+                        _checkbox('dolg', 'Должники').
+                        _checkbox('active', 'С активными заявками').
+                    '</div>'.
         '</table>'.
-        '</div>';
+    '</div>';
 }//end of client_list()
 function client_count($count, $dolg=0) {
     if($dolg)
@@ -660,12 +714,223 @@ function client_count($count, $dolg=0) {
         :
         'Клиентов не найдено');
 }//end of client_count()
-
 function client_info() {}
 
 
-// ---===! zayav !===--- Секция заявок
 
-function zayav_list() {
-    return 'Заявки';
-}//end of client_list()
+// ---===! zayav !===--- Секция заявок
+function _zayavStatus($id=false) {
+    $arr = array(
+        '1' => array(
+            'name' => 'Ожидает выполнения',
+            'color' => 'E8E8FF'
+        ),
+        '2' => array(
+            'name' => 'Выполнено!',
+            'color' => 'CCFFCC'
+        ),
+        '3' => array(
+            'name' => 'Отказ',
+            'color' => 'FFDDDD'
+        )
+    );
+    return $id ? $arr[$id] : $arr;
+}//end of _zayavStatus()
+
+function zayav_add($v=array()) {
+    return
+    '<script type="text/javascript">var product='._product(false, 'json').';</script>'.
+    '<div id="zayavAdd">'.
+        '<div class="headName">Внесение новой заявки</div>'.
+        '<table style="border-spacing:8px">'.
+            '<tr><td class="label">Клиент:         <td><INPUT TYPE="hidden" id="client_id" value="'.$v['client_id'].'" />'.
+            '<tr><td class="label">Номер договора: <td><INPUT type="text" id="nomer_dog" maxlength="30" />'.
+            '<tr><td class="label">Номер ВГ:       <td><INPUT type="text" id="nomer_vg" maxlength="30" />'.
+            '<tr><td class="label">Изделие:        <td><INPUT type="hidden" id="product_id" value="0" />'.
+                '<a href="'.URL.'&p=setup&d=product" class="img_edit product_edit" title="Настроить список изделий"></a>'.
+            '<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres_set" maxlength="100" />'.
+            '<tr><td class="label top">Заметка:    <td><textarea id="comm"></textarea>'.
+        '</table>'.
+        '<div class="vkButton"><button>Внести</button></div>'.
+        '<div class="vkCancel" val="'.$v['back'].'"><button>Отмена</button></div>'.
+    '</div>';
+}//end of zayav_add()
+
+function zayavFilter($v) {
+    if(empty($v['status']) || !preg_match(REGEXP_NUMERIC, $v['status']))
+        $v['status'] = 0;
+    if(empty($v['client']) || !preg_match(REGEXP_NUMERIC, $v['client']))
+        $v['client'] = 0;
+
+    $filter = array();
+    $filter['find'] = htmlspecialchars(trim(@$v['find']));
+    $filter['status'] = intval($v['status']);
+    if($v['client'] > 0)
+        $filter['client'] = intval($v['client']);
+    return $filter;
+}//end of zayavFilter()
+function zayav_data($page=1, $filter=array(), $limit=20) {
+    $cond = "`status`>0";
+
+    if(!empty($filter['find'])) {
+        $cond .= " AND `find` LIKE '%".$filter['find']."%'";
+        if($page ==1 && preg_match(REGEXP_NUMERIC, $filter['find']))
+            $nomer = intval($filter['find']);
+        $reg = '/('.$filter['find'].')/i';
+    } else {
+        if(isset($filter['status']) && $filter['status'] > 0)
+            $cond .= " AND `zayav_status`=".$filter['status'];
+        if(isset($filter['client']) && $filter['client'] > 0)
+            $cond .= " AND `client_id`=".$filter['client'];
+    }
+    $zayav = array();
+    $client = array();
+
+    $send['all'] = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE ".$cond." LIMIT 1");
+    if($send['all'] == 0)
+        return $send;
+
+    $start = ($page - 1) * $limit;
+    $sql = "SELECT *
+			FROM `zayav`
+			WHERE ".$cond."
+			ORDER BY `id` DESC
+			LIMIT ".$start.",".$limit;
+    $q = query($sql);
+    while($r = mysql_fetch_assoc($q)) {
+        if(isset($nomer) && $nomer == $r['nomer'])
+            continue;
+        $zayav[$r['id']] = $r;
+        $client[$r['client_id']] = $r['client_id'];
+    }
+
+    if(empty($filter['client']))
+        $client = _clientLink($client);
+    $status = _zayavStatus();
+
+    foreach($zayav as $id => $r) {
+        $unit = array(
+            'status_color' => $status[$r['status']]['color'],
+            'product_id' => $r['product_id'],
+            'dtime' => FullData($r['dtime_add'], 1)
+        );
+        if(empty($filter['client']))
+            $unit['client'] = $client[$r['client_id']];
+        $send['spisok'][$id] = $unit;
+    }
+    $send['limit'] = $limit;
+    if($start + $limit < $send['all'])
+        $send['next'] = $page + 1;
+    return $send;
+}//end of zayav_data()
+function zayav_count($count, $filter_break_show=true) {
+    return
+        ($filter_break_show ? '<a id="filter_break">Сбросить условия поиска</a>' : '').
+        ($count > 0 ?
+            'Показан'._end($count, 'а', 'о').' '.$count.' заяв'._end($count, 'ка', 'ки', 'ок')
+            :
+            'Заявок не найдено');
+}//end of zayav_count()
+function zayav_list($data, $values) {
+    return
+    '<div id="zayav">'.
+        '<div class="result">'.zayav_count($data['all']).'</div>'.
+        '<table class="tabLR">'.
+            '<tr><td id="spisok">'.zayav_spisok($data).
+                '<td class="right">'.
+                '<div id="buttonCreate"><a HREF="'.URL.'&p=zayav&d=add&back=zayav">Новая заявка</a></div>'.
+                '<div id="find"></div>'.
+                '<div class="findHead">Порядок</div>'.
+//                _radio('sort', array(1=>'По дате добавления',2=>'По обновлению статуса'), $values['sort']).
+//                _checkbox('desc', 'Обратный порядок', $values['desc']).
+                '<div class="condLost'.(!empty($values['find']) ? ' hide' : '').'">'.
+                    '<div class="findHead">Статус заявки</div><div id="status"></div>'.
+                '</div>'.
+        '</table>'.
+    '</div>'.
+    '<script type="text/javascript">'.
+        'var zayav = {'.
+            'find:"'.unescape($values['find']).'",'.
+            'status:'.$values['status'].
+        '};'.
+    '</script>';
+}//end of zayav_list()
+function zayav_spisok($data) {
+    if(!isset($data['spisok']))
+        return '<div class="_empty">Заявок не найдено.</div>';
+    $send = '';
+    foreach($data['spisok'] as $id => $r)
+        $send .=
+        '<div class="zayav_unit" style="background-color:#'.$r['status_color'].'" val="'.$id.'">'.
+            '<h2>#'.$id.'</h2>'.
+//            '<a class="name">'..'</a>'.
+            '<table style="border-spacing:2px">'.
+                (isset($r['client']) ? '<tr><td class="label">Клиент:<td>'.$r['client'] : '').
+                '<tr><td class="label">Изделие:<td>'._product($r['product_id']).
+                '<tr><td class="label">Дата подачи:<td>'.$r['dtime'].
+            '</table>'.
+        '</div>';
+    if(isset($data['next']))
+        $send .= '<div class="ajaxNext" val="'.($data['next']).'"><span>Следующие '.$data['limit'].' заявок</span></div>';
+    return $send;
+}//end of zayav_spisok()
+
+function zayav_info() {
+    return '';
+}//end of zayav_info()
+
+
+
+
+function setup() {
+    switch(@$_GET['d']) {
+        default: $_GET['d'] = 'worker';
+        case 'worker': $left = setup_worker(); break;
+        case 'product': $left = setup_product(); break;
+    }
+    $right = '<div class="rightLinks">'.
+        '<a href="'.URL.'&p=setup&d=worker"'.(@$_GET['d'] == 'worker' ? ' class="sel"' : '').'>Сотрудники</a>'.
+        '<a href="'.URL.'&p=setup&d=product"'.(@$_GET['d'] == 'product' ? ' class="sel"' : '').'>Изделия</a>'.
+    '</div>';
+    return
+    '<div id="setup">'.
+        '<table class="tabLR">'.
+            '<tr><td class="left">'.$left.
+                '<td class="right">'.$right.
+        '</table>'.
+    '</div>';
+}//end of setup()
+function setup_worker() {
+    return
+    '<div id="setup_worker">'.
+        '<div class="headName">Управление сотрудниками</div>'.
+    '</div>';
+}//end of setup_worker()
+function setup_product() {
+    return
+    '<div id="setup_product">'.
+        '<div class="headName">Настройки видов изделий<a class="add">Добавить</a></div>'.
+        '<div class="spisok">'.setup_product_spisok().'</div>'.
+    '</div>';
+}//end of setup_product()
+function setup_product_spisok() {
+    $sql = "SELECT * FROM `setup_product` ORDER BY `sort`";
+    $q = query($sql);
+    $send = '';
+    if(mysql_num_rows($q)) {
+        $send =
+        '<table class="_spisok">'.
+            '<tr><th class="name">Наименование'.
+                '<th class="set">'.
+        '</table>'.
+        '<dl class="_sort" val="setup_product">';
+        while($r = mysql_fetch_assoc($q))
+            $send .='<dd val="'.$r['id'].'">'.
+                '<table class="_spisok">'.
+                    '<tr><td class="name">'.$r['name'].
+                        '<td class="set"><div class="img_edit"></div><div class="img_del"></div>'.
+                '</table>';
+        $send .= '</dl>';
+    }
+    return $send ? $send : 'Список пуст.';
+}//end of setup_product_spisok()

@@ -21,6 +21,26 @@ var REGEXP_NUMERIC = /^\d+$/,
         exdate.setDate(exdate.getDate()-1);
         document.cookie = name + '=; path=/; expires=' + exdate.toGMTString();
     },
+    sortable = function() {
+        $('._sort').sortable({
+            axis:'y',
+            update:function () {
+                var dds = $(this).find('dd'),
+                    arr = [];
+                for(var n = 0; n < dds.length; n++)
+                    arr.push(dds.eq(n).attr('val'));
+                var send = {
+                    op:'sort',
+                    table:$(this).attr('val'),
+                    ids:arr.join()
+                };
+                $('#mainLinks').addClass('busy');
+                $.post(AJAX_MAIN, send, function(res) {
+                    $('#mainLinks').removeClass('busy');
+                }, 'json');
+            }
+        });
+    },
     _end = function(count, arr) {
         if(arr.length == 2)
             arr.push(arr[1]);
@@ -135,6 +155,52 @@ var REGEXP_NUMERIC = /^\d+$/,
         }, 'json');
     };
 
+$.fn.clientSel = function(obj) {
+    var t = $(this);
+    obj = $.extend({
+        width:240,
+        add:null,
+        client_id:t.val() || 0
+    }, obj);
+
+    if(obj.add)
+        obj.add = function() {
+            clientAdd(function(res) {
+                sel.add(res).val(res.uid)
+            });
+        };
+
+    var sel = t.vkSel({
+        width:obj.width,
+        title0:'Начните вводить данные клиента...',
+        spisok:[],
+        ro:0,
+        nofind:'Клиентов не найдено',
+        funcAdd:obj.add,
+        funcKeyup:clientsGet
+    }).o;
+    sel.process();
+    clientsGet();
+
+    function clientsGet(val) {
+        var send = {
+            op:'client_sel',
+            val:val ? val : '',
+            client_id:obj.client_id
+        };
+        $.post(AJAX_MAIN, send, function(res) {
+            if(res.success) {
+                sel.spisok(res.spisok);
+                if(obj.client_id > 0) {
+                    sel.val(obj.client_id)
+                    obj.client_id = 0;
+                }
+            }
+        }, 'json');
+    }
+    return t;
+};
+
 $(document)
     .ajaxError(function(event, request, settings) {
         if(!request.responseText)
@@ -154,6 +220,126 @@ $(document)
         setCookie('debug', d == 0 ? 1 : 0);
         _msg('Debug включен.');
         document.location.reload();
+    })
+
+    .on('click', '#setup_product .add', function() {
+        var t = $(this),
+            html = '<table style="border-spacing:10px">' +
+                '<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" />' +
+                '</table>',
+            dialog = _dialog({
+                top:60,
+                width:390,
+                head:'Добавление нового наименования изделия',
+                content:html,
+                submit:submit
+            });
+        $('#name').focus().keyEnter(submit);
+        function submit() {
+            var send = {
+                op:'setup_product_add',
+                name:$('#name').val()
+            };
+            if(!send.name) {
+                dialog.bottom.vkHint({
+                    msg:'<SPAN class=red>Не указано наименование</SPAN>',
+                    top:-47,
+                    left:131,
+                    indent:50,
+                    show:1,
+                    remove:1
+                });
+                $('#name').focus();
+            } else {
+                dialog.process();
+                $.post(AJAX_MAIN, send, function(res) {
+                    if(res.success) {
+                        $('.spisok').html(res.html);
+                        dialog.close();
+                        _msg('Внесено!');
+                        sortable();
+                    } else
+                        dialog.abort();
+                }, 'json');
+            }
+        }
+    })
+    .on('click', '#setup_product .img_edit', function() {
+        var t = $(this);
+        while(t[0].tagName != 'DD')
+            t = t.parent();
+        var id = t.attr('val'),
+            name = t.find('.name').html(),
+            html = '<table style="border-spacing:10px">' +
+                '<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" value="' + name + '" />' +
+                '</table>',
+            dialog = _dialog({
+                top:60,
+                width:390,
+                head:'Редактирование наименования изделия',
+                content:html,
+                butSubmit:'Сохранить',
+                submit:submit
+            });
+        $('#name').focus().keyEnter(submit);
+        function submit() {
+            var send = {
+                op:'setup_product_edit',
+                id:id,
+                name:$('#name').val()
+            };
+            if(!send.name) {
+                dialog.bottom.vkHint({
+                    msg:'<SPAN class=red>Не указано наименование</SPAN>',
+                    top:-47,
+                    left:131,
+                    indent:50,
+                    show:1,
+                    remove:1
+                });
+                $('#name').focus();
+            } else {
+                dialog.process();
+                $.post(AJAX_MAIN, send, function(res) {
+                    if(res.success) {
+                        $('.spisok').html(res.html);
+                        dialog.close();
+                        _msg('Внесено!');
+                        sortable();
+                    } else
+                        dialog.abort();
+                }, 'json');
+            }
+        }
+    })
+    .on('click', '#setup_product .img_del', function() {
+        var t = $(this),
+            dialog = _dialog({
+                top:90,
+                width:300,
+                head:'Удаление изделия',
+                content:'<center><b>Подтвердите удаление изделия.</b></center>',
+                butSubmit:'Удалить',
+                submit:submit
+            });
+        function submit() {
+            while(t[0].tagName != 'DD')
+                t = t.parent();
+            var send = {
+                op:'setup_product_del',
+                id:t.attr('val')
+            };
+            dialog.process();
+            $.post(AJAX_MAIN, send, function(res) {
+                if(res.success) {
+                    $('.spisok').html(res.html);
+                    dialog.close();
+                    _msg('Удалено!');
+                    sortable();
+                } else
+                    dialog.abort();
+            }, 'json');
+        }
     });
 
 $(document).ready(function() {
@@ -163,6 +349,7 @@ $(document).ready(function() {
     VK.callMethod('scrollSubscribe');
     VK.addCallback('onScroll', function(top) { VK_SCROLL = top; });
 
+    sortable();
     _fbhs();
 
     if($('#client').length > 0) {
@@ -197,4 +384,50 @@ $(document).ready(function() {
             correct:0
         });
     }
+
+    if($('#zayavAdd').length > 0) {
+        $('#client_id').clientSel({add:1});
+        $('#product_id').vkSel({
+            width:142,
+            display:'inline-block',
+            title0:'Изделие не указано',
+            spisok:product
+        });
+        $('#comm').autosize();
+        $('.vkCancel').click(function() {
+            location.href = URL + '&p=' + $(this).attr('val');
+        });
+        $('.vkButton').click(function () {
+            var send = {
+                op:'zayav_add',
+                client_id:$('#client_id').val(),
+                nomer_dog:$('#nomer_dog').val(),
+                nomer_vg:$('#nomer_vg').val(),
+                product_id:$('#product_id').val(),
+                adres_set:$('#adres_set').val(),
+                comm:$('#comm').val()
+            };
+
+            var msg = '';
+            if(send.client == 0) msg = 'Не выбран клиент';
+            else {
+                $(this).addClass('busy');
+                $.post(AJAX_MAIN, send, function(res) {
+                    location.href = URL + '&p=zayav&d=info&id=' + res.id;
+                }, 'json');
+            }
+
+            if(msg)
+                $(this).vkHint({
+                    msg:'<SPAN class="red">' + msg + '</SPAN>',
+                    top:-48,
+                    left:201,
+                    indent:30,
+                    remove:1,
+                    show:1,
+                    correct:0
+                });
+        });
+    }
+
 });

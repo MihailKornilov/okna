@@ -10,6 +10,27 @@ switch(@$_POST['op']) {
         jsonSuccess();
         break;
 
+    case 'sort':
+        if(!preg_match(REGEXP_MYSQLTABLE, $_POST['table']))
+            jsonError();
+        $table = htmlspecialchars(trim($_POST['table']));
+        $sql = "SHOW TABLES LIKE '".$table."'";
+        if(!mysql_num_rows(query($sql)))
+            jsonError();
+
+        $sort = explode(',', $_POST['ids']);
+        if(empty($sort))
+            jsonError();
+        for($n = 0; $n < count($sort); $n++)
+            if(!preg_match(REGEXP_NUMERIC, $sort[$n]))
+                jsonError();
+
+        for($n = 0; $n < count($sort); $n++)
+            query("UPDATE `".$table."` SET `sort`=".$n." WHERE `id`=".intval($sort[$n]));
+        _cacheClear();
+        jsonSuccess();
+        break;
+
     case 'vkcomment_add':
         $table = htmlspecialchars(trim($_POST['table']));
         if(strlen($table) > 20)
@@ -124,6 +145,36 @@ switch(@$_POST['op']) {
         jsonSuccess();
         break;
 
+    case 'client_sel':
+        if(!preg_match(REGEXP_WORDFIND, win1251($_POST['val'])))
+            $_POST['val'] = '';
+        if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']))
+            $_POST['client_id'] = 0;
+        $val = win1251($_POST['val']);
+        $client_id = intval($_POST['client_id']);
+        $sql = "SELECT *
+                FROM `client`
+                WHERE `id`".
+                    (!empty($val) ? " AND (`fio` LIKE '%".$val."%' OR `telefon` LIKE '%".$val."%' OR `adres` LIKE '%".$val."%')" : '').
+                    ($client_id > 0 ? " AND `id`<=".$client_id : '')."
+                ORDER BY `id` DESC
+                LIMIT 50";
+        $q = query($sql);
+        $send['spisok'] = array();
+        while($r = mysql_fetch_assoc($q)) {
+            $unit = array(
+                'uid' => $r['id'],
+                'title' => utf8($r['fio'])
+            );
+            if($r['telefon'] || $r['adres'])
+                $unit['content'] = utf8($r['fio'].'<div class="pole2">'.
+                    $r['telefon'].
+                    ($r['adres'] ? '<br />'.$r['adres'] : '').
+                '</div>');
+            $send['spisok'][] = $unit;
+        }
+        jsonSuccess($send);
+        break;
     case 'client_add':
         $fio = win1251(htmlspecialchars(trim($_POST['fio'])));
         $telefon = win1251(htmlspecialchars(trim($_POST['telefon'])));
@@ -164,6 +215,98 @@ switch(@$_POST['op']) {
             jsonError();
         $send = client_data(intval($_POST['page']), clientFilter($_POST));
         $send['spisok'] = utf8($send['spisok']);
+        jsonSuccess($send);
+        break;
+
+    case 'zayav_add':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
+            jsonError();
+        if(!preg_match(REGEXP_NUMERIC, $_POST['product_id']))
+            jsonError();
+        $client_id = intval($_POST['client_id']);
+        $nomer_dog = win1251(htmlspecialchars(trim($_POST['nomer_dog'])));
+        $nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
+        $product_id = intval($_POST['product_id']);
+        $adres_set = win1251(htmlspecialchars(trim($_POST['adres_set'])));
+        $comm = win1251(htmlspecialchars(trim($_POST['comm'])));
+
+        $sql = "INSERT INTO `zayav` (
+                    `client_id`,
+                    `nomer_dog`,
+                    `nomer_vg`,
+                    `product_id`,
+                    `adres_set`,
+                    `viewer_id_add`
+                ) VALUES (
+                    ".$client_id.",
+                    '".$nomer_dog."',
+                    '".$nomer_vg."',
+                    ".$product_id.",
+                    '".$adres_set."',
+                    ".VIEWER_ID."
+                )";
+        query($sql);
+        $send['id'] = mysql_insert_id();
+
+        if($comm) {
+            $sql = "INSERT INTO `vk_comment` (
+                        `table_name`,
+                        `table_id`,
+                        `txt`,
+                        `viewer_id_add`
+                    ) VALUES (
+                        'zayav',
+                        ".$send['id'].",
+                        '".$comm."',
+                        ".VIEWER_ID."
+                    )";
+            query($sql);
+        }
+        jsonSuccess($send);
+        break;
+
+    case 'setup_product_add':
+        $name = win1251(htmlspecialchars(trim($_POST['name'])));
+        if(empty($name))
+            jsonError();
+        $sort = query_value("SELECT IFNULL(MAX(`sort`)+1,0) FROM `setup_product`");
+        $sql = "INSERT INTO `setup_product` (
+                    `name`,
+                    `sort`,
+                    `viewer_id_add`
+                ) VALUES (
+                    '".addslashes($name)."',
+                    ".$sort.",
+                    ".VIEWER_ID."
+                )";
+        query($sql);
+        xcache_unset(CACHE_PREFIX.'product_name');
+        $send['html'] = utf8(setup_product_spisok());
+        jsonSuccess($send);
+        break;
+    case 'setup_product_edit':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+            jsonError();
+        $id = intval($_POST['id']);
+        $name = win1251(htmlspecialchars(trim($_POST['name'])));
+        if(empty($name))
+            jsonError();
+        $sql = "UPDATE `setup_product` SET `name`='".addslashes($name)."' WHERE `id`=".$id;
+        query($sql);
+        xcache_unset(CACHE_PREFIX.'product_name');
+        $send['html'] = utf8(setup_product_spisok());
+        jsonSuccess($send);
+        break;
+    case 'setup_product_del':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+            jsonError();
+        $id = intval($_POST['id']);
+        if(query_value("SELECT COUNT(`id`) FROM `zayav` WHERE `product_id`=".$id))
+            jsonError();
+        $sql = "DELETE FROM `setup_product` WHERE `id`=".$id;
+        query($sql);
+        xcache_unset(CACHE_PREFIX.'product_name');
+        $send['html'] = utf8(setup_product_spisok());
         jsonSuccess($send);
         break;
 }
