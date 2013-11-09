@@ -217,6 +217,37 @@ switch(@$_POST['op']) {
         $send['spisok'] = utf8($send['spisok']);
         jsonSuccess($send);
         break;
+    case 'client_edit':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
+            jsonError();
+        $client_id = intval($_POST['client_id']);
+        $fio = win1251(htmlspecialchars(trim($_POST['fio'])));
+        $telefon = win1251(htmlspecialchars(trim($_POST['telefon'])));
+        $adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+        if(empty($fio))
+            jsonError();
+        query("UPDATE `client` SET
+                `fio`='".$fio."',
+                `telefon`='".$telefon."',
+                `adres`='".$adres."'
+               WHERE `id`=".$client_id);
+/*        history_insert(array(
+            'type' => $join ? 11 : 10,
+            'client_id' => $client_id
+        ));*/
+        jsonSuccess();
+        break;
+    case 'client_del':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+            jsonError();
+        $id = intval($_POST['id']);
+        if(!query_value("SELECT COUNT(`id`) FROM `client` WHERE `status`=1 AND `id`=".$id))
+            jsonError();
+        query("UPDATE `client` SET `status`=0 WHERE `id`=".$id);
+        query("UPDATE `zayav` SET `status`=0 WHERE `client_id`=".$id);
+        query("UPDATE `money` SET `status`=0 WHERE `client_id`=".$id);
+        jsonSuccess();
+        break;
 
     case 'zayav_add':
         if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)

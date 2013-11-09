@@ -596,7 +596,7 @@ function clientFilter($v) {
     return $filter;
 }//end of clientFilter()
 function client_data($page=1, $filter=array()) {
-    $cond = "`id`";
+    $cond = "`status`=1";
     $reg = '';
     $regEngRus = '';
     if(!empty($filter['fast'])) {
@@ -714,7 +714,85 @@ function client_count($count, $dolg=0) {
         :
         'Клиентов не найдено');
 }//end of client_count()
-function client_info() {}
+
+function client_info($client_id) {
+    $sql = "SELECT * FROM `client` WHERE `status`=1 AND `id`=".$client_id;
+    if(!$client = mysql_fetch_assoc(query($sql)))
+        return 'Клиента не существует';
+
+    $zayavData = zayav_data(1, array('client'=>$client_id), 10);
+    $commCount = query_value("SELECT COUNT(`id`)
+							  FROM `vk_comment`
+							  WHERE `status`=1
+								AND `parent_id`=0
+								AND `table_name`='client'
+								AND `table_id`=".$client_id);
+
+    $sql = "SELECT * FROM `money` WHERE `status`=1 AND `client_id`=".$client_id;
+    $q = query($sql);
+    $moneyCount = mysql_num_rows($q);
+    $money = '<div class="_empty">Платежей нет.</div>';
+    if($moneyCount) {
+        $money = '<table class="_spisok _money">'.
+            '<tr><th class="sum">Сумма'.
+            '<th>Описание'.
+            '<th class="data">Дата';
+        while($r = mysql_fetch_assoc($q)) {
+            $about = '';
+            if($r['zayav_id'] > 0)
+                $about .= 'Заявка '.$r['zayav_id'].'. ';
+            $about .= $r['prim'];
+            $money .= '<tr><td class="sum"><b>'.$r['summa'].'</b>'.
+                '<td>'.$about.
+                '<td class="dtime" title="Внёс: '._viewerName($r['viewer_id_add']).'">'.FullDataTime($r['dtime_add']);
+        }
+        $money .= '</table>';
+    }
+   // $remindData = remind_data(1, array('client'=>$client_id));
+
+    return
+    '<script type="text/javascript">'.
+        'CLIENT={'.
+            'id:'.$client_id.
+        '};'.
+    '</script>'.
+    '<div id="clientInfo">'.
+        '<table class="tabLR">'.
+            '<tr><td class="left">'.
+                    '<div class="fio">'.$client['fio'].'</div>'.
+                    '<div class="cinf">'.
+                        '<table style="border-spacing:2px">'.
+                            '<tr><td class="label">Телефон:<td class="telefon">'.$client['telefon'].'</TD>'.
+                            '<tr><td class="label">Адрес:  <td class="adres">'.$client['adres'].'</TD>'.
+                            '<tr><td class="label">Баланс: <td><b style=color:#'.($client['balans'] < 0 ? 'A00' : '090').'>'.$client['balans'].'</b>'.
+                        '</table>'.
+                        '<div class="dtime">Клиента внёс '._viewerName($client['viewer_id_add']).' '.FullData($client['dtime_add'], 1).'</div>'.
+                    '</div>'.
+                    '<div id="dopLinks">'.
+                        '<a class="link sel" val="zayav">Заявки'.($zayavData['all'] ? ' ('.$zayavData['all'].')' : '').'</a>'.
+                        '<a class="link" val="money">Платежи'.($moneyCount ? ' ('.$moneyCount.')' : '').'</a>'.
+                        '<a class="link" val="remind">Задания'.(!empty($remindData) ? ' ('.$remindData['all'].')' : '').'</a>'.
+                        '<a class="link" val="comm">Заметки'.($commCount ? ' ('.$commCount.')' : '').'</a>'.
+                    '</div>'.
+                    '<div id="zayav_spisok">'.zayav_spisok($zayavData).'</div>'.
+                    '<div id="money_spisok">'.$money.'</div>'.
+                    '<div id="remind_spisok">'.(!empty($remindData) ? report_remind_spisok($remindData) : '<div class="_empty">Заданий нет.</div>').'</div>'.
+                    '<div id="comments">'._vkComment('client', $client_id).'</div>'.
+                '<td class="right">'.
+                    '<div class="rightLinks">'.
+                        '<a class="sel">Информация</a>'.
+                        '<a class="cedit">Редактировать</a>'.
+                        '<a href="'.URL.'&p=zayav&d=add&back=client&id='.$client_id.'"><b>Новая заявка</b></a>'.
+                        '<a class="remind_add">Новое задание</a>'.
+                        '<a class="cdel">Удалить клиента</a>'.
+                    '</div>'.
+                    '<div id="zayav_filter">'.
+                        '<div id="zayav_result">'.zayav_count($zayavData['all'], 0).'</div>'.
+                        '<div class="findHead">Статус заявки</div><div id="zayav_status"></div>'.
+                    '</div>'.
+        '</table>'.
+    '</div>';
+}//end of client_info()
 
 
 

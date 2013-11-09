@@ -384,6 +384,95 @@ $(document).ready(function() {
             correct:0
         });
     }
+    if($('#clientInfo').length > 0) {
+        $('#dopLinks .link').click(function() {
+            $('#dopLinks .link').removeClass('sel');
+            $(this).addClass('sel');
+            var val = $(this).attr('val');
+            $('.res').css('display', val == 'zayav' ? 'block' : 'none');
+            $('#zayav_filter').css('display', val == 'zayav' ? 'block' : 'none');
+            $('#zayav_spisok').css('display', val == 'zayav' ? 'block' : 'none');
+            $('#money_spisok').css('display', val == 'money' ? 'block' : 'none');
+            $('#remind_spisok').css('display', val == 'remind' ? 'block' : 'none');
+            $('#comments').css('display', val == 'comm' ? 'block' : 'none');
+        });
+        $('.cedit').click(function() {
+            var html = '<TABLE class="client_edit">' +
+                '<tr><td class="label">Имя:<TD><input type="text" id="fio" value="' + $('.fio').html() + '">' +
+                '<tr><td class="label">Телефон:<TD><input type="text" id="telefon" value="' + $('.telefon').html() + '">' +
+                '<tr><td class="label">Адрес:<TD><input type="text" id="adres" value="' + $('.adres').html() + '">' +
+                '</TABLE>';
+            var dialog = _dialog({
+                head:'Редактирование данных клиента',
+                top:60,
+                width:380,
+                content:html,
+                butSubmit:'Сохранить',
+                submit:submit
+            });
+            $('#fio,#telefon,#adres').keyEnter(submit);
+            function submit() {
+                var msg,
+                    send = {
+                        op:'client_edit',
+                        client_id:CLIENT.id,
+                        fio:$.trim($('#fio').val()),
+                        telefon:$.trim($('#telefon').val()),
+                        adres:$.trim($('#adres').val())
+                    };
+                if(!send.fio) {
+                    msg = 'Не указано имя клиента.';
+                    $("#fio").focus();
+                } else {
+                    dialog.process();
+                    $.post(AJAX_MAIN, send, function(res) {
+                        if(res.success) {
+                            $('.fio').html(send.fio);
+                            $('.telefon').html(send.telefon);
+                            $('.adres').html(send.adres);
+                            dialog.close();
+                            _msg('Данные клиента изменены.');
+                        } else
+                            dialog.abort();
+                    }, 'json');
+                }
+                if(msg)
+                    dialog.bottom.vkHint({
+                        msg:'<SPAN class=red>' + msg + '</SPAN>',
+                        top:-47,
+                        left:100,
+                        indent:50,
+                        show:1,
+                        remove:1
+                    });
+            }
+        });
+        $('.cdel').click(function() {
+            var dialog = _dialog({
+                top:90,
+                width:300,
+                head:'Удаление клиента',
+                content:'<center>Внимание!<br />Будут удалены все данные о клиенте,<br />его заявки, платежи и задачи.<br /><b>Подтвердите удаление.</b></center>',
+                butSubmit:'Удалить',
+                submit:submit
+            });
+            function submit() {
+                var send = {
+                    op:'client_del',
+                    id:CLIENT.id
+                };
+                dialog.process();
+                $.post(AJAX_MAIN, send, function(res) {
+                    if(res.success) {
+                        dialog.close();
+                        _msg('Клиент удален!');
+                        location.href = URL + '&p=client';
+                    } else
+                        dialog.abort();
+                }, 'json');
+            }
+        });
+    }
 
     if($('#zayavAdd').length > 0) {
         $('#client_id').clientSel({add:1});
@@ -429,5 +518,4 @@ $(document).ready(function() {
                 });
         });
     }
-
 });

@@ -29,7 +29,7 @@ switch($_GET['p']) {
                 );
                 if(isset($_GET['id']) && preg_match(REGEXP_NUMERIC, $_GET['id']) && $_GET['id'] > 0)
                     $v['client_id'] = intval($_GET['id']);
-                if(@$_GET['id'] == 'client' && $v['client_id'] > 0)
+                if(@$_GET['back'] == 'client' && $v['client_id'] > 0)
                     $v['back'] = 'client&d=info&id='.$v['client_id'];
                 $html .= zayav_add($v);
                 break;

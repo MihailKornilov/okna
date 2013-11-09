@@ -1,23 +1,21 @@
 <?php
 define('TIME', microtime(true));
-
-$SA[982006] = 1; // Корнилов Михаил
-define('SA', isset($SA[$_GET['viewer_id']]));
-if(SA) { ini_set('display_errors',1); error_reporting(E_ALL); }
-
 define('DEBUG', @$_COOKIE['debug'] != 0);
 define('DOCUMENT_ROOT', dirname(__FILE__));
 define('NAMES', 'cp1251');
 define('DOMAIN', $_SERVER["SERVER_NAME"]);
 define('LOCAL', DOMAIN == 'okna');
-define('SA_VIEWER_ID', SA && @$_COOKIE['sa_viewer_id'] ? intval($_COOKIE['sa_viewer_id']) : 0);
-define('VIEWER_ID', SA_VIEWER_ID ? SA_VIEWER_ID : $_GET['viewer_id']);
-define('VALUES', 'viewer_id='.$_GET['viewer_id'].
+define('VIEWER_ID', $_GET['viewer_id']);
+define('VALUES', 'viewer_id='.VIEWER_ID.
     '&api_id='.@$_GET['api_id'].
-        '&auth_key='.@$_GET['auth_key'].
-            '&sid='.@$_GET['sid']);
+    '&auth_key='.@$_GET['auth_key'].
+    '&sid='.@$_GET['sid']);
 define('SITE', 'http://'.DOMAIN);
 define('URL', SITE.'/index.php?'.VALUES);
+
+$SA[982006] = 1; // Корнилов Михаил
+define('SA', isset($SA[VIEWER_ID]));
+if(SA) { ini_set('display_errors',1); error_reporting(E_ALL); }
 
 require_once(DOCUMENT_ROOT.'/syncro.php');
 require_once(DOCUMENT_ROOT.'/view/main.php');
@@ -104,7 +102,7 @@ function _getVkUser() {//Получение данных о пользователе
     }
     $sqls .= '<b>'.$from.'</b><br /><br />';
     define('VIEWER_NAME', $u['first_name'].' '.$u['last_name']);
-    //define('VIEWER_ADMIN', ($u['admin'] == 1));
+    define('VIEWER_ADMIN', ($u['admin'] == 1));
 }//end of _getVkUser()
 function _getWorkshop($ws_id) {//Получение данных о мастерской
     $ws = xcache_get(CACHE_PREFIX.'workshop_'.$ws_id);

@@ -13,6 +13,27 @@
 #client .unit em{background-color:#FFC;border-bottom:#FE2 solid 1px}
 #client .ajaxNext{margin:0 10px}
 
+/* Информация о клиенте */
+#clientInfo .left{padding-bottom:10px}
+#clientInfo .fio{color:#31618C;font-size:12px;font-weight:bold;margin:15px 5px 5px 30px}
+#clientInfo .cinf{margin:0 10px 0 28px;height:116px}
+#clientInfo .cinf .label{width:60px}
+#clientInfo .dtime{font-size:10px;color:#999;text-align:right}
+.client_edit{margin-left:5px;border-spacing:10px}
+.client_edit .label{width:60px;text-align:right}
+.client_edit #fio,.client_edit #telefon,.client_edit #adres{width:228px}
+#clientInfo #dopLinks{border-top:#dae1e8 solid 1px}
+#clientInfo #dopLinks.busy{background-position:right center}
+#clientInfo #zayav_result{color:#777;text-align:center}
+#clientInfo .zayav_unit{margin-right:10px}
+#clientInfo .ajaxNext{margin:5px 10px 0 10px}
+#clientInfo #money_spisok{margin:10px;display:none}
+#clientInfo #money_spisok ._empty{margin:0;padding:60px 10px}
+#clientInfo #comments,#clientInfo #remind_spisok{margin:0 10px;display:none}
+#clientInfo #remind_spisok ._empty{margin:10px 0;padding:60px 10px}
+#clientInfo .right{width:145px}
+#clientInfo .rightLinks{margin-bottom:30px}
+#clientInfo .cdel{color:red}
 
 /* Внесение новой заявки */
 #zayavAdd{padding:20px 10px 140px 10px;background-color:#F7F7F7}
