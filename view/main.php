@@ -110,6 +110,7 @@ function _cacheClear() {
     xcache_unset(CACHE_PREFIX.'setup_global');
     xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
     xcache_unset(CACHE_PREFIX.'product_name');
+    xcache_unset(CACHE_PREFIX.'prihodtype');
 }//ens of _cacheClear()
 
 function _header() {
@@ -524,8 +525,39 @@ function _product($product_id=false, $type='array') {//Список изделий для заявок
             return '['.implode(',', $json).']';
         default: return $arr;
     }
-}//end of _colorName()
-
+}//end of _product()
+function _prihodType($type_id=false, $type='array') {//Список изделий для заявок
+    if(!defined('PRIHODTYPE_LOADED') || $type_id === false) {
+        $key = CACHE_PREFIX.'prihodtype';
+        $arr = xcache_get($key);
+        if(empty($arr)) {
+            $sql = "SELECT `id`,`name`,`kassa_put` FROM `setup_prihodtype` ORDER BY `sort`";
+            $q = query($sql);
+            while($r = mysql_fetch_assoc($q))
+                $arr[$r['id']] = array(
+                    'name' => $r['name'],
+                    'kassa' => $r['kassa_put']
+                );
+            xcache_set($key, $arr, 86400);
+        }
+        if(!defined('PRIHODTYPE_LOADED')) {
+            foreach($arr as $id => $r)
+                define('PRODUCT_'.$id, $r['name']);
+            define('PRIHODTYPE_0', '');
+            define('PRIHODTYPE_LOADED', true);
+        }
+    }
+    if($type_id !== false)
+        return constant('PRIHODTYPE_'.$type_id);
+    switch($type) {
+        case 'json':
+            $json = array();
+            foreach($arr as $id => $r)
+                $json[] = '{uid:'.$id.',title:"'.$r['name'].'"}';
+            return '['.implode(',', $json).']';
+        default: return $arr;
+    }
+}//end of _prihodType()
 
 function _mainLinks() {
     global $html;
@@ -779,7 +811,7 @@ function client_info($client_id) {
                     '<div id="remind_spisok">'.(!empty($remindData) ? report_remind_spisok($remindData) : '<div class="_empty">Заданий нет.</div>').'</div>'.
                     '<div id="comments">'._vkComment('client', $client_id).'</div>'.
                 '<td class="right">'.
-                    '<div class="rightLinks">'.
+                    '<div class="rightLink">'.
                         '<a class="sel">Информация</a>'.
                         '<a class="cedit">Редактировать</a>'.
                         '<a href="'.URL.'&p=zayav&d=add&back=client&id='.$client_id.'"><b>Новая заявка</b></a>'.
@@ -799,6 +831,10 @@ function client_info($client_id) {
 // ---===! zayav !===--- Секция заявок
 function _zayavStatus($id=false) {
     $arr = array(
+        '0' => array(
+            'name' => 'Любой статус',
+            'color' => 'ffffff'
+        ),
         '1' => array(
             'name' => 'Ожидает выполнения',
             'color' => 'E8E8FF'
@@ -808,12 +844,30 @@ function _zayavStatus($id=false) {
             'color' => 'CCFFCC'
         ),
         '3' => array(
-            'name' => 'Отказ',
+            'name' => 'Завершить не удалось',
             'color' => 'FFDDDD'
         )
     );
     return $id ? $arr[$id] : $arr;
 }//end of _zayavStatus()
+function _zayavStatusName($id=false) {
+    $status = _zayavStatus();
+    if($id)
+        return $status[$id]['name'];
+    $send = array();
+    foreach($status as $id => $r)
+        $send[$id] = $r['name'];
+    return $send;
+}//end of _zayavStatusName()
+function _zayavStatusColor($id=false) {
+    $status = _zayavStatus();
+    if($id)
+        return $status[$id]['color'];
+    $send = array();
+    foreach($status as $id => $r)
+        $send[$id] = $r['color'];
+    return $send;
+}//end of _zayavStatusColor()
 
 function zayav_add($v=array()) {
     return
@@ -953,9 +1007,103 @@ function zayav_spisok($data) {
     return $send;
 }//end of zayav_spisok()
 
-function zayav_info() {
-    return '';
+function zayav_info($zayav_id) {
+    $sql = "SELECT * FROM `zayav` WHERE `status`>0 AND `id`=".$zayav_id." LIMIT 1";
+    if(!$zayav = mysql_fetch_assoc(query($sql)))
+        return 'Заявки не существует.';
+    $sql = "SELECT *
+		FROM `accrual`
+		WHERE `status`=1
+		  AND `zayav_id`=".$zayav_id."
+		ORDER BY `dtime_add` ASC";
+    $q = query($sql);
+    $money = array();
+    $accSum = 0;
+    while($acc = mysql_fetch_assoc($q)) {
+        $money[strtotime($acc['dtime_add'])] = zayav_accrual_unit($acc);
+        $accSum += $acc['sum'];
+    }
+
+    $sql = "SELECT *
+		FROM `money`
+		WHERE `status`=1
+		  AND `summa`>0
+		  AND `zayav_id`=".$zayav_id."
+		ORDER BY `dtime_add` ASC";
+    $q = query($sql);
+    $opSum = 0;
+    while($op = mysql_fetch_assoc($q)) {
+        $money[strtotime($op['dtime_add'])] = zayav_oplata_unit($op);
+        $opSum += $op['sum'];
+    }
+    $dopl = $accSum - $opSum;
+    ksort($money);
+
+    return
+    '<script type="text/javascript">'.
+        'ZAYAV={'.
+            'id:'.$zayav_id.','.
+            'client_id:'.$zayav['client_id'].','.
+            'prihodtype:'._prihodType(false, 'json').
+        '};'.
+    '</script>'.
+    '<div id="zayavInfo">'.
+        '<div id="dopLinks">'.
+            '<a class="delete'.(!empty($money) ?  ' dn': '').'">Удалить заявку</a>'.
+            '<a class="link sel">Информация</a>'.
+            '<a class="link zedit">Редактирование</a>'.
+            '<a class="link acc_add">Начислить</a>'.
+            '<a class="link op_add">Принять платёж</a>'.
+        '</div>'.
+        '<div class="content">'.
+            '<div class="headName">Заявка №'.$zayav_id.'</div>'.
+            '<table class="tabInfo">'.
+                '<tr><td class="label">Клиент:     <td>'._clientLink($zayav['client_id']).
+                '<tr><td class="label">Дата приёма:'.
+                    '<td class="dtime_add" title="Заявку внёс '._viewerName($zayav['viewer_id_add']).'">'.FullDataTime($zayav['dtime_add']).
+                '<tr><td class="label">Статус:'.
+                    '<td><div id="status" style="background-color:#'._zayavStatusColor($zayav['status']).'" class="status_place">'.
+                            _zayavStatusName($zayav['status']).
+                        '</div>'.
+                        '<div id="status_dtime">от '.FullDataTime($zayav['status_dtime'], 1).'</div>'.
+                '<tr class="acc_tr'.($accSum > 0 ? '' : ' dn').'"><td class="label">Начислено: <td><b class="acc">'.$accSum.'</b> руб.'.
+                '<tr class="op_tr'.($opSum > 0 ? '' : ' dn').'"><td class="label">Оплачено:    <td><b class="op">'.$opSum.'</b> руб.'.
+                    '<span class="dopl'.($dopl == 0 ? ' dn' : '').'" title="Необходимая доплата'."\n".'Если значение отрицательное, то это переплата">'.
+                        ($dopl > 0 ? '+' : '').$dopl.
+                    '</span>'.
+            '</table>'.
+    //        '<div class="headBlue">Задания<a class="add remind_add">Добавить задание</a></div>'.
+    //        '<div id="remind_spisok">'.report_remind_spisok(remind_data(1, array('zayav'=>$zayav['id']))).'</div>'.
+            _vkComment('zayav', $zayav_id).
+            '<div class="headBlue mon">Начисления и платежи'.
+                '<a class="add op_add">Принять платёж</a>'.
+                '<em>::</em>'.
+                '<a class="add acc_add">Начислить</a>'.
+            '</div>'.
+            '<table class="_spisok _money">'.implode($money).'</table>'.
+        '</div>'.
+    '</div>';
 }//end of zayav_info()
+function zayav_accrual_unit($acc) {
+    return
+    '<tr><td class="sum acc" title="Начисление">'.$acc['sum'].'</td>'.
+        '<td>'.$acc['prim'].'</td>'.
+        '<td class="dtime" title="Начислил '._viewerName(isset($acc['viewer_id_add']) ? $acc['viewer_id_add'] : VIEWER_ID).'">'.
+            FullDataTime(isset($acc['dtime_add']) ? $acc['dtime_add'] : curTime()).
+        '</td>'.
+        '<td class="del"><div class="img_del acc_del" title="Удалить начисление" val="'.$acc['id'].'"></div></td>'.
+    '</tr>';
+}//end of zayav_accrual_unit()
+function zayav_oplata_unit($op) {
+    return
+    '<tr><td class="sum op" title="Платёж">'.$op['sum'].'</td>'.
+        '<td>'.$op['prim'].'</td>'.
+        '<td class="dtime" title="Платёж внёс '._viewerName(isset($op['viewer_id_add']) ? $op['viewer_id_add'] : VIEWER_ID).'">'.
+            FullDataTime(isset($op['dtime_add']) ? $op['dtime_add'] : curTime()).
+        '</td>'.
+        '<td class="del"><div class="img_del op_del" title="Удалить платёж" val="'.$op['id'].'"></div></td>'.
+    '</tr>';
+}//end of zayav_oplata_unit()
 
 
 
@@ -965,10 +1113,12 @@ function setup() {
         default: $_GET['d'] = 'worker';
         case 'worker': $left = setup_worker(); break;
         case 'product': $left = setup_product(); break;
+        case 'prihodtype': $left = setup_prihodtype(); break;
     }
-    $right = '<div class="rightLinks">'.
+    $right = '<div class="rightLink">'.
         '<a href="'.URL.'&p=setup&d=worker"'.(@$_GET['d'] == 'worker' ? ' class="sel"' : '').'>Сотрудники</a>'.
-        '<a href="'.URL.'&p=setup&d=product"'.(@$_GET['d'] == 'product' ? ' class="sel"' : '').'>Изделия</a>'.
+        '<a href="'.URL.'&p=setup&d=product"'.(@$_GET['d'] == 'product' ? ' class="sel"' : '').'>Виды изделий</a>'.
+        '<a href="'.URL.'&p=setup&d=prihodtype"'.(@$_GET['d'] == 'prihodtype' ? ' class="sel"' : '').'>Виды платежей</a>'.
     '</div>';
     return
     '<div id="setup">'.
@@ -1012,3 +1162,33 @@ function setup_product_spisok() {
     }
     return $send ? $send : 'Список пуст.';
 }//end of setup_product_spisok()
+function setup_prihodtype() {
+    return
+    '<div id="setup_prihodtype">'.
+        '<div class="headName">Настройки видов платежей<a class="add">Добавить</a></div>'.
+        '<div class="spisok">'.setup_prihodtype_spisok().'</div>'.
+    '</div>';
+}//end of setup_prihodtype()
+function setup_prihodtype_spisok() {
+    $sql = "SELECT * FROM `setup_prihodtype` ORDER BY `sort`";
+    $q = query($sql);
+    $send = '';
+    if(mysql_num_rows($q)) {
+        $send =
+        '<table class="_spisok">'.
+            '<tr><th class="name">Наименование'.
+                '<th class="kassa">Возможность<br />внесения<br />в кассу'.
+                '<th class="set">'.
+        '</table>'.
+        '<dl class="_sort" val="setup_prihodtype">';
+        while($r = mysql_fetch_assoc($q))
+            $send .='<dd val="'.$r['id'].'">'.
+            '<table class="_spisok">'.
+                '<tr><td class="name">'.$r['name'].
+                    '<td class="kassa">'.($r['kassa_put'] ? 'да' : '').
+                    '<td class="set"><div class="img_edit"></div><div class="img_del"></div>'.
+            '</table>';
+        $send .= '</dl>';
+    }
+    return $send ? $send : 'Список пуст.';
+}//end of setup_prihodtype_spisok()

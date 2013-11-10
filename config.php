@@ -1,6 +1,6 @@
 <?php
 define('TIME', microtime(true));
-define('DEBUG', @$_COOKIE['debug'] != 0);
+define('DEBUG', @$_COOKIE['debug'] == 1);
 define('DOCUMENT_ROOT', dirname(__FILE__));
 define('NAMES', 'cp1251');
 define('DOMAIN', $_SERVER["SERVER_NAME"]);

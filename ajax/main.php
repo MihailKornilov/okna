@@ -267,6 +267,7 @@ switch(@$_POST['op']) {
                     `nomer_vg`,
                     `product_id`,
                     `adres_set`,
+                    `status_dtime`,
                     `viewer_id_add`
                 ) VALUES (
                     ".$client_id.",
@@ -274,6 +275,7 @@ switch(@$_POST['op']) {
                     '".$nomer_vg."',
                     ".$product_id.",
                     '".$adres_set."',
+                    '".curTime()."',
                     ".VIEWER_ID."
                 )";
         query($sql);
@@ -338,6 +340,62 @@ switch(@$_POST['op']) {
         query($sql);
         xcache_unset(CACHE_PREFIX.'product_name');
         $send['html'] = utf8(setup_product_spisok());
+        jsonSuccess($send);
+        break;
+
+    case 'setup_prihodtype_add':
+        if(!preg_match(REGEXP_BOOL, $_POST['kassa_put']))
+            jsonError();
+        $kassa_put = intval($_POST['kassa_put']);
+        $name = win1251(htmlspecialchars(trim($_POST['name'])));
+        if(empty($name))
+            jsonError();
+        $sort = query_value("SELECT IFNULL(MAX(`sort`)+1,0) FROM `setup_prihodtype`");
+        $sql = "INSERT INTO `setup_prihodtype` (
+                    `name`,
+                    `kassa_put`,
+                    `sort`,
+                    `viewer_id_add`
+                ) VALUES (
+                    '".addslashes($name)."',
+                    ".$kassa_put.",
+                    ".$sort.",
+                    ".VIEWER_ID."
+                )";
+        query($sql);
+        xcache_unset(CACHE_PREFIX.'prihodtype');
+        $send['html'] = utf8(setup_prihodtype_spisok());
+        jsonSuccess($send);
+        break;
+    case 'setup_prihodtype_edit':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+            jsonError();
+        if(!preg_match(REGEXP_BOOL, $_POST['kassa_put']))
+            jsonError();
+        $id = intval($_POST['id']);
+        $name = win1251(htmlspecialchars(trim($_POST['name'])));
+        $kassa_put = intval($_POST['kassa_put']);
+        if(empty($name))
+            jsonError();
+        $sql = "UPDATE `setup_prihodtype`
+                SET `name`='".addslashes($name)."',
+                    `kassa_put`=".$kassa_put."
+                WHERE `id`=".$id;
+        query($sql);
+        xcache_unset(CACHE_PREFIX.'prihodtype');
+        $send['html'] = utf8(setup_prihodtype_spisok());
+        jsonSuccess($send);
+        break;
+    case 'setup_prihodtype_del':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+            jsonError();
+        $id = intval($_POST['id']);
+        if(query_value("SELECT COUNT(`id`) FROM `money` WHERE `status`=1 AND `prihod_type`=".$id))
+            jsonError();
+        $sql = "DELETE FROM `setup_prihodtype` WHERE `id`=".$id;
+        query($sql);
+        xcache_unset(CACHE_PREFIX.'prihodtype');
+        $send['html'] = utf8(setup_prihodtype_spisok());
         jsonSuccess($send);
         break;
 }

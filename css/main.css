@@ -32,7 +32,7 @@
 #clientInfo #comments,#clientInfo #remind_spisok{margin:0 10px;display:none}
 #clientInfo #remind_spisok ._empty{margin:10px 0;padding:60px 10px}
 #clientInfo .right{width:145px}
-#clientInfo .rightLinks{margin-bottom:30px}
+#clientInfo .rightLink{margin-bottom:30px}
 #clientInfo .cdel{color:red}
 
 /* Внесение новой заявки */
@@ -71,14 +71,58 @@
 #zayav #desc_check{margin-top:10px}
 #zayav ._empty{margin-right:6px;}
 
+/* Информация о заявке */
+#zayavInfo .content{margin:10px 15px}
+#zayavInfo .delete{float:right;margin-top:4px;color:#933}
+#zayavInfo .headName{margin:0;padding:4px 3px}
+#zayavInfo .itab{width:100%;border-spacing:10px}
+#zayavInfo .tabInfo{margin:2px 10px 15px 10px;border-spacing:4px}
+#zayavInfo .label{width:85px}
+#zayavInfo .dtime_add{cursor:help}
+.zayav-info-edit{border-spacing:8px}
+.zayav-info-edit .equip_spisok div{margin-right:7px}
+#zayavInfo #status {
+    display:inline-block;
+    border:#DDD solid 1px;
+    width:140px;
+    text-align:center;
+    padding:2px 0 3px 0;
+    color:#666;
+    cursor:pointer;
+}
+#zayavInfo #status:hover{border-color:#BBD; color:#444}
+#zayavInfo #status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}
+#zayavInfo .dopl{margin-left:10px;color:#888;cursor:help}
+#zayavInfo #remind_spisok{margin:8px 0}
+#zayavInfo .headBlue.mon{margin-top:10px}
+#zayavInfo .headBlue.mon em{float:right;margin:0 5px;}
+#zayavInfo .op{color:#090;cursor:help}
+#zayavInfo .acc{color:#07a;cursor:help}
+#zayavInfo ._money .del{width:20px;padding:0}
+#zayavInfo ._money .img_del{margin:0 0 -2px 4px}
+.zayav_accrual_add{border-spacing:8px}
+.zayav_accrual_add .label{width:140px;text-align:right}
+.zayav_accrual_add #prim,.zayav_accrual_add #reminder_txt{width:200px}
+.zayav_accrual_add.remind{display:none;margin-top:-8px}
+.zayav_oplata_add{border-spacing:8px}
+.zayav_oplata_add .img_edit{position:relative;top:-3px;left:4px}
+.zayav_oplata_add #kassa_radio div{display:inline-block;margin-right:15px}
+.zayav_oplata_add .label{width:165px;text-align:right}
+.zayav_oplata_add #prim{width:200px}
+#zayavInfo .deleting{text-align:center;color:#555}
 
 
 
 #setup .left{padding:15px}
 #setup .headName{margin:0 0 15px}
 #setup .right{padding:0;width:170px;border-left:0}
-#setup .rightLinks a.sel{border-color:#6B8EB5}
+#setup .rightLink a.sel{border-color:#6B8EB5}
 
 #setup_product .name{width:250px}
 #setup_product td.name{cursor:move}
 #setup_product .set{width:40px}
+
+#setup_prihodtype .name{width:200px}
+#setup_prihodtype td.name{cursor:move}
+#setup_prihodtype .kassa{width:90px;text-align:center}
+#setup_prihodtype .set{width:40px}
