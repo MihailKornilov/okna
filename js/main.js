@@ -155,6 +155,41 @@ var REGEXP_NUMERIC = /^\d+$/,
         }, 'json');
     },
 
+    zayavFilter = function () {
+        var v = {
+                find:$.trim($('#find input').val()),
+//                sort:$('#sort').val(),
+                desc:$('#desc').val(),
+                status:$('#status').val()
+            },
+            loc = '';
+//        if(v.sort != '1') loc += '.sort=' + v.sort;
+        if(v.desc != '0') loc += '.desc=' + v.desc;
+        if(v.find) loc += '.find=' + escape(v.find);
+        else {
+            if(v.status > 0) loc += '.status=' + v.status;
+        }
+        VK.callMethod('setLocation', hashLoc + loc);
+
+        setCookie('zayav_find', escape(v.find));
+  //      setCookie('zayav_sort', v.sort);
+        setCookie('zayav_desc', v.desc);
+        setCookie('zayav_status', v.status);
+
+        return v;
+    },
+    zayavSpisokLoad = function() {
+        var send = zayavFilter();
+        $('.condLost')[(send.find ? 'add' : 'remove') + 'Class']('hide');
+        send.op = 'zayav_spisok_load';
+
+        $('#mainLinks').addClass('busy');
+        $.post(AJAX_MAIN, send, function (res) {
+            $('#zayav .result').html(res.all);
+            $('#zayav #spisok').html(res.html);
+            $('#mainLinks').removeClass('busy');
+        }, 'json');
+    },
     zayavInfoMoneyUpdate = function() {
         var send = {
             op:'zayav_money_update',
@@ -242,8 +277,162 @@ $(document)
         document.location.reload();
     })
 
+    .on('click', '#zayav #filter_break', function() {
+        zFind.clear();
+        //$('#sort')._radio(1);
+        $('#desc')._check(0);
+        $('#status').rightLink(0);
+        zayavSpisokLoad();
+    })
+    .on('click', '#zayav #desc_check', zayavSpisokLoad)
+
     .on('click', '.zayav_unit', function() {
         document.location.href = URL + '&p=zayav&d=info&id=' + $(this).attr('val');
+    })
+    .on('click', '#zayavInfo .zedit', function() {
+        var html = '<TABLE class="zayav-info-edit">' +
+                '<tr><td class="label r">Клиент:         <td><INPUT type="hidden" id="client_id" value="' + ZAYAV.client_id + '">' +
+                '<tr><td class="label r">Номер договора: <td><INPUT type="text" id="nomer_dog" maxlength="30" value="' + ZAYAV.nomer_dog + '" />' +
+                '<tr><td class="label r">Номер ВГ:       <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
+                '<tr><td class="label r">Изделие:        <td><INPUT type="hidden" id="product_id" value="' + ZAYAV.product_id + '" />' +
+                    '<a href="' + URL + '&p=setup&d=product" class="img_edit product_edit" title="Настроить список изделий"></a>' +
+                '<tr><td class="label r">Адрес установки:<td><INPUT type="text" id="adres_set" maxlength="100" value="' + ZAYAV.adres_set + '" />' +
+        '</TABLE>',
+            dialog = _dialog({
+                width:410,
+                top:30,
+                head:'Заявка №' + ZAYAV.id + ' - Редактирование',
+                content:html,
+                butSubmit:'Сохранить',
+                submit:submit
+            });
+        $('#client_id').clientSel();
+        $('#vkSel_client_id').vkHint({
+            msg:'Если изменяется клиент, то начисления и платежи заявки применяются на нового клиента.',
+            width:200,
+            top:-83,
+            left:-2,
+            delayShow:1500,
+            correct:0
+        });
+        $('#product_id').vkSel({
+            width:142,
+            display:'inline-block',
+            title0:'Изделие не указано',
+            spisok:ZAYAV.product
+        });
+
+        function submit() {
+            var msg,
+                send = {
+                    op:'zayav_edit',
+                    zayav_id:ZAYAV.id,
+                    client_id:$('#client_id').val(),
+                    nomer_dog:$('#nomer_dog').val(),
+                    nomer_vg:$('#nomer_vg').val(),
+                    product_id:$('#product_id').val(),
+                    adres_set:$('#adres_set').val()
+                };
+            if(send.client_id == 0) msg = 'Не выбран клиент';
+            else {
+                dialog.process();
+                $.post(AJAX_MAIN, send, function (res) {
+                    if(res.success) {
+                        dialog.close();
+                        _msg('Данные изменены!');
+                        document.location.reload();
+                    } else
+                        dialog.abort();
+                }, 'json');
+            }
+            if(msg)
+                dialog.bottom.vkHint({
+                    msg:'<SPAN class="red">' + msg + '</SPAN>',
+                    top:-47,
+                    left:107,
+                    show:1,
+                    remove:1,
+                    correct:0
+                });
+        }
+    })
+    .on('click', '#zayavInfo .delete', function() {
+        var dialog = _dialog({
+            top:110,
+            width:250,
+            head:'Удаление заявки',
+            content:'<CENTER>Подтвердите удаление заявки.</CENTER>',
+            butSubmit:'Удалить',
+            submit:function() {
+                var send = {
+                    op:'zayav_delete',
+                    zayav_id:ZAYAV.id
+                };
+                dialog.process();
+                $.post(AJAX_MAIN, send, function(res) {
+                    if(res.success)
+                        location.href = URL + '&p=client&d=info&id=' + res.client_id;
+                }, 'json');
+            }
+        });
+    })
+    .on('click', '#zayavInfo .acc_del', function() {
+        var send = {
+            op:'zayav_accrual_del',
+            id:$(this).attr('val')
+        };
+        var tr = $(this).parent().parent();
+        tr.html('<td colspan="4" class="deleting">Удаление... <img src=/img/upload.gif></td>');
+        $.post(AJAX_MAIN, send, function(res) {
+            if(res.success) {
+                tr.find('.deleting').html('Начисление удалено. <a class="acc_rest" val="' + send.id + '">Восстановить</a>');
+                zayavInfoMoneyUpdate();
+            }
+        }, 'json');
+    })
+    .on('click', '#zayavInfo .acc_rest', function() {
+        var send = {
+                op:'zayav_accrual_rest',
+                id:$(this).attr('val')
+            },
+            t = $(this),
+            tr = t.parent().parent();
+        t.after('<img src=/img/upload.gif>').remove();
+        $.post(AJAX_MAIN, send, function(res) {
+            if(res.success) {
+                tr.after(res.html).remove();
+                zayavInfoMoneyUpdate();
+            }
+        }, 'json');
+    })
+    .on('click', '#zayavInfo .op_del', function() {
+        var send = {
+            op:'zayav_oplata_del',
+            id:$(this).attr('val')
+        };
+        var tr = $(this).parent().parent();
+        tr.html('<td colspan="4" class="deleting">Удаление... <img src=/img/upload.gif></td>');
+        $.post(AJAX_MAIN, send, function (res) {
+            if(res.success) {
+                tr.find('.deleting').html('Платёж удалён. <a class="op_rest" val="' + send.id + '">Восстановить</a>');
+                zayavInfoMoneyUpdate();
+            }
+        }, 'json');
+    })
+    .on('click', '#zayavInfo .op_rest', function() {
+        var send = {
+                op:'zayav_oplata_rest',
+                id:$(this).attr('val')
+            },
+            t = $(this),
+            tr = t.parent().parent();
+        t.after('<img src=/img/upload.gif>').remove();
+        $.post(AJAX_MAIN, send, function(res) {
+            if(res.success) {
+                tr.after(res.html).remove();
+                zayavInfoMoneyUpdate();
+            }
+        }, 'json');
     })
 
     .on('click', '#setup_product .add', function() {
@@ -639,6 +828,17 @@ $(document).ready(function() {
         });
     }
 
+    if($('#zayav').length > 0) {
+        window.zFind = $('#find')._search({
+            width:153,
+            focus:1,
+            txt:'Быстрый поиск...',
+            enter:1,
+            func:zayavSpisokLoad
+        });
+        zFind.inp(ZAYAV.find);
+        $('#status').rightLink(zayavSpisokLoad);
+    }
     if($('#zayavAdd').length > 0) {
         $('#client_id').clientSel({add:1});
         $('#product_id').vkSel({
@@ -684,7 +884,7 @@ $(document).ready(function() {
         });
     }
     if($('#zayavInfo').length > 0) {
-        $('#zayavInfo .op_add').click(function() {
+        $('.op_add').click(function() {
             var html = '<TABLE class="zayav_oplata_add">' +
                 '<TR><TD class="label">Вид платежа:<TD><input type="hidden" id="prihod_type" value="0">' +
                     '<a href="' + URL + '&p=setup&d=prihodtype" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
@@ -706,7 +906,9 @@ $(document).ready(function() {
                 width:180,
                 title0:'Не указан',
                 spisok:ZAYAV.prihodtype,
-                func:function() {
+                func:function(uid) {
+                    $('#kassa')._radio(-1);
+                    $('.tr_kassa')[(ZAYAV.prihodkassa[uid] ? 'remove' : 'add') + 'Class']('dn');
                     $('#sum').focus();
                 }
             });
@@ -730,8 +932,10 @@ $(document).ready(function() {
                         prim:$.trim($('#prim').val())
                     };
                 if(send.type == 0) msg = 'Не указан вид платежа.';
-                else if(!REGEXP_NUMERIC.test(send.sum)) { msg = 'Некорректно указана сумма.'; $('#sum').focus(); }
-                else if($('.tr_kassa').hasClass('dn') && send.kassa == -1) msg = 'Укажите, деньги поступили в кассу или нет.';
+                else if(!REGEXP_NUMERIC.test(send.sum)) {
+                    msg = 'Некорректно указана сумма.';
+                    $('#sum').focus();
+                } else if(ZAYAV.prihodkassa[send.type] && send.kassa == -1) msg = 'Укажите, деньги поступили в кассу или нет.';
                 else {
                     dialog.process();
                     $.post(AJAX_MAIN, send, function (res) {
@@ -756,5 +960,56 @@ $(document).ready(function() {
                     });
             }
         });
+        $('.acc_add').click(function() {
+            var html = '<TABLE class="zayav_accrual_add">' +
+                '<tr><td class="label">Сумма: <TD><input type="text" id="sum" class="money" maxlength="6" /> руб.' +
+                '<tr><td class="label">Примечание:<em>(не обязательно)</em><TD><input type="text" id="prim" maxlength="100" />' +
+                '</TABLE>';
+            var dialog = _dialog({
+                top:60,
+                width:420,
+                head:'Заявка №' + ZAYAV.id + ' - Начисление за выполненную работу',
+                content:html,
+                submit:submit
+            });
+            $('#sum').focus();
+            $('#sum,#prim').keyEnter(submit);
+
+            function submit() {
+                var msg,
+                    send = {
+                        op:'zayav_accrual_add',
+                        zayav_id:ZAYAV.id,
+                        sum:$('#sum').val(),
+                        prim:$('#prim').val()
+                    };
+                if(!REGEXP_NUMERIC.test(send.sum)) {
+                    msg = 'Некорректно указана сумма.';
+                    $('#sum').focus();
+                } else {
+                    dialog.process();
+                    $.post(AJAX_MAIN, send, function(res) {
+                        dialog.abort();
+                        if(res.success) {
+                            dialog.close();
+                            _msg('Начисление успешно произведено!');
+                            $('._spisok._money').append(res.html);
+                            zayavInfoMoneyUpdate();
+                        }
+                    }, 'json');
+                }
+
+                if(msg)
+                    dialog.bottom.vkHint({
+                        msg:'<SPAN class="red">' + msg + '</SPAN>',
+                        top:-48,
+                        left:123,
+                        indent:40,
+                        remove:1,
+                        show:1,
+                        correct:0
+                    });
+            }
+        })
     }
 });

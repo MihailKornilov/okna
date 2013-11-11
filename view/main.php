@@ -207,6 +207,17 @@ function _footer() {
         '</div></body></html>';
 }//end of _footer()
 
+function _rightLink($id, $spisok, $val=0) {
+    $a = '';
+    foreach($spisok as $uid => $title)
+        $a .= '<a'.($val == $uid ? ' class="sel"' : '').' val="'.$uid.'">'.$title.'</a>';
+    return
+    '<div class="rightLink" id="'.$id.'_rightLink">'.
+        '<input type="hidden" id="'.$id.'" value="'.$val.'">'.
+        $a.
+    '</div>';
+}//end of _rightLink()
+
 function _checkbox($id, $txt='', $value=0) {
     return '<input type="hidden" id="'.$id.'" value="'.$value.'" />'.
     '<div class="check'.$value.'" id="'.$id.'_check">'.$txt.'</div>';
@@ -542,7 +553,7 @@ function _prihodType($type_id=false, $type='array') {//Список изделий для заявок
         }
         if(!defined('PRIHODTYPE_LOADED')) {
             foreach($arr as $id => $r)
-                define('PRODUCT_'.$id, $r['name']);
+                define('PRIHODTYPE_'.$id, $r['name']);
             define('PRIHODTYPE_0', '');
             define('PRIHODTYPE_LOADED', true);
         }
@@ -558,6 +569,13 @@ function _prihodType($type_id=false, $type='array') {//Список изделий для заявок
         default: return $arr;
     }
 }//end of _prihodType()
+function _prihodKassa() {
+    $json = array();
+    foreach(_prihodType() as $id => $r)
+        if($r['kassa'])
+            $json[] = $id.':'.$r['kassa'];
+    return '{'.implode(',', $json).'}';
+}//end of _prihodKassa()
 
 function _mainLinks() {
     global $html;
@@ -613,6 +631,14 @@ function _clientLink($arr) {
         return $send[$id];
     return $send;
 }//end of _clientsLink()
+function clientBalansUpdate($client_id) {//Обновление баланса клиента
+    $prihod = query_value("SELECT SUM(`sum`) FROM `money` WHERE `status`=1 AND `client_id`=".$client_id." AND `sum`>0");
+    $acc = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE `status`=1 AND `client_id`=".$client_id);
+    $balans = $prihod - $acc;
+    query("UPDATE `client` SET `balans`=".$balans." WHERE `id`=".$client_id);
+    return $balans;
+}//end of clientBalansUpdate()
+
 function clientFilter($v) {
     if(!preg_match(REGEXP_WORDFIND, win1251($v['fast'])))
         $v['fast'] = '';
@@ -774,7 +800,7 @@ function client_info($client_id) {
             if($r['zayav_id'] > 0)
                 $about .= 'Заявка '.$r['zayav_id'].'. ';
             $about .= $r['prim'];
-            $money .= '<tr><td class="sum"><b>'.$r['summa'].'</b>'.
+            $money .= '<tr><td class="sum"><b>'.$r['sum'].'</b>'.
                 '<td>'.$about.
                 '<td class="dtime" title="Внёс: '._viewerName($r['viewer_id_add']).'">'.FullDataTime($r['dtime_add']);
         }
@@ -896,6 +922,7 @@ function zayavFilter($v) {
 
     $filter = array();
     $filter['find'] = htmlspecialchars(trim(@$v['find']));
+    $filter['desc'] = intval(@$v['desc']) == 1 ? 'ASC' : 'DESC';
     $filter['status'] = intval($v['status']);
     if($v['client'] > 0)
         $filter['client'] = intval($v['client']);
@@ -904,14 +931,15 @@ function zayavFilter($v) {
 function zayav_data($page=1, $filter=array(), $limit=20) {
     $cond = "`status`>0";
 
+    if(empty($filter['desc']))
+        $filter['desc'] = 'DESC';
     if(!empty($filter['find'])) {
-        $cond .= " AND `find` LIKE '%".$filter['find']."%'";
+        $cond .= " AND `adres_set` LIKE '%".$filter['find']."%'";
         if($page ==1 && preg_match(REGEXP_NUMERIC, $filter['find']))
-            $nomer = intval($filter['find']);
-        $reg = '/('.$filter['find'].')/i';
+            $zayav_id = intval($filter['find']);
     } else {
         if(isset($filter['status']) && $filter['status'] > 0)
-            $cond .= " AND `zayav_status`=".$filter['status'];
+            $cond .= " AND `status`=".$filter['status'];
         if(isset($filter['client']) && $filter['client'] > 0)
             $cond .= " AND `client_id`=".$filter['client'];
     }
@@ -926,11 +954,11 @@ function zayav_data($page=1, $filter=array(), $limit=20) {
     $sql = "SELECT *
 			FROM `zayav`
 			WHERE ".$cond."
-			ORDER BY `id` DESC
+			ORDER BY `id` ".$filter['desc']."
 			LIMIT ".$start.",".$limit;
     $q = query($sql);
     while($r = mysql_fetch_assoc($q)) {
-        if(isset($nomer) && $nomer == $r['nomer'])
+        if(isset($zayav_id) && $zayav_id == $r['id'])
             continue;
         $zayav[$r['id']] = $r;
         $client[$r['client_id']] = $r['client_id'];
@@ -938,11 +966,10 @@ function zayav_data($page=1, $filter=array(), $limit=20) {
 
     if(empty($filter['client']))
         $client = _clientLink($client);
-    $status = _zayavStatus();
 
     foreach($zayav as $id => $r) {
         $unit = array(
-            'status_color' => $status[$r['status']]['color'],
+            'status_color' => _zayavStatusColor($r['status']),
             'product_id' => $r['product_id'],
             'dtime' => FullData($r['dtime_add'], 1)
         );
@@ -974,14 +1001,15 @@ function zayav_list($data, $values) {
                 '<div id="find"></div>'.
                 '<div class="findHead">Порядок</div>'.
 //                _radio('sort', array(1=>'По дате добавления',2=>'По обновлению статуса'), $values['sort']).
-//                _checkbox('desc', 'Обратный порядок', $values['desc']).
+                _checkbox('desc', 'Обратный порядок', $values['desc']).
                 '<div class="condLost'.(!empty($values['find']) ? ' hide' : '').'">'.
-                    '<div class="findHead">Статус заявки</div><div id="status"></div>'.
+                    '<div class="findHead">Статус заявки</div>'.
+                    _rightLink('status', _zayavStatusName(), $values['status']).
                 '</div>'.
         '</table>'.
     '</div>'.
     '<script type="text/javascript">'.
-        'var zayav = {'.
+        'var ZAYAV = {'.
             'find:"'.unescape($values['find']).'",'.
             'status:'.$values['status'].
         '};'.
@@ -1027,7 +1055,7 @@ function zayav_info($zayav_id) {
     $sql = "SELECT *
 		FROM `money`
 		WHERE `status`=1
-		  AND `summa`>0
+		  AND `sum`>0
 		  AND `zayav_id`=".$zayav_id."
 		ORDER BY `dtime_add` ASC";
     $q = query($sql);
@@ -1041,10 +1069,16 @@ function zayav_info($zayav_id) {
 
     return
     '<script type="text/javascript">'.
-        'ZAYAV={'.
+        'var ZAYAV={'.
             'id:'.$zayav_id.','.
             'client_id:'.$zayav['client_id'].','.
-            'prihodtype:'._prihodType(false, 'json').
+            'nomer_dog:"'.$zayav['nomer_dog'].'",'.
+            'nomer_vg:"'.$zayav['nomer_vg'].'",'.
+            'product_id:'.$zayav['product_id'].','.
+            'adres_set:"'.$zayav['adres_set'].'",'.
+            'prihodtype:'._prihodType(false, 'json').','.
+            'prihodkassa:'._prihodKassa().','.
+            'product:'._product(false, 'json').
         '};'.
     '</script>'.
     '<div id="zayavInfo">'.
@@ -1058,7 +1092,11 @@ function zayav_info($zayav_id) {
         '<div class="content">'.
             '<div class="headName">Заявка №'.$zayav_id.'</div>'.
             '<table class="tabInfo">'.
-                '<tr><td class="label">Клиент:     <td>'._clientLink($zayav['client_id']).
+                '<tr><td class="label">Клиент:<td>'._clientLink($zayav['client_id']).
+                '<tr><td class="label">Номер договора:<td>'.$zayav['nomer_dog'].
+                '<tr><td class="label">Номер ВГ:<td>'.$zayav['nomer_vg'].
+                '<tr><td class="label">Изделие:<td>'._product($zayav['product_id']).
+                '<tr><td class="label">Адрес установки:<td>'.$zayav['adres_set'].
                 '<tr><td class="label">Дата приёма:'.
                     '<td class="dtime_add" title="Заявку внёс '._viewerName($zayav['viewer_id_add']).'">'.FullDataTime($zayav['dtime_add']).
                 '<tr><td class="label">Статус:'.
@@ -1097,7 +1135,7 @@ function zayav_accrual_unit($acc) {
 function zayav_oplata_unit($op) {
     return
     '<tr><td class="sum op" title="Платёж">'.$op['sum'].'</td>'.
-        '<td>'.$op['prim'].'</td>'.
+        '<td><em>'._prihodType($op['prihod_type']).($op['prim'] ? ':' : '').'</em>'.$op['prim'].'</td>'.
         '<td class="dtime" title="Платёж внёс '._viewerName(isset($op['viewer_id_add']) ? $op['viewer_id_add'] : VIEWER_ID).'">'.
             FullDataTime(isset($op['dtime_add']) ? $op['dtime_add'] : curTime()).
         '</td>'.

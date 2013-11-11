@@ -76,11 +76,14 @@
 #zayavInfo .delete{float:right;margin-top:4px;color:#933}
 #zayavInfo .headName{margin:0;padding:4px 3px}
 #zayavInfo .itab{width:100%;border-spacing:10px}
-#zayavInfo .tabInfo{margin:2px 10px 15px 10px;border-spacing:4px}
-#zayavInfo .label{width:85px}
+#zayavInfo .tabInfo{margin:2px 10px 15px 10px;border-spacing:6px}
+#zayavInfo .label{width:100px}
 #zayavInfo .dtime_add{cursor:help}
 .zayav-info-edit{border-spacing:8px}
-.zayav-info-edit .equip_spisok div{margin-right:7px}
+.zayav-info-edit #nomer_dog{width:130px}
+.zayav-info-edit #nomer_vg{width:130px}
+.zayav-info-edit .product_edit{position:relative;top:-2px;left:5px}
+.zayav-info-edit #adres_set{width:260px}
 #zayavInfo #status {
     display:inline-block;
     border:#DDD solid 1px;
@@ -98,16 +101,16 @@
 #zayavInfo .headBlue.mon em{float:right;margin:0 5px;}
 #zayavInfo .op{color:#090;cursor:help}
 #zayavInfo .acc{color:#07a;cursor:help}
+#zayavInfo ._money em{margin-right:5px;color:#770}
 #zayavInfo ._money .del{width:20px;padding:0}
 #zayavInfo ._money .img_del{margin:0 0 -2px 4px}
 .zayav_accrual_add{border-spacing:8px}
-.zayav_accrual_add .label{width:140px;text-align:right}
-.zayav_accrual_add #prim,.zayav_accrual_add #reminder_txt{width:200px}
-.zayav_accrual_add.remind{display:none;margin-top:-8px}
+.zayav_accrual_add .label{width:120px;text-align:right}
+.zayav_accrual_add #prim{width:200px}
 .zayav_oplata_add{border-spacing:8px}
 .zayav_oplata_add .img_edit{position:relative;top:-3px;left:4px}
 .zayav_oplata_add #kassa_radio div{display:inline-block;margin-right:15px}
-.zayav_oplata_add .label{width:165px;text-align:right}
+.zayav_oplata_add .label{width:130px;text-align:right}
 .zayav_oplata_add #prim{width:200px}
 #zayavInfo .deleting{text-align:center;color:#555}
 
