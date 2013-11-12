@@ -7,6 +7,7 @@ $mysql = array(
     'names' => 'cp1251'
 );
 
+define('VKPATH', 'c:/www/nyandoma/vk/');
 define('PATH', 'c:/www/okna/');
 define('CACHE_PREFIX', 'okna_');
 

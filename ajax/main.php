@@ -206,7 +206,7 @@ switch(@$_POST['op']) {
     case 'client_spisok_load':
         $filter = clientFilter($_POST);
         $send = client_data(1, $filter);
-        $send['all'] = client_count($send['all'], $filter['dolg']);
+        $send['all'] = utf8(client_count($send['all'], $filter['dolg']));
         $send['spisok'] = utf8($send['spisok']);
         jsonSuccess($send);
         break;
@@ -247,6 +247,18 @@ switch(@$_POST['op']) {
         query("UPDATE `zayav` SET `status`=0 WHERE `client_id`=".$id);
         query("UPDATE `money` SET `status`=0 WHERE `client_id`=".$id);
         jsonSuccess();
+        break;
+    case 'client_zayav_load':
+        $data = zayav_data(1, zayavfilter($_POST), 10);
+        $send['all'] = utf8(zayav_count($data['all'], 0));
+        $send['html'] = utf8(zayav_spisok($data));
+        jsonSuccess($send);
+        break;
+    case 'client_zayav_next':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+            jsonError();
+        $send['html'] = utf8(zayav_spisok(zayav_data(intval($_POST['page']), zayavfilter($_POST), 10)));
+        jsonSuccess($send);
         break;
 
     case 'zayav_add':
@@ -302,6 +314,13 @@ switch(@$_POST['op']) {
         $data = zayav_data(1, zayavfilter($_POST));
         $send['all'] = utf8(zayav_count($data['all']));
         $send['html'] = utf8(zayav_spisok($data));
+        jsonSuccess($send);
+        break;
+    case 'zayav_next':
+        $_POST['find'] = win1251($_POST['find']);
+        if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+            jsonError();
+        $send['html'] = utf8(zayav_spisok(zayav_data(intval($_POST['page']), zayavfilter($_POST))));
         jsonSuccess($send);
         break;
     case 'zayav_edit':
