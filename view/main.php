@@ -48,6 +48,7 @@ function _vkUserUpdate($uid=VIEWER_ID) {//Обновление пользователя из Контакта
                 `country_id`='.$u['country_id'].',
                 `city_id`='.$u['city_id'];
     query($sql);
+    $u['viewer_id'] = $uid;
     return $u;
 }//end of _vkUserUpdate()
 
@@ -135,11 +136,11 @@ function _header() {
         (SA ? '<script type="text/javascript">var TIME=(new Date()).getTime();</script>' : '').
 
         '<script type="text/javascript">'.
-        (LOCAL ? 'for(var i in VK)if(typeof VK[i]=="function")VK[i]=function(){return false};' : '').
-        'var G={},'.
-        'DOMAIN="'.DOMAIN.'",'.
-        'VALUES="'.VALUES.'",'.
-        'VIEWER_ID='.VIEWER_ID.';'.
+            (LOCAL ? 'for(var i in VK)if(typeof VK[i]=="function")VK[i]=function(){return false};' : '').
+            'var G={},'.
+            'DOMAIN="'.DOMAIN.'",'.
+            'VALUES="'.VALUES.'",'.
+            'VIEWER_ID='.VIEWER_ID.';'.
         '</script>'.
 
         //Подключение стилей VK. Должны стоять до основных стилей сайта
@@ -207,17 +208,6 @@ function _footer() {
         '</div></body></html>';
 }//end of _footer()
 
-function _viewerName($id=VIEWER_ID, $link=false) {
-    $key = CACHE_PREFIX.'viewer_name_'.$id;
-    $name = xcache_get($key);
-    if(empty($name)) {
-        $sql = "SELECT CONCAT(`first_name`,' ',`last_name`) AS `name` FROM `vk_user` WHERE `viewer_id`=".$id." LIMIT 1";
-        $r = mysql_fetch_assoc(query($sql));
-        $name = $r['name'];
-        xcache_set($key, $name, 86400);
-    }
-    return $link ? '<a href="http://vk.com/id'.$id.'" target="_blank">'.$name.'</a>' : $name;
-}//end of _viewerName()
 function _viewersInfo($arr=VIEWER_ID) {
     if(empty($arr))
         return array();
@@ -238,6 +228,31 @@ function _viewersInfo($arr=VIEWER_ID) {
         );
     return $id ? $send[$id] : $send;
 }//end of _viewersInfo()
+function _viewer($id=VIEWER_ID, $val=false) {
+    $key = CACHE_PREFIX.'viewer_'.$id;
+    $u = xcache_get($key);
+    if(empty($u)) {
+        $sql = "SELECT * FROM `vk_user` WHERE `viewer_id`=".$id." LIMIT 1";
+        if(!$u = mysql_fetch_assoc(query($sql)))
+            $u = _vkUserUpdate();
+
+        $u['name'] = $u['first_name'].' '.$u['last_name'];
+        $u['link'] = '<a href="http://vk.com/id'.$id.'" target="_blank">'.$u['name'].'</a>';
+
+        $sql = "SELECT * FROM `worker` WHERE `viewer_id`=".$u['viewer_id'];
+        if($w = mysql_fetch_assoc(query($sql))) {
+            $u['worker'] = 1;
+            $u['rules'] = array();
+            if(!empty($w['rules']))
+                foreach(explode(',', $w['rules']) as $rule)
+                    $u['rules'][$rule] = true;
+        }
+        xcache_set($key, $u, 86400);
+    }
+    if($val)
+        return isset($u[$val]) ? $u[$val] : false;
+    return $u;
+}//end of _viewer()
 
 function _product($product_id=false, $type='array') {//Список изделий для заявок
     if(!defined('PRODUCT_LOADED') || $product_id === false) {
@@ -330,7 +345,7 @@ function _mainLinks() {
         array(
             'name' => 'Установки',
             'page' => 'setup',
-            'show' => 1
+            'show' => RULES_SETUP
         )
     );
 
@@ -519,7 +534,7 @@ function client_info($client_id) {
             $about .= $r['prim'];
             $money .= '<tr><td class="sum"><b>'.$r['sum'].'</b>'.
                 '<td>'.$about.
-                '<td class="dtime" title="Внёс: '._viewerName($r['viewer_id_add']).'">'.FullDataTime($r['dtime_add']);
+                '<td class="dtime" title="Внёс: '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']);
         }
         $money .= '</table>';
     }
@@ -541,7 +556,7 @@ function client_info($client_id) {
                             '<tr><td class="label">Адрес:  <td class="adres">'.$client['adres'].'</TD>'.
                             '<tr><td class="label">Баланс: <td><b style=color:#'.($client['balans'] < 0 ? 'A00' : '090').'>'.$client['balans'].'</b>'.
                         '</table>'.
-                        '<div class="dtime">Клиента внёс '._viewerName($client['viewer_id_add']).' '.FullData($client['dtime_add'], 1).'</div>'.
+                        '<div class="dtime">Клиента внёс '._viewer($client['viewer_id_add'], 'name').' '.FullData($client['dtime_add'], 1).'</div>'.
                     '</div>'.
                     '<div id="dopLinks">'.
                         '<a class="link sel" val="zayav">Заявки'.($zayavData['all'] ? ' ('.$zayavData['all'].')' : '').'</a>'.
@@ -573,6 +588,7 @@ function client_info($client_id) {
 
 
 // ---===! zayav !===--- Секция заявок
+
 function _zayavStatus($id=false) {
     $arr = array(
         '0' => array(
@@ -623,7 +639,7 @@ function zayav_add($v=array()) {
             '<tr><td class="label">Номер договора: <td><INPUT type="text" id="nomer_dog" maxlength="30" />'.
             '<tr><td class="label">Номер ВГ:       <td><INPUT type="text" id="nomer_vg" maxlength="30" />'.
             '<tr><td class="label">Изделие:        <td><INPUT type="hidden" id="product_id" value="0" />'.
-                '<a href="'.URL.'&p=setup&d=product" class="img_edit product_edit" title="Настроить список изделий"></a>'.
+                (RULES_PRODUCT ? '<a href="'.URL.'&p=setup&d=product" class="img_edit product_edit" title="Настроить список изделий"></a>' : '').
             '<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres_set" maxlength="100" />'.
             '<tr><td class="label top">Заметка:    <td><textarea id="comm"></textarea>'.
         '</table>'.
@@ -816,7 +832,7 @@ function zayav_info($zayav_id) {
                 '<tr><td class="label">Изделие:<td>'._product($zayav['product_id']).
                 '<tr><td class="label">Адрес установки:<td>'.$zayav['adres_set'].
                 '<tr><td class="label">Дата приёма:'.
-                    '<td class="dtime_add" title="Заявку внёс '._viewerName($zayav['viewer_id_add']).'">'.FullDataTime($zayav['dtime_add']).
+                    '<td class="dtime_add" title="Заявку внёс '._viewer($zayav['viewer_id_add'], 'name').'">'.FullDataTime($zayav['dtime_add']).
                 '<tr><td class="label">Статус:'.
                     '<td><div id="status" style="background-color:#'._zayavStatusColor($zayav['status']).'" class="status_place">'.
                             _zayavStatusName($zayav['status']).
@@ -844,7 +860,7 @@ function zayav_accrual_unit($acc) {
     return
     '<tr><td class="sum acc" title="Начисление">'.$acc['sum'].'</td>'.
         '<td>'.$acc['prim'].'</td>'.
-        '<td class="dtime" title="Начислил '._viewerName(isset($acc['viewer_id_add']) ? $acc['viewer_id_add'] : VIEWER_ID).'">'.
+        '<td class="dtime" title="Начислил '._viewer(isset($acc['viewer_id_add']) ? $acc['viewer_id_add'] : VIEWER_ID, 'name').'">'.
             FullDataTime(isset($acc['dtime_add']) ? $acc['dtime_add'] : curTime()).
         '</td>'.
         '<td class="del"><div class="img_del acc_del" title="Удалить начисление" val="'.$acc['id'].'"></div></td>'.
@@ -854,7 +870,7 @@ function zayav_oplata_unit($op) {
     return
     '<tr><td class="sum op" title="Платёж">'.$op['sum'].'</td>'.
         '<td><em>'._prihodType($op['prihod_type']).($op['prim'] ? ':' : '').'</em>'.$op['prim'].'</td>'.
-        '<td class="dtime" title="Платёж внёс '._viewerName(isset($op['viewer_id_add']) ? $op['viewer_id_add'] : VIEWER_ID).'">'.
+        '<td class="dtime" title="Платёж внёс '._viewer(isset($op['viewer_id_add']) ? $op['viewer_id_add'] : VIEWER_ID, 'name').'">'.
             FullDataTime(isset($op['dtime_add']) ? $op['dtime_add'] : curTime()).
         '</td>'.
         '<td class="del"><div class="img_del op_del" title="Удалить платёж" val="'.$op['id'].'"></div></td>'.
@@ -863,34 +879,135 @@ function zayav_oplata_unit($op) {
 
 
 
+// ---===! setup !===--- Секция настроек
 
 function setup() {
-    switch(@$_GET['d']) {
-        default: $_GET['d'] = 'worker';
-        case 'worker': $left = setup_worker(); break;
+    $pageDef = 'worker';
+    $pages = array(
+        'worker' => 'Сотрудники',
+        'product' => 'Виды изделий',
+        'prihodtype' => 'Виды платежей'
+    );
+
+    if(!RULES_WORKER)
+        unset($pages['worker']);
+    if(!RULES_PRODUCT)
+        unset($pages['product']);
+    if(!RULES_PRIHODTYPE)
+        unset($pages['prihodtype']);
+
+    $d = empty($_GET['d']) ? $pageDef : $_GET['d'];
+    if(empty($_GET['d']) && !empty($pages) && empty($pages[$d])) {
+        foreach($pages as $p => $name) {
+            $d = $p;
+            break;
+        }
+    }
+
+    switch($d) {
+        default: $d = $pageDef;
+        case 'worker':
+            if(preg_match(REGEXP_NUMERIC, @$_GET['id'])) {
+                $left = setup_rules(intval($_GET['id']));
+                break;
+            }
+            $left = setup_worker();
+            break;
         case 'product': $left = setup_product(); break;
         case 'prihodtype': $left = setup_prihodtype(); break;
     }
-    $right = '<div class="rightLink">'.
-        '<a href="'.URL.'&p=setup&d=worker"'.(@$_GET['d'] == 'worker' ? ' class="sel"' : '').'>Сотрудники</a>'.
-        '<a href="'.URL.'&p=setup&d=product"'.(@$_GET['d'] == 'product' ? ' class="sel"' : '').'>Виды изделий</a>'.
-        '<a href="'.URL.'&p=setup&d=prihodtype"'.(@$_GET['d'] == 'prihodtype' ? ' class="sel"' : '').'>Виды платежей</a>'.
-    '</div>';
+    $links = '';
+    if($pages)
+        foreach($pages as $p => $name)
+            $links .= '<a href="'.URL.'&p=setup&d='.$p.'"'.($d == $p ? ' class="sel"' : '').'>'.$name.'</a>';
     return
     '<div id="setup">'.
         '<table class="tabLR">'.
             '<tr><td class="left">'.$left.
-                '<td class="right">'.$right.
+                '<td class="right"><div class="rightLink">'.$links.'</div>'.
         '</table>'.
     '</div>';
 }//end of setup()
+
 function setup_worker() {
+    if(!RULES_WORKER)
+        return _norules('Управление сотрудниками');
     return
     '<div id="setup_worker">'.
-        '<div class="headName">Управление сотрудниками</div>'.
+        '<div class="headName">Управление сотрудниками<a class="add">Новый сотрудник</a></div>'.
+        '<div id="spisok">'.setup_worker_spisok().'</div>'.
     '</div>';
 }//end of setup_worker()
+function setup_worker_spisok() {
+    $sql = "SELECT
+                `w`.`viewer_id`,
+                CONCAT(`u`.`first_name`,' ',`u`.`last_name`) AS `name`,
+                `u`.`photo`,
+                `u`.`admin`
+            FROM `worker` AS `w`,
+                 `vk_user` AS `u`
+            WHERE `w`.`viewer_id`=`u`.`viewer_id`
+              AND `w`.`viewer_id`!=982006
+            ORDER BY `w`.`dtime_add`";
+    $q = query($sql);
+    $send = '';
+    while($r = mysql_fetch_assoc($q)) {
+        $send .=
+        '<table class="unit" val="'.$r['viewer_id'].'">'.
+            '<tr><td class="photo"><img src="'.$r['photo'].'">'.
+                '<td>'.
+                    ($r['admin'] ? '' : '<div class="img_del"></div>').
+                    '<a class="name">'.$r['name'].'</a>'.
+                    ($r['admin'] ? '' : '<a href="'.URL.'&p=setup&d=worker&id='.$r['viewer_id'].'" class="rules_set">Настроить права</a>').
+        '</table>';
+    }
+    return $send;
+}//end of setup_worker_spisok()
+function rulesList($v=false) {
+    $rules = array(
+        'RULES_APPENTER' => 1,   // Разрешать вход в приложение
+        'RULES_SETUP' => 1,      // Управление установками
+        'RULES_WORKER' => 1,     // Сотрудники
+        'RULES_PRODUCT' => 1,    // Виды изделий
+        'RULES_PRIHODTYPE' => 1  // Виды платежей
+    );
+    return $v ? isset($rules[$v]) : $rules;
+}//end of rulesList()
+function _norules($txt=false) {
+    return '<div class="norules">'.($txt ? '<b>'.$txt.'</b>: н' : 'Н').'едостаточно прав.</div>';
+}//_norules()
+function setup_rules($viewer_id) {
+    $u = _viewer($viewer_id);
+    if(!RULES_WORKER)
+        return _norules('Настройка прав для сотрудника '.$u['name']);
+    if(!isset($u['worker']))
+        return 'Сотрудника не существует.';
+    if($u['admin'])
+        return 'Невозможно изменять права сотрудника <b>'.$u['name'].'</b>.';
+    $rule = array();
+    foreach(rulesList() as $name => $v)
+        $rule[$name] = isset($u['rules'][$name]) ? 1 : 0;
+    return
+    '<script type="text/javascript">var RULES_VIEWER_ID='.$viewer_id.';</script>'.
+    '<div id="setup_rules">'.
+        '<div class="headName">Настройка прав для сотрудника '.$u['name'].'</div>'.
+        '<table class="values">'.
+            '<tr><td>Разрешать вход в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).
+            '<tr><td>Управление установками:<td>'._check('rules_setup', '', $rule['RULES_SETUP']).
+            '<tr><td><td>'.
+                '<div class="setup-div'.($rule['RULES_SETUP'] ? '' : ' dn').'">'.
+                    _check('rules_worker', 'Сотрудники', $rule['RULES_WORKER']).
+                    _check('rules_product', 'Виды изделий', $rule['RULES_PRODUCT']).
+                    _check('rules_prihodtype', 'Виды платежей', $rule['RULES_PRIHODTYPE']).
+                '</div>'.
+        '</table>'.
+    '</div>';
+}//end of setup_rules()
+
+
 function setup_product() {
+    if(!RULES_PRODUCT)
+        return _norules('Настройки видов изделий');
     return
     '<div id="setup_product">'.
         '<div class="headName">Настройки видов изделий<a class="add">Добавить</a></div>'.
@@ -918,7 +1035,10 @@ function setup_product_spisok() {
     }
     return $send ? $send : 'Список пуст.';
 }//end of setup_product_spisok()
+
 function setup_prihodtype() {
+    if(!RULES_PRIHODTYPE)
+        return _norules('Настройки видов платежей');
     return
     '<div id="setup_prihodtype">'.
         '<div class="headName">Настройки видов платежей<a class="add">Добавить</a></div>'.

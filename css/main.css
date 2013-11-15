@@ -1,3 +1,7 @@
+.noauth{background-color:#F7F7F7;padding:25px}
+.noauth div{border:#ddd solid 1px;padding:70px 10px;background-color:#FFF;color:#888;text-align:center;font-size:12px}
+.norules{margin:10px;padding:15px;border:#ddd solid 1px;color:#900}
+
 /* Список клиентов */
 #client #find{background-color:#F7F7F7;padding:10px;border-bottom:#dae1e8 solid 1px}
 #client .result.busy{background-position:585px center}
@@ -119,6 +123,23 @@
 #setup .headName{margin:0 0 15px}
 #setup .right{padding:0;width:170px;border-left:0}
 #setup .rightLink a.sel{border-color:#6B8EB5}
+
+#setup_worker .headName{margin-bottom:15px}
+#setup_worker .unit,#setup_worker_add table{border-spacing:10px;border:#DDE solid 1px;width:300px;margin:6px 0 6px 20px}
+#setup_worker .unit td,#setup_worker_add td{vertical-align:top}
+#setup_worker .photo,#setup_worker_add .photo{width:50px}
+#setup_worker .photo img,#setup_worker_add .photo img{width:50px;height:50px}
+#setup_worker .img_del{float:right;margin-top:2px}
+#setup_worker .name,#setup_worker_add .name{font-weight:bold;font-size:12px;color:#45688e}
+#setup_worker .rules_set{display:block;margin-top:5px}
+#setup_worker_add{margin:10px 0}
+#setup_worker_add h1{font-weight:bold;color:#31618C}
+#setup_worker_add input{width:240px;padding:5px;height:13px;margin:7px 5px 0 0}
+#setup_worker_add .res{margin:10px 0 0 20px}
+
+#setup_rules .values{border-spacing:15px;margin-left:20px}
+#setup_rules .setup-div{margin-top:-12px}
+#setup_rules .setup-div div{display:block;margin-top:5px;color:#555}
 
 #setup_product .name{width:250px}
 #setup_product td.name{cursor:move}

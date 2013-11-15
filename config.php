@@ -48,20 +48,11 @@ function _getSetupGlobal() {//Получение глобальных данных
     define('VERSION', $g['version']);
 }//end of _getSetupGlobal()
 function _getVkUser() {//Получение данных о пользователе
-    global $sqls;
-    $key = CACHE_PREFIX.'viewer_'.VIEWER_ID;
-    $u = xcache_get($key);
-    $from = 'Данные пользователя получены из кеша.';
-    if(empty($u)) {
-        $from = 'Данные пользователя получены из базы.';
-        $sql = "SELECT * FROM `vk_user` WHERE `viewer_id`='".VIEWER_ID."' LIMIT 1";
-        if(!$u = mysql_fetch_assoc(query($sql))) {
-            $from = 'Данные пользователя получены из Контакта.';
-            $u = _vkUserUpdate();
-        }
-        xcache_set($key, $u, 86400);
-    }
-    $sqls .= '<b>'.$from.'</b><br /><br />';
+    $u = _viewer();
     define('VIEWER_NAME', $u['first_name'].' '.$u['last_name']);
     define('VIEWER_ADMIN', ($u['admin'] == 1));
+    define('AUTH', isset($u['worker']));
+    if(AUTH)
+        foreach(rulesList() as $name => $val)
+            define($name, isset($u['rules'][$name]));
 }//end of _getVkUser()

@@ -5,6 +5,15 @@ switch(@$_POST['op']) {
     case 'cache_clear':
         if(!SA)
             jsonError();
+        $sql = "SELECT `viewer_id` FROM `vk_user` WHERE `admin`=1";
+        $q = query($sql);
+        $uids = array();
+        while($r = mysql_fetch_assoc($q))
+            $uids[] = $r['viewer_id'];
+        if(!empty($uids))
+            query("UPDATE `worker`
+                   SET `rules`='".implode(',', array_keys(rulesList()))."'
+                   WHERE `viewer_id` IN (".implode(',', $uids).")");
         query("UPDATE `setup_global` SET `version`=`version`+1");
         _cacheClear();
         jsonSuccess();
@@ -656,8 +665,73 @@ switch(@$_POST['op']) {
         jsonSuccess($send);
         break;
 
+    case 'setup_worker_add':
+        if(!RULES_WORKER)
+            jsonError();
+        if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+            jsonError();
+        $id = intval($_POST['id']);
+        $sql = "SELECT * FROM `worker` WHERE `viewer_id`=".$id;
+        if($r = mysql_fetch_assoc(query($sql)))
+            if($r['viewer_id'] == $id)
+                jsonError('Этот пользователь уже является</br >сотрудником.');
+        _vkUserUpdate($id);
+        query("INSERT INTO `worker`
+                (`viewer_id`,`viewer_id_add`)
+               VALUES
+               (".$id.",".VIEWER_ID.")");
+        xcache_unset(CACHE_PREFIX.'viewer_'.$id);
+        $send['html'] = utf8(setup_worker_spisok());
+        jsonSuccess($send);
+        break;
+    case 'setup_worker_del':
+        if(!RULES_WORKER)
+            jsonError();
+        if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
+            jsonError();
+        $viewer_id = intval($_POST['viewer_id']);
+        $sql = "SELECT * FROM `vk_user` WHERE `viewer_id`=".$viewer_id;
+        if(!$r = mysql_fetch_assoc(query($sql)))
+            jsonError();
+        if($r['admin'])
+            jsonError();
+        query("DELETE FROM `worker` WHERE `viewer_id`=".$viewer_id);
+        xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+        $send['html'] = utf8(setup_worker_spisok());
+        jsonSuccess($send);
+        break;
+    case 'setup_rules_set':
+        if(!RULES_WORKER)
+            jsonError();
+        if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
+            jsonError();
+        if(!preg_match(REGEXP_BOOL, $_POST['action']))
+            jsonError();
 
+        $viewer_id = intval($_POST['viewer_id']);
+        $value = strtoupper($_POST['value']);
+        $action = intval($_POST['action']);
+
+        if(!rulesList($value))
+            jsonError();
+
+        $u = _viewer($viewer_id);
+        if(!isset($u['worker']))
+            jsonError();
+        if($u['admin'])
+            jsonError();
+
+        unset($u['rules'][$value]);
+        if($action)
+            $u['rules'][$value] = true;
+        $sql = "UPDATE `worker` SET `rules`='".implode(',', array_keys($u['rules']))."' WHERE `viewer_id`=".$viewer_id;
+        query($sql);
+        xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+        jsonSuccess();
+        break;
     case 'setup_product_add':
+        if(!RULES_PRODUCT)
+            jsonError();
         $name = win1251(htmlspecialchars(trim($_POST['name'])));
         if(empty($name))
             jsonError();
@@ -677,6 +751,8 @@ switch(@$_POST['op']) {
         jsonSuccess($send);
         break;
     case 'setup_product_edit':
+        if(!RULES_PRODUCT)
+            jsonError();
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
         $id = intval($_POST['id']);
@@ -690,6 +766,8 @@ switch(@$_POST['op']) {
         jsonSuccess($send);
         break;
     case 'setup_product_del':
+        if(!RULES_PRODUCT)
+            jsonError();
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
         $id = intval($_POST['id']);
@@ -701,8 +779,9 @@ switch(@$_POST['op']) {
         $send['html'] = utf8(setup_product_spisok());
         jsonSuccess($send);
         break;
-
     case 'setup_prihodtype_add':
+        if(!RULES_PRIHODTYPE)
+            jsonError();
         if(!preg_match(REGEXP_BOOL, $_POST['kassa_put']))
             jsonError();
         $kassa_put = intval($_POST['kassa_put']);
@@ -727,6 +806,8 @@ switch(@$_POST['op']) {
         jsonSuccess($send);
         break;
     case 'setup_prihodtype_edit':
+        if(!RULES_PRIHODTYPE)
+            jsonError();
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
         if(!preg_match(REGEXP_BOOL, $_POST['kassa_put']))
@@ -746,6 +827,8 @@ switch(@$_POST['op']) {
         jsonSuccess($send);
         break;
     case 'setup_prihodtype_del':
+        if(!RULES_PRIHODTYPE)
+            jsonError();
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
         $id = intval($_POST['id']);

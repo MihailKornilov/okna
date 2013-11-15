@@ -4,7 +4,7 @@ require_once('../config.php');
 function jsonError($values=null) {
     $send['error'] = 1;
     if(empty($values))
-        $send['text'] = utf8('РџСЂРѕРёР·РѕС€Р»Р° РЅРµРёР·РІРµСЃС‚РЅР°СЏ РѕС€РёР±РєР°.<br />РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·РґРЅРµРµ.');
+        $send['text'] = utf8('Произошла неизвестная ошибка.<br />Попробуйте позднее.');
     elseif(is_array($values))
         $send += $values;
     else
