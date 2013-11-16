@@ -5,15 +5,11 @@ switch(@$_POST['op']) {
     case 'cache_clear':
         if(!SA)
             jsonError();
-        $sql = "SELECT `viewer_id` FROM `vk_user` WHERE `admin`=1";
+        $sql = "SELECT `viewer_id` FROM `vk_user` WHERE `worker`=1";
         $q = query($sql);
-        $uids = array();
         while($r = mysql_fetch_assoc($q))
-            $uids[] = $r['viewer_id'];
-        if(!empty($uids))
-            query("UPDATE `worker`
-                   SET `rules`='".implode(',', array_keys(rulesList()))."'
-                   WHERE `viewer_id` IN (".implode(',', $uids).")");
+            xcache_unset(CACHE_PREFIX.'viewer_'.$r['viewer_id']);
+        query("UPDATE `vk_user` SET `rules`='".implode(',', array_keys(rulesList()))."' WHERE `admin`=1");
         query("UPDATE `setup_global` SET `version`=`version`+1");
         _cacheClear();
         jsonSuccess();
@@ -61,7 +57,7 @@ switch(@$_POST['op']) {
                     ".VIEWER_ID."
                 )";
         query($sql);
-        $send['html'] = utf8(_vkCommentUnit(mysql_insert_id(), _viewersInfo(), $txt, curTime()));
+        $send['html'] = utf8(_vkCommentUnit(mysql_insert_id(), _viewer(), $txt, curTime()));
         jsonSuccess($send);
         break;
     case 'vkcomment_add_child':
@@ -89,7 +85,7 @@ switch(@$_POST['op']) {
                     ".VIEWER_ID."
                 )";
         query($sql);
-        $send['html'] = utf8(_vkCommentChild(mysql_insert_id(), _viewersInfo(), $txt, curTime()));
+        $send['html'] = utf8(_vkCommentChild(mysql_insert_id(), _viewer(), $txt, curTime()));
         jsonSuccess($send);
         break;
     case 'vkcomment_del':
@@ -206,10 +202,10 @@ switch(@$_POST['op']) {
             'uid' => mysql_insert_id(),
             'title' => $fio
         );
-        /*history_insert(array(
-            'type' => 3,
+        history_insert(array(
+            'type' => 1,
             'client_id' => $send['uid']
-        ));*/
+        ));
         jsonSuccess($send);
         break;
     case 'client_spisok_load':
@@ -671,15 +667,10 @@ switch(@$_POST['op']) {
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
         $id = intval($_POST['id']);
-        $sql = "SELECT * FROM `worker` WHERE `viewer_id`=".$id;
-        if($r = mysql_fetch_assoc(query($sql)))
-            if($r['viewer_id'] == $id)
-                jsonError('Этот пользователь уже является</br >сотрудником.');
-        _vkUserUpdate($id);
-        query("INSERT INTO `worker`
-                (`viewer_id`,`viewer_id_add`)
-               VALUES
-               (".$id.",".VIEWER_ID.")");
+        if(query_value("SELECT `worker` FROM `vk_user` WHERE `viewer_id`=".$id." LIMIT 1"));
+            jsonError('Этот пользователь уже является</br >сотрудником.');
+        _viewer($id);
+        query("UPDATE `vk_user` SET `worker`=1 WHERE `viewer_id`=".$id);
         xcache_unset(CACHE_PREFIX.'viewer_'.$id);
         $send['html'] = utf8(setup_worker_spisok());
         jsonSuccess($send);
@@ -695,7 +686,9 @@ switch(@$_POST['op']) {
             jsonError();
         if($r['admin'])
             jsonError();
-        query("DELETE FROM `worker` WHERE `viewer_id`=".$viewer_id);
+        if(!$r['worker'])
+            jsonError();
+        query("UPDATE `vk_user` SET `worker`=0,`rules`='' WHERE `viewer_id`=".$viewer_id);
         xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
         $send['html'] = utf8(setup_worker_spisok());
         jsonSuccess($send);
@@ -716,15 +709,23 @@ switch(@$_POST['op']) {
             jsonError();
 
         $u = _viewer($viewer_id);
-        if(!isset($u['worker']))
-            jsonError();
         if($u['admin'])
             jsonError();
+        if(!$u['worker'])
+            jsonError();
 
-        unset($u['rules'][$value]);
+        $rules = workerRulesArray($u['rules'], true);
+        unset($rules[$value]);
+        if($value == 'RULES_APPENTER')
+            $rules = array();
+        if($value == 'RULES_SETUP') {
+            unset($rules['RULES_WORKER']);
+            unset($rules['RULES_PRODUCT']);
+            unset($rules['RULES_PRIHODTYPE']);
+        }
         if($action)
-            $u['rules'][$value] = true;
-        $sql = "UPDATE `worker` SET `rules`='".implode(',', array_keys($u['rules']))."' WHERE `viewer_id`=".$viewer_id;
+            $rules[$value] = 1;
+        $sql = "UPDATE `vk_user` SET `rules`='".implode(',', array_keys($rules))."' WHERE `viewer_id`=".$viewer_id;
         query($sql);
         xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
         jsonSuccess();

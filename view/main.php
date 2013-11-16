@@ -1,57 +1,4 @@
 <?php
-function _vkUserUpdate($uid=VIEWER_ID) {//Обновление пользователя из Контакта
-    require_once(DOCUMENT_ROOT.'/include/vkapi.class.php');
-    $VKAPI = new vkapi($_GET['api_id'], SECRET);
-    $res = $VKAPI->api('users.get',array('uids' => $uid, 'fields' => 'photo,sex,country,city'));
-    $u = $res['response'][0];
-    $u['first_name'] = win1251($u['first_name']);
-    $u['last_name'] = win1251($u['last_name']);
-    $u['country_id'] = isset($u['country']) ? $u['country'] : 0;
-    $u['city_id'] = isset($u['city']) ? $u['city'] : 0;
-    $u['menu_left_set'] = 0;
-
-    // установил ли приложение
-    $app = $VKAPI->api('isAppUser', array('uid'=>$uid));
-    $u['app_setup'] = $app['response'];
-
-    // поместил ли в левое меню
-    //$mls = $VKAPI->api('getUserSettings', array('uid'=>$uid));
-    $u['menu_left_set'] = 0;//($mls['response']&256) > 0 ? 1 : 0;
-
-    $sql = 'INSERT INTO `vk_user` (
-                `viewer_id`,
-                `first_name`,
-                `last_name`,
-                `sex`,
-                `photo`,
-                `app_setup`,
-                `menu_left_set`,
-                `country_id`,
-                `city_id`
-            ) VALUES (
-                '.$uid.',
-                "'.$u['first_name'].'",
-                "'.$u['last_name'].'",
-                '.$u['sex'].',
-                "'.$u['photo'].'",
-                '.$u['app_setup'].',
-                '.$u['menu_left_set'].',
-                '.$u['country_id'].',
-                '.$u['city_id'].'
-            ) ON DUPLICATE KEY UPDATE
-                `first_name`="'.$u['first_name'].'",
-                `last_name`="'.$u['last_name'].'",
-                `sex`='.$u['sex'].',
-                `photo`="'.$u['photo'].'",
-                `app_setup`='.$u['app_setup'].',
-                `menu_left_set`='.$u['menu_left_set'].',
-                `country_id`='.$u['country_id'].',
-                `city_id`='.$u['city_id'];
-    query($sql);
-    $u['viewer_id'] = $uid;
-    return $u;
-}//end of _vkUserUpdate()
-
 function _hashRead() {
     $_GET['p'] = isset($_GET['p']) ? $_GET['p'] : 'zayav';
     if(empty($_GET['hash'])) {
@@ -109,7 +56,6 @@ function _hashCookieSet() {
 }//end of _hashCookieSet()
 function _cacheClear() {
     xcache_unset(CACHE_PREFIX.'setup_global');
-    xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
     xcache_unset(CACHE_PREFIX.'product_name');
     xcache_unset(CACHE_PREFIX.'prihodtype');
 }//ens of _cacheClear()
@@ -207,52 +153,6 @@ function _footer() {
         '</script>'.
         '</div></body></html>';
 }//end of _footer()
-
-function _viewersInfo($arr=VIEWER_ID) {
-    if(empty($arr))
-        return array();
-    $id = false;
-    if(!is_array($arr)) {
-        $id = $arr;
-        $arr = array($arr);
-    }
-    $sql = "SELECT * FROM `vk_user` WHERE `viewer_id` IN (".implode(',', $arr).")";
-    $q = query($sql);
-    $send = array();
-    while($r = mysql_fetch_assoc($q))
-        $send[$r['viewer_id']] = array(
-            'id' => $r['viewer_id'],
-            'name' => $r['first_name'].' '.$r['last_name'],
-            'link' => '<a href="http://vk.com/id'.$r['viewer_id'].'" target="_blank" class="vlink">'.$r['first_name'].' '.$r['last_name'].'</a>',
-            'photo' => '<img src="'.$r['photo'].'">'
-        );
-    return $id ? $send[$id] : $send;
-}//end of _viewersInfo()
-function _viewer($id=VIEWER_ID, $val=false) {
-    $key = CACHE_PREFIX.'viewer_'.$id;
-    $u = xcache_get($key);
-    if(empty($u)) {
-        $sql = "SELECT * FROM `vk_user` WHERE `viewer_id`=".$id." LIMIT 1";
-        if(!$u = mysql_fetch_assoc(query($sql)))
-            $u = _vkUserUpdate();
-
-        $u['name'] = $u['first_name'].' '.$u['last_name'];
-        $u['link'] = '<a href="http://vk.com/id'.$id.'" target="_blank">'.$u['name'].'</a>';
-
-        $sql = "SELECT * FROM `worker` WHERE `viewer_id`=".$u['viewer_id'];
-        if($w = mysql_fetch_assoc(query($sql))) {
-            $u['worker'] = 1;
-            $u['rules'] = array();
-            if(!empty($w['rules']))
-                foreach(explode(',', $w['rules']) as $rule)
-                    $u['rules'][$rule] = true;
-        }
-        xcache_set($key, $u, 86400);
-    }
-    if($val)
-        return isset($u[$val]) ? $u[$val] : false;
-    return $u;
-}//end of _viewer()
 
 function _product($product_id=false, $type='array') {//Список изделий для заявок
     if(!defined('PRODUCT_LOADED') || $product_id === false) {
@@ -879,6 +779,98 @@ function zayav_oplata_unit($op) {
 
 
 
+// ---===! report !===--- Секция отчётов
+
+function report() {
+    $menu = '<div class="rightLink">'.
+        '<a class="sel">История действий</a>'.
+        '<a>Платежи</a>'.
+    '</div>';
+    switch(@$_GET['d']) {
+        default:
+        case 'history':
+            $left = report_history_spisok();
+            break;
+    }
+    return
+    '<table class="tabLR" id="report">'.
+        '<tr><td class="left">'.$left.
+            '<td class="right">'.$menu.
+    '</table>';
+}//end of report()
+
+function history_insert($arr) {
+    $sql = "INSERT INTO `history` (
+			   `type`,
+			   `value`,
+			   `value1`,
+			   `client_id`,
+			   `zayav_id`,
+			   `viewer_id_add`
+			) VALUES (
+				".$arr['type'].",
+				'".(isset($arr['value']) ? $arr['value'] : '')."',
+				'".(isset($arr['value1']) ? $arr['value1'] : '')."',
+				".(isset($arr['client_id']) ? $arr['client_id'] : 0).",
+				".(isset($arr['zayav_id']) ? $arr['zayav_id'] : 0).",
+				".VIEWER_ID."
+			)";
+    query($sql);
+}//end of history_insert()
+function history_types($v) {
+    switch($v['type']) {
+        case 1: return 'Внесение нового клиента '.$v['client'].'.';
+
+        default: return $v['type'];
+    }
+}//end of history_types()
+function report_history_spisok($page=1) {
+    $limit = 30;
+    $cond = "";
+    $sql = "SELECT COUNT(`id`) AS `all`
+			FROM `history`";
+    $all = query_value($sql);
+    if(!$all)
+        return 'Истории по указанным условиям нет.';
+    $start = ($page - 1) * $limit;
+
+    $sql = "SELECT *
+			FROM `history`
+			ORDER BY `id` DESC
+			LIMIT ".$start.",".$limit;
+    $q = query($sql);
+    $history = array();
+    $viewer = array();
+    $client = array();
+    $zayav = array();
+    while($r = mysql_fetch_assoc($q)) {
+        $viewer[$r['viewer_id_add']] = $r['viewer_id_add'];
+        if($r['client_id'])
+            $client[$r['client_id']] = $r['client_id'];
+        if($r['zayav_id'])
+            $zayav[$r['zayav_id']] = $r['zayav_id'];
+        $history[] = $r;
+    }
+    $viewer = _viewer($viewer);
+    $client = _clientLink($client);
+    $send = '';
+    foreach($history as $r) {
+        if($r['client_id'])
+            $r['client'] = $client[$r['client_id']];
+        $send .=
+        '<div class="history_unit">'.
+            '<div class="head">'.FullDataTime($r['dtime_add']).$viewer[$r['viewer_id_add']]['link'].'</div>'.
+            '<div class="txt">'.history_types($r).'</div>'.
+        '</div>';
+    }
+    if($start + $limit < $all)
+        $send .= '<div class="ajaxNext" id="report_history_next" val="'.($page + 1).'"><span>Далее...</span></div>';
+    return $send;
+}//end of report_history_spisok()
+
+
+
+
 // ---===! setup !===--- Секция настроек
 
 function setup() {
@@ -939,16 +931,14 @@ function setup_worker() {
     '</div>';
 }//end of setup_worker()
 function setup_worker_spisok() {
-    $sql = "SELECT
-                `w`.`viewer_id`,
-                CONCAT(`u`.`first_name`,' ',`u`.`last_name`) AS `name`,
-                `u`.`photo`,
-                `u`.`admin`
-            FROM `worker` AS `w`,
-                 `vk_user` AS `u`
-            WHERE `w`.`viewer_id`=`u`.`viewer_id`
-              AND `w`.`viewer_id`!=982006
-            ORDER BY `w`.`dtime_add`";
+    $sql = "SELECT `viewer_id`,
+                   CONCAT(`first_name`,' ',`last_name`) AS `name`,
+                   `photo`,
+                   `admin`
+            FROM `vk_user`
+            WHERE `worker`=1
+              AND `viewer_id`!=982006
+            ORDER BY `dtime_add`";
     $q = query($sql);
     $send = '';
     while($r = mysql_fetch_assoc($q)) {
@@ -973,6 +963,16 @@ function rulesList($v=false) {
     );
     return $v ? isset($rules[$v]) : $rules;
 }//end of rulesList()
+function workerRulesArray($rules, $noList=false) {
+    $send = array();
+    foreach(explode(',', $rules) as $name)
+        $send[$name] = 1;
+    if(!$noList)
+        foreach(rulesList() as $name => $v)
+            $send[$name] = isset($send[$name]) ? 1 : 0;
+    unset($send['']);
+    return $send;
+}//end of
 function _norules($txt=false) {
     return '<div class="norules">'.($txt ? '<b>'.$txt.'</b>: н' : 'Н').'едостаточно прав.</div>';
 }//_norules()
@@ -984,23 +984,26 @@ function setup_rules($viewer_id) {
         return 'Сотрудника не существует.';
     if($u['admin'])
         return 'Невозможно изменять права сотрудника <b>'.$u['name'].'</b>.';
-    $rule = array();
-    foreach(rulesList() as $name => $v)
-        $rule[$name] = isset($u['rules'][$name]) ? 1 : 0;
+//    print_r(workerRulesArray($u['rules']));
+    $rule = workerRulesArray($u['rules']);
     return
     '<script type="text/javascript">var RULES_VIEWER_ID='.$viewer_id.';</script>'.
     '<div id="setup_rules">'.
         '<div class="headName">Настройка прав для сотрудника '.$u['name'].'</div>'.
-        '<table class="values">'.
-            '<tr><td>Разрешать вход в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).
-            '<tr><td>Управление установками:<td>'._check('rules_setup', '', $rule['RULES_SETUP']).
-            '<tr><td><td>'.
-                '<div class="setup-div'.($rule['RULES_SETUP'] ? '' : ' dn').'">'.
-                    _check('rules_worker', 'Сотрудники', $rule['RULES_WORKER']).
-                    _check('rules_product', 'Виды изделий', $rule['RULES_PRODUCT']).
-                    _check('rules_prihodtype', 'Виды платежей', $rule['RULES_PRIHODTYPE']).
-                '</div>'.
+        '<table class="rtab">'.
+            '<tr><td class="lab">Разрешать вход в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).
         '</table>'.
+        '<div class="app-div'.($rule['RULES_APPENTER'] ? '' : ' dn').'">'.
+            '<table class="rtab">'.
+                '<tr><td class="lab">Управление установками:<td>'._check('rules_setup', '', $rule['RULES_SETUP']).
+                '<tr><td class="lab"><td>'.
+                    '<div class="setup-div'.($rule['RULES_SETUP'] ? '' : ' dn').'">'.
+                        _check('rules_worker', 'Сотрудники', $rule['RULES_WORKER']).
+                        _check('rules_product', 'Виды изделий', $rule['RULES_PRODUCT']).
+                        _check('rules_prihodtype', 'Виды платежей', $rule['RULES_PRIHODTYPE']).
+                    '</div>'.
+            '</table>'.
+        '</div>'.
     '</div>';
 }//end of setup_rules()
 

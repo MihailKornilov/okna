@@ -49,10 +49,10 @@ function _getSetupGlobal() {//Получение глобальных данных
 }//end of _getSetupGlobal()
 function _getVkUser() {//Получение данных о пользователе
     $u = _viewer();
-    define('VIEWER_NAME', $u['first_name'].' '.$u['last_name']);
-    define('VIEWER_ADMIN', ($u['admin'] == 1));
+    define('VIEWER_NAME', $u['name']);
+    define('VIEWER_ADMIN', $u['admin']);
     define('AUTH', isset($u['worker']));
     if(AUTH)
-        foreach(rulesList() as $name => $val)
-            define($name, isset($u['rules'][$name]));
+        foreach(workerRulesArray($u['rules']) as $name => $val)
+            define($name, $val);
 }//end of _getVkUser()

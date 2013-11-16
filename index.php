@@ -6,10 +6,10 @@ _header();
 
 if(!AUTH || !RULES_APPENTER)
     $html .= '<div class="noauth"><div>Недостаточно прав.</div></div>';
-else
+else {
+    _mainLinks();
     switch($_GET['p']) {
         case 'client':
-            _mainLinks();
             switch(@$_GET['d']) {
                 case 'info':
                     if(!preg_match(REGEXP_NUMERIC, $_GET['id'])) {
@@ -23,7 +23,6 @@ else
             }
             break;
         case 'zayav':
-            _mainLinks();
             switch(@$_GET['d']) {
                 case 'add':
                     $v = array(
@@ -67,12 +66,13 @@ else
                     $html .= zayav_list(zayav_data(1, zayavfilter($values)), $values);
             }
             break;
+        case 'report': $html .= report(); break;
         case 'setup':
-            _mainLinks();
             $html .= RULES_SETUP ? setup() : _norules('Настройки');
             break;
         default: header('Location:'.URL.'&p=zayav');
     }
+}
 
 _footer();
 mysql_close();

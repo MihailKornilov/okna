@@ -1192,10 +1192,21 @@ $(document)
         }
 
         if($('#setup_rules').length > 0) {
-            $('#rules_appenter')._check(setupRulesSet);
-            $('#rules_setup')._check(function(v) {
+            $('#rules_appenter')._check(function(v, id) {
+                $('.app-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
+                $('.setup-div').addClass('dn');
+                setupRulesSet(v, id);
+                $('#rules_setup')._check(0);
+                $('#rules_worker')._check(0);
+                $('#rules_product')._check(0);
+                $('#rules_prihodtype')._check(0);
+            });
+            $('#rules_setup')._check(function(v, id) {
                 $('.setup-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
-                setupRulesSet(v, 'rules_setup');
+                setupRulesSet(v, id);
+                $('#rules_worker')._check(0);
+                $('#rules_product')._check(0);
+                $('#rules_prihodtype')._check(0);
             });
             $('#rules_worker')._check(setupRulesSet);
             $('#rules_product')._check(setupRulesSet);

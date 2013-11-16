@@ -119,6 +119,15 @@
 
 
 
+#report .left{padding:10px}
+.history_unit{margin:5px 0}
+.history_unit .head{font-size:10px;color:#777}
+.history_unit .head a{font-size:10px;margin-left:10px}
+.history_unit .txt{margin-left:30px}
+.history_unit i{font:italic 11px Arial;color:#977}
+
+
+
 #setup .left{padding:15px}
 #setup .headName{margin:0 0 15px}
 #setup .right{padding:0;width:170px;border-left:0}
@@ -137,8 +146,9 @@
 #setup_worker_add input{width:240px;padding:5px;height:13px;margin:7px 5px 0 0}
 #setup_worker_add .res{margin:10px 0 0 20px}
 
-#setup_rules .values{border-spacing:15px;margin-left:20px}
-#setup_rules .setup-div{margin-top:-12px}
+#setup_rules .rtab{border-spacing:8px;margin-left:20px}
+#setup_rules .lab{width:170px}
+#setup_rules .setup-div{margin-top:-5px}
 #setup_rules .setup-div div{display:block;margin-top:5px;color:#555}
 
 #setup_product .name{width:250px}
