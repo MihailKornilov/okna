@@ -505,6 +505,25 @@ $(document)
         }, 'json');
     })
 
+    .on('click', '#report_history_next', function() {
+        if($(this).hasClass('busy'))
+            return;
+        var next = $(this),
+            send = {
+                op:'report_history_next',
+                page:$(this).attr('val')
+//                worker:$('#report_history_worker').val(),
+//                action:$('#report_history_action').val(),
+            };
+        next.addClass('busy');
+        $.post(AJAX_MAIN, send, function (res) {
+            if(res.success)
+                next.after(res.html).remove();
+            else
+                next.removeClass('busy');
+        }, 'json');
+    })
+
     .on('click', '#setup_worker .add', function() {
         var html = '<div id="setup_worker_add">' +
                 '<h1>Ссылка на страницу или ID пользователя ВКонтакте:</h1>' +

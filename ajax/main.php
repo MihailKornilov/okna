@@ -231,26 +231,42 @@ switch(@$_POST['op']) {
         $adres = win1251(htmlspecialchars(trim($_POST['adres'])));
         if(empty($fio))
             jsonError();
+        $sql = "SELECT * FROM `client` WHERE `status`=1 AND `id`=".$client_id;
+        if(!$client = mysql_fetch_assoc(query($sql)))
+            jsonError();
         query("UPDATE `client` SET
                 `fio`='".$fio."',
                 `telefon`='".$telefon."',
                 `adres`='".$adres."'
                WHERE `id`=".$client_id);
-/*        history_insert(array(
-            'type' => $join ? 11 : 10,
-            'client_id' => $client_id
-        ));*/
+        $changes = '';
+        if($client['fio'] != $fio)
+            $changes .= '<tr><th>Фио:<td>'.$client['fio'].'<td>»<td>'.$fio;
+        if($client['telefon'] != $telefon)
+            $changes .= '<tr><th>Тел.:<td>'.$client['telefon'].'<td>»<td>'.$telefon;
+        if($client['adres'] != $adres)
+            $changes .= '<tr><th>Адрес:<td>'.$client['adres'].'<td>»<td>'.$adres;
+        if($changes)
+            history_insert(array(
+                'type' => 2,
+                'client_id' => $client_id,
+                'value' => '<table>'.$changes.'</table>'
+            ));
         jsonSuccess();
         break;
     case 'client_del':
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
-        $id = intval($_POST['id']);
-        if(!query_value("SELECT COUNT(`id`) FROM `client` WHERE `status`=1 AND `id`=".$id))
+        $client_id = intval($_POST['id']);
+        if(!query_value("SELECT COUNT(`id`) FROM `client` WHERE `status`=1 AND `id`=".$client_id))
             jsonError();
-        query("UPDATE `client` SET `status`=0 WHERE `id`=".$id);
-        query("UPDATE `zayav` SET `status`=0 WHERE `client_id`=".$id);
-        query("UPDATE `money` SET `status`=0 WHERE `client_id`=".$id);
+        query("UPDATE `client` SET `status`=0 WHERE `id`=".$client_id);
+        query("UPDATE `zayav` SET `status`=0 WHERE `client_id`=".$client_id);
+        query("UPDATE `money` SET `status`=0 WHERE `client_id`=".$client_id);
+        history_insert(array(
+            'type' => 3,
+            'client_id' => $client_id
+        ));
         jsonSuccess();
         break;
     case 'client_zayav_load':
@@ -312,6 +328,11 @@ switch(@$_POST['op']) {
                     )";
             query($sql);
         }
+        history_insert(array(
+            'type' => 4,
+            'zayav_id' => $send['id'],
+            'client_id' => $client_id
+        ));
         jsonSuccess($send);
         break;
     case 'zayav_spisok_load':
@@ -371,11 +392,23 @@ switch(@$_POST['op']) {
             clientBalansUpdate($client_id);
         }
 
-        /*history_insert(array(
-            'type' => 7,
-            'zayav_id' => $zayav_id
-        ));*/
-
+        $changes = '';
+        if($zayav['client_id'] != $client_id)
+            $changes .= '<tr><th>Клиент:<td>'._clientLink($zayav['client_id']).'<td>»<td>'._clientLink($client_id);
+        if($zayav['nomer_dog'] != $nomer_dog)
+            $changes .= '<tr><th>Номер договора:<td>'.$zayav['nomer_dog'].'<td>»<td>'.$nomer_dog;
+        if($zayav['nomer_vg'] != $nomer_vg)
+            $changes .= '<tr><th>Номер ВГ:<td>'.$zayav['nomer_vg'].'<td>»<td>'.$nomer_vg;
+        if($zayav['product_id'] != $product_id)
+            $changes .= '<tr><th>Изделие:<td>'._product($zayav['product_id']).'<td>»<td>'._product($product_id);
+        if($zayav['adres_set'] != $adres_set)
+            $changes .= '<tr><th>Адрес установки:<td>'.$zayav['adres_set'].'<td>»<td>'.$adres_set;
+        if($changes)
+            history_insert(array(
+                'type' => 5,
+                'zayav_id' => $zayav_id,
+                'value' => '<table>'.$changes.'</table>'
+            ));
         jsonSuccess();
         break;
     case 'zayav_delete':
@@ -406,13 +439,10 @@ switch(@$_POST['op']) {
         $sql = "UPDATE `zayav` SET `status`=0 WHERE `id`=".$zayav_id;
         query($sql);
 
-        $sql = "DELETE FROM `vk_comment` WHERE `table_name`='zayav' AND `table_id`=".$zayav_id;
-        query($sql);
-
-/*        history_insert(array(
-            'type' => 2,
-            'value' => $zayav['nomer']
-        ));*/
+        history_insert(array(
+            'type' => 6,
+            'zayav_id' => $zayav_id
+        ));
 
         $send['client_id'] = $zayav['client_id'];
         jsonSuccess($send);
@@ -471,11 +501,12 @@ switch(@$_POST['op']) {
 
         clientBalansUpdate($zayav['client_id']);
 
-/*        history_insert(array(
-            'type' => 5,
+        history_insert(array(
+            'type' => 7,
             'zayav_id' => $zayav_id,
-            'value' => $sum
-        ));*/
+            'value' => $sum,
+            'value1' => $prim
+        ));
 
         $send['html'] = utf8(zayav_accrual_unit(array(
             'id' => mysql_insert_id(),
@@ -507,12 +538,12 @@ switch(@$_POST['op']) {
 
         clientBalansUpdate($r['client_id']);
 
-/*        history_insert(array(
+        history_insert(array(
             'type' => 8,
             'value' => $r['sum'],
             'value1' => $r['prim'],
             'zayav_id' => $r['zayav_id']
-        ));*/
+        ));
         jsonSuccess();
         break;
     case 'zayav_accrual_rest':
@@ -536,12 +567,12 @@ switch(@$_POST['op']) {
 
         clientBalansUpdate($acc['client_id']);
 
-/*        history_insert(array(
-            'type' => 27,
+        history_insert(array(
+            'type' => 9,
             'value' => $acc['sum'],
             'value1' => $acc['prim'],
             'zayav_id' => $acc['zayav_id']
-        ));*/
+        ));
         $send['html'] = utf8(zayav_accrual_unit($acc));
         jsonSuccess($send);
         break;
@@ -593,11 +624,13 @@ switch(@$_POST['op']) {
             'prim' => $prim
         )));
         clientBalansUpdate($zayav['client_id']);
-/*        history_insert(array(
-            'type' => 6,
+        history_insert(array(
+            'type' => 10,
             'zayav_id' => $zayav_id,
-            'value' => $sum
-        ));*/
+            'value' => $sum,
+            'value1' => $prim,
+            'value2' => $type
+        ));
         jsonSuccess($send);
         break;
     case 'zayav_oplata_del':
@@ -621,14 +654,14 @@ switch(@$_POST['op']) {
 
         clientBalansUpdate($r['client_id']);
 
-        /*$sql = "SELECT * FROM `money` WHERE `id`=".$id;
-        $r = mysql_fetch_assoc(query($sql));
         history_insert(array(
-            'type' => 9,
+            'type' => 11,
+            'zayav_id' => $r['zayav_id'],
             'value' => $r['sum'],
             'value1' => $r['prim'],
-            'zayav_id' => $r['zayav_id']
-        ));*/
+            'value2' => $r['prihod_type']
+        ));
+
         jsonSuccess();
         break;
     case 'zayav_oplata_rest':
@@ -651,27 +684,49 @@ switch(@$_POST['op']) {
 
         clientBalansUpdate($r['client_id']);
 
-        /*history_insert(array(
-            'type' => 19,
+        history_insert(array(
+            'type' => 12,
+            'zayav_id' => $r['zayav_id'],
             'value' => $r['sum'],
             'value1' => $r['prim'],
-            'zayav_id' => $r['zayav_id']
-        ));*/
+            'value2' => $r['prihod_type']
+        ));
+
         $send['html'] = utf8(zayav_oplata_unit($r));
         jsonSuccess($send);
         break;
+
+    case 'report_history_next':
+        if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+            jsonError();
+/*        if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
+            $_POST['worker'] = 0;
+        if(!preg_match(REGEXP_NUMERIC, $_POST['action']))
+            $_POST['action'] = 0;*/
+        $page = intval($_POST['page']);
+        $send['html'] = utf8(report_history_spisok($page));
+        jsonSuccess($send);
+        break;
+
 
     case 'setup_worker_add':
         if(!RULES_WORKER)
             jsonError();
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
-        $id = intval($_POST['id']);
-        if(query_value("SELECT `worker` FROM `vk_user` WHERE `viewer_id`=".$id." LIMIT 1"));
+        $viewer_id = intval($_POST['id']);
+        $sql = "SELECT `worker` FROM `vk_user` WHERE `viewer_id`=".$viewer_id." LIMIT 1";
+        if(query_value($sql))
             jsonError('Этот пользователь уже является</br >сотрудником.');
-        _viewer($id);
-        query("UPDATE `vk_user` SET `worker`=1 WHERE `viewer_id`=".$id);
-        xcache_unset(CACHE_PREFIX.'viewer_'.$id);
+        _viewer($viewer_id);
+        query("UPDATE `vk_user` SET `worker`=1 WHERE `viewer_id`=".$viewer_id);
+        xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+
+        history_insert(array(
+            'type' => 13,
+            'value' => $viewer_id
+        ));
+
         $send['html'] = utf8(setup_worker_spisok());
         jsonSuccess($send);
         break;
@@ -690,6 +745,12 @@ switch(@$_POST['op']) {
             jsonError();
         query("UPDATE `vk_user` SET `worker`=0,`rules`='' WHERE `viewer_id`=".$viewer_id);
         xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+
+        history_insert(array(
+            'type' => 14,
+            'value' => $viewer_id
+        ));
+
         $send['html'] = utf8(setup_worker_spisok());
         jsonSuccess($send);
         break;

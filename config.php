@@ -1,4 +1,5 @@
 <?php
+define('API_ID', 3978722);
 define('TIME', microtime(true));
 define('DEBUG', @$_COOKIE['debug'] == 1);
 define('DOCUMENT_ROOT', dirname(__FILE__));
@@ -19,6 +20,7 @@ if(SA) { ini_set('display_errors',1); error_reporting(E_ALL); }
 
 require_once(DOCUMENT_ROOT.'/syncro.php');
 require_once(VKPATH.'/vk.php');
+_appAuth();
 require_once(DOCUMENT_ROOT.'/view/main.php');
 
 define('REGEXP_NUMERIC', '/^[0-9]{1,20}$/i');

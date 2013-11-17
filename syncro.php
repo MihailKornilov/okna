@@ -12,4 +12,3 @@ define('PATH', 'c:/www/okna/');
 define('CACHE_PREFIX', 'okna_');
 
 $_GET['viewer_id'] = 982006;
-$_GET['api_id'] = 3978722;

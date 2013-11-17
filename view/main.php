@@ -268,11 +268,11 @@ function _clientLink($arr) {
         $id = $arr;
         $arr = array($arr);
     }
-    $sql = "SELECT `id`,`fio` FROM `client` WHERE `id` IN (".implode(',', $arr).")";
+    $sql = "SELECT `id`,`fio`,`status` FROM `client` WHERE `id` IN (".implode(',', $arr).")";
     $q = query($sql);
     $send = array();
     while($r = mysql_fetch_assoc($q))
-        $send[$r['id']] = '<a href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
+        $send[$r['id']] = '<a '.($r['status'] ? '' : 'class="deleted"').' href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
     if($id)
         return $send[$id];
     return $send;
@@ -804,6 +804,7 @@ function history_insert($arr) {
 			   `type`,
 			   `value`,
 			   `value1`,
+			   `value2`,
 			   `client_id`,
 			   `zayav_id`,
 			   `viewer_id_add`
@@ -811,6 +812,7 @@ function history_insert($arr) {
 				".$arr['type'].",
 				'".(isset($arr['value']) ? $arr['value'] : '')."',
 				'".(isset($arr['value1']) ? $arr['value1'] : '')."',
+				'".(isset($arr['value2']) ? $arr['value2'] : '')."',
 				".(isset($arr['client_id']) ? $arr['client_id'] : 0).",
 				".(isset($arr['zayav_id']) ? $arr['zayav_id'] : 0).",
 				".VIEWER_ID."
@@ -820,6 +822,35 @@ function history_insert($arr) {
 function history_types($v) {
     switch($v['type']) {
         case 1: return 'Внесение нового клиента '.$v['client'].'.';
+        case 2: return 'Изменение данных клиента '.$v['client'].':<div class="changes">'.$v['value'].'</div>';
+        case 3: return 'Удаление клиента '.$v['client'].'.';
+
+        case 4: return 'Внесение новой заявки '.$v['zayav'].' для клиента '.$v['client'].'.';
+        case 5: return 'Изменение данных заявки '.$v['zayav'].':<div class="changes">'.$v['value'].'</div>';
+        case 6: return 'Удаление заявки '.$v['zayav'].'.';
+
+        case 7: return 'Начисление на сумму <b>'.$v['value'].'</b> руб.'.($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').' по заявке '.$v['zayav'].'.';
+        case 8: return 'Удаление начисления на сумму <b>'.$v['value'].'</b> руб.'.($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').' у заявки '.$v['zayav'].'.';
+        case 9: return 'Восстановление начисления на сумму <b>'.$v['value'].'</b> руб.'.($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').' у заявки '.$v['zayav'].'.';
+
+        case 10: return
+            'Платёж "<span class="oplata">'._prihodType($v['value2']).'</span>" '.
+            'на сумму <b>'.$v['value'].'</b> руб.'.
+            ($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
+            ' по заявке '.$v['zayav'].'.';
+        case 11: return
+            'Удаление платежа "<span class="oplata">'._prihodType($v['value2']).'</span>" '.
+            'на сумму <b>'.$v['value'].'</b> руб.'.
+            ($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
+            ' у заявки '.$v['zayav'].'.';
+        case 12: return
+            'Восстановление платежа "<span class="oplata">'._prihodType($v['value2']).'</span>" '.
+            'на сумму <b>'.$v['value'].'</b> руб.'.
+            ($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
+            ' у заявки '.$v['zayav'].'.';
+
+        case 13: return 'Добавление нового сотрудника '._viewer($v['value'], 'link').'.';
+        case 14: return 'Удаление сотрудника '._viewer($v['value'], 'link').'.';
 
         default: return $v['type'];
     }
@@ -842,26 +873,40 @@ function report_history_spisok($page=1) {
     $history = array();
     $viewer = array();
     $client = array();
-    $zayav = array();
     while($r = mysql_fetch_assoc($q)) {
         $viewer[$r['viewer_id_add']] = $r['viewer_id_add'];
         if($r['client_id'])
             $client[$r['client_id']] = $r['client_id'];
-        if($r['zayav_id'])
-            $zayav[$r['zayav_id']] = $r['zayav_id'];
         $history[] = $r;
     }
     $viewer = _viewer($viewer);
     $client = _clientLink($client);
     $send = '';
-    foreach($history as $r) {
+    $time = strtotime($history[0]['dtime_add']);
+    $txt = '';
+    $viewer_id = $history[0]['viewer_id_add'];
+    $count = count($history) - 1;
+    foreach($history as $n => $r) {
+        if(!$time) {
+            $time = strtotime($r['dtime_add']);
+            $txt = '';
+            $viewer_id = $r['viewer_id_add'];
+        }
         if($r['client_id'])
             $r['client'] = $client[$r['client_id']];
-        $send .=
-        '<div class="history_unit">'.
-            '<div class="head">'.FullDataTime($r['dtime_add']).$viewer[$r['viewer_id_add']]['link'].'</div>'.
-            '<div class="txt">'.history_types($r).'</div>'.
-        '</div>';
+        if($r['zayav_id'])
+            $r['zayav'] = '<a href="'.URL.'&p=zayav&d=info&id='.$r['zayav_id'].'">№'.$r['zayav_id'].'</a>';
+        $txt .= '<div class="txt">'.history_types($r).'</div>';
+        if($count == $n
+           || $time - strtotime($history[$n + 1]['dtime_add']) > 600
+           || $viewer_id != $history[$n + 1]['viewer_id_add']) {
+            $time = 0;
+            $send .=
+            '<div class="history_unit">'.
+                '<div class="head">'.FullDataTime($r['dtime_add']).$viewer[$r['viewer_id_add']]['link'].'</div>'.
+                $txt.
+            '</div>';
+        }
     }
     if($start + $limit < $all)
         $send .= '<div class="ajaxNext" id="report_history_next" val="'.($page + 1).'"><span>Далее...</span></div>';
