@@ -47,18 +47,19 @@ function _hashRead() {
             }
     }
     _hashCookieSet();
-}//end of _hashRead()
+}//_hashRead()
 function _hashCookieSet() {
     setcookie('p', $_GET['p'], time() + 2592000, '/');
     setcookie('d', isset($_GET['d']) ? $_GET['d'] : '', time() + 2592000, '/');
     setcookie('d1', isset($_GET['d1']) ? $_GET['d1'] : '', time() + 2592000, '/');
     setcookie('id', isset($_GET['id']) ? $_GET['id'] : '', time() + 2592000, '/');
-}//end of _hashCookieSet()
+}//_hashCookieSet()
 function _cacheClear() {
     xcache_unset(CACHE_PREFIX.'setup_global');
-    xcache_unset(CACHE_PREFIX.'product_name');
+    xcache_unset(CACHE_PREFIX.'product');
+    xcache_unset(CACHE_PREFIX.'product_sub');
     xcache_unset(CACHE_PREFIX.'prihodtype');
-}//ens of _cacheClear()
+}//_cacheClear()
 
 function _header() {
     global $html;
@@ -94,6 +95,7 @@ function _header() {
 
         '<link href="'.SITE.'/css/main.css?'.VERSION.'" rel="stylesheet" type="text/css" />'.
         '<script type="text/javascript" src="'.SITE.'/js/main.js?'.VERSION.'"></script>'.
+        '<script type="text/javascript" src="'.SITE.'/js/G_values.js?'.G_VALUES_VERSION.'"></script>'.
 
         //Подключение API VK
         '<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/'.(DEBUG ? '' : 'min/').'vk.js?'.VERSION.'"></script>'.
@@ -102,7 +104,7 @@ function _header() {
         '<body>'.
         '<div id="frameBody">'.
         '<iframe id="frameHidden" name="frameHidden"></iframe>';
-}//end of _header()
+}//_header()
 
 function _footer() {
     global $html, $sqlQuery, $sqlCount, $sqlTime;
@@ -152,14 +154,45 @@ function _footer() {
         (SA ? '$("#admin EM").html(((new Date().getTime())-TIME)/1000);' : '').
         '</script>'.
         '</div></body></html>';
-}//end of _footer()
+}//_footer()
 
-function _product($product_id=false, $type='array') {//Список изделий для заявок
+function GvaluesCreate() {//Составление файла G_values.js
+    $save = //'function _toSpisok(s){var a=[];for(k in s)a.push({uid:k,title:s[k]});return a}'.
+        //'function _toAss(s){var a=[];for(var n=0;n<s.length;a[s[n].uid]=s[n].title,n++);return a}'.
+        'var PRODUCT_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_product` ORDER BY `name`").
+         //',PRODUCT_ASS=_toSpisok(PRODUCT_ASS)'.
+           ',PRIHODTYPE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_prihodtype` ORDER BY `sort`").
+           ',PRIHODKASSA_ASS='.query_ptpJson("SELECT `id`,`kassa_put` FROM `setup_prihodtype` WHERE `kassa_put`=1");
+
+    $sql = "SELECT * FROM `setup_product_sub` ORDER BY `product_id`,`name`";
+    $q = query($sql);
+    $sub = array();
+    while($r = mysql_fetch_assoc($q)) {
+        if(!isset($sub[$r['product_id']]))
+            $sub[$r['product_id']] = array();
+        $sub[$r['product_id']][] = '{uid:'.$r['id'].',title:"'.$r['name'].'"}';
+    }
+    $v = array();
+    foreach($sub as $n => $sp)
+        $v[] = $n.':['.implode(',', $sp).']';
+    $save .= 'PRODUCT_SUB_SPISOK={'.implode(',', $v).'}';
+        //'PRODUCT_ASS=[],'.
+        //'PRODUCT_ASS[0]="";'.
+        //'for(var k in G.vendor_spisok){for(var n=0;n<G.vendor_spisok[k].length;n++){var sp=G.vendor_spisok[k][n];G.vendor_ass[sp.uid]=sp.title;}}';
+    $fp = fopen(PATH.'js/G_values.js','w+');
+    fwrite($fp, $save.';');
+    fclose($fp);
+
+    query("UPDATE `setup_global` SET `g_values`=`g_values`+1");
+    xcache_unset(CACHE_PREFIX.'setup_global');
+}//GvaluesCreate()
+
+function _product($product_id=false) {//Список изделий для заявок
     if(!defined('PRODUCT_LOADED') || $product_id === false) {
-        $key = CACHE_PREFIX.'product_name';
+        $key = CACHE_PREFIX.'product';
         $arr = xcache_get($key);
         if(empty($arr)) {
-            $sql = "SELECT `id`,`name` FROM `setup_product` ORDER BY `sort`";
+            $sql = "SELECT `id`,`name` FROM `setup_product` ORDER BY `name`";
             $q = query($sql);
             while($r = mysql_fetch_assoc($q))
                 $arr[$r['id']] = $r['name'];
@@ -172,18 +205,9 @@ function _product($product_id=false, $type='array') {//Список изделий для заявок
             define('PRODUCT_LOADED', true);
         }
     }
-    if($product_id !== false)
-        return constant('PRODUCT_'.$product_id);
-    switch($type) {
-        case 'json':
-            $json = array();
-            foreach($arr as $id => $name)
-                $json[] = '{uid:'.$id.',title:"'.$name.'"}';
-            return '['.implode(',', $json).']';
-        default: return $arr;
-    }
-}//end of _product()
-function _prihodType($type_id=false, $type='array') {//Список изделий для заявок
+    return $product_id !== false ? constant('PRODUCT_'.$product_id) : $arr;
+}//_product()
+function _prihodType($type_id=false) {//Список изделий для заявок
     if(!defined('PRIHODTYPE_LOADED') || $type_id === false) {
         $key = CACHE_PREFIX.'prihodtype';
         $arr = xcache_get($key);
@@ -204,24 +228,9 @@ function _prihodType($type_id=false, $type='array') {//Список изделий для заявок
             define('PRIHODTYPE_LOADED', true);
         }
     }
-    if($type_id !== false)
-        return constant('PRIHODTYPE_'.$type_id);
-    switch($type) {
-        case 'json':
-            $json = array();
-            foreach($arr as $id => $r)
-                $json[] = '{uid:'.$id.',title:"'.$r['name'].'"}';
-            return '['.implode(',', $json).']';
-        default: return $arr;
-    }
-}//end of _prihodType()
-function _prihodKassa() {
-    $json = array();
-    foreach(_prihodType() as $id => $r)
-        if($r['kassa'])
-            $json[] = $id.':'.$r['kassa'];
-    return '{'.implode(',', $json).'}';
-}//end of _prihodKassa()
+    return $type_id !== false ? constant('PRIHODTYPE_'.$type_id) : $arr;
+}//_prihodType()
+
 
 function _mainLinks() {
     global $html;
@@ -255,7 +264,31 @@ function _mainLinks() {
             $send .= '<a href="'.URL.'&p='.$l['page'].'"'.($l['page'] == $_GET['p'] ? 'class="sel"' : '').'>'.$l['name'].'</a>';
     $send .= '</div>';
     $html .= $send;
-}//end of _mainLinks()
+}//_mainLinks()
+
+function rulesList($v=false) {
+    $rules = array(
+        'RULES_APPENTER' => 1,   // Разрешать вход в приложение
+        'RULES_SETUP' => 1,      // Управление установками
+        'RULES_WORKER' => 1,     // Сотрудники
+        'RULES_PRODUCT' => 1,    // Виды изделий
+        'RULES_PRIHODTYPE' => 1  // Виды платежей
+    );
+    return $v ? isset($rules[$v]) : $rules;
+}//rulesList()
+function workerRulesArray($rules, $noList=false) {
+    $send = array();
+    foreach(explode(',', $rules) as $name)
+        $send[$name] = 1;
+    if(!$noList)
+        foreach(rulesList() as $name => $v)
+            $send[$name] = isset($send[$name]) ? 1 : 0;
+    unset($send['']);
+    return $send;
+}//workerRulesArray()
+function _norules($txt=false) {
+    return '<div class="norules">'.($txt ? '<b>'.$txt.'</b>: н' : 'Н').'едостаточно прав.</div>';
+}//_norules()
 
 
 // ---===! client !===--- Секция клиентов
@@ -276,14 +309,14 @@ function _clientLink($arr) {
     if($id)
         return $send[$id];
     return $send;
-}//end of _clientsLink()
+}//_clientsLink()
 function clientBalansUpdate($client_id) {//Обновление баланса клиента
     $prihod = query_value("SELECT SUM(`sum`) FROM `money` WHERE `status`=1 AND `client_id`=".$client_id." AND `sum`>0");
     $acc = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE `status`=1 AND `client_id`=".$client_id);
     $balans = $prihod - $acc;
     query("UPDATE `client` SET `balans`=".$balans." WHERE `id`=".$client_id);
     return $balans;
-}//end of clientBalansUpdate()
+}//clientBalansUpdate()
 
 function clientFilter($v) {
     if(!preg_match(REGEXP_WORDFIND, win1251($v['fast'])))
@@ -295,7 +328,7 @@ function clientFilter($v) {
         'dolg' => intval($v['dolg'])
     );
     return $filter;
-}//end of clientFilter()
+}//clientFilter()
 function client_data($page=1, $filter=array()) {
     $cond = "`status`=1";
     $reg = '';
@@ -379,7 +412,7 @@ function client_data($page=1, $filter=array()) {
         $send['spisok'] .= '<div class="ajaxNext" val="'.($page + 1).'"><span>Показать ещё '.$c.' клиент'._end($c, 'а', 'а', 'ов').'</span></div>';
     }
     return $send;
-}//end of client_data()
+}//client_data()
 function client_list($data) {
     return
     '<div id="client">'.
@@ -394,7 +427,7 @@ function client_list($data) {
                     '</div>'.
         '</table>'.
     '</div>';
-}//end of client_list()
+}//client_list()
 function client_count($count, $dolg=0) {
     if($dolg)
         $dolg = abs(query_value("SELECT SUM(`balans`) FROM `client` WHERE `balans`<0 LIMIT 1"));
@@ -403,7 +436,7 @@ function client_count($count, $dolg=0) {
         ($dolg ? '<em>(Общая сумма долга = '.$dolg.' руб.)</em>' : '')
         :
         'Клиентов не найдено');
-}//end of client_count()
+}//client_count()
 
 function client_info($client_id) {
     $sql = "SELECT * FROM `client` WHERE `status`=1 AND `id`=".$client_id;
@@ -483,7 +516,7 @@ function client_info($client_id) {
                     '</div>'.
         '</table>'.
     '</div>';
-}//end of client_info()
+}//client_info()
 
 
 
@@ -509,7 +542,7 @@ function _zayavStatus($id=false) {
         )
     );
     return $id ? $arr[$id] : $arr;
-}//end of _zayavStatus()
+}//_zayavStatus()
 function _zayavStatusName($id=false) {
     $status = _zayavStatus();
     if($id)
@@ -518,7 +551,7 @@ function _zayavStatusName($id=false) {
     foreach($status as $id => $r)
         $send[$id] = $r['name'];
     return $send;
-}//end of _zayavStatusName()
+}//_zayavStatusName()
 function _zayavStatusColor($id=false) {
     $status = _zayavStatus();
     if($id)
@@ -527,11 +560,10 @@ function _zayavStatusColor($id=false) {
     foreach($status as $id => $r)
         $send[$id] = $r['color'];
     return $send;
-}//end of _zayavStatusColor()
+}//_zayavStatusColor()
 
 function zayav_add($v=array()) {
     return
-    '<script type="text/javascript">var product='._product(false, 'json').';</script>'.
     '<div id="zayavAdd">'.
         '<div class="headName">Внесение новой заявки</div>'.
         '<table style="border-spacing:8px">'.
@@ -546,7 +578,7 @@ function zayav_add($v=array()) {
         '<div class="vkButton"><button>Внести</button></div>'.
         '<div class="vkCancel" val="'.$v['back'].'"><button>Отмена</button></div>'.
     '</div>';
-}//end of zayav_add()
+}//zayav_add()
 
 function zayavFilter($v) {
     if(empty($v['status']) || !preg_match(REGEXP_NUMERIC, $v['status']))
@@ -561,7 +593,7 @@ function zayavFilter($v) {
     if($v['client'] > 0)
         $filter['client'] = intval($v['client']);
     return $filter;
-}//end of zayavFilter()
+}//zayavFilter()
 function zayav_data($page=1, $filter=array(), $limit=20) {
     $cond = "`status`>0";
 
@@ -615,7 +647,7 @@ function zayav_data($page=1, $filter=array(), $limit=20) {
     if($start + $limit < $send['all'])
         $send['next'] = $page + 1;
     return $send;
-}//end of zayav_data()
+}//zayav_data()
 function zayav_count($count, $filter_break_show=true) {
     return
         ($filter_break_show ? '<a id="filter_break">Сбросить условия поиска</a>' : '').
@@ -623,7 +655,7 @@ function zayav_count($count, $filter_break_show=true) {
             'Показан'._end($count, 'а', 'о').' '.$count.' заяв'._end($count, 'ка', 'ки', 'ок')
             :
             'Заявок не найдено');
-}//end of zayav_count()
+}//zayav_count()
 function zayav_list($data, $values) {
     return
     '<div id="zayav">'.
@@ -648,7 +680,7 @@ function zayav_list($data, $values) {
             'status:'.$values['status'].
         '};'.
     '</script>';
-}//end of zayav_list()
+}//zayav_list()
 function zayav_spisok($data) {
     if(!isset($data['spisok']))
         return '<div class="_empty">Заявок не найдено.</div>';
@@ -667,7 +699,7 @@ function zayav_spisok($data) {
     if(isset($data['next']))
         $send .= '<div class="ajaxNext" val="'.($data['next']).'"><span>Следующие '.$data['limit'].' заявок</span></div>';
     return $send;
-}//end of zayav_spisok()
+}//zayav_spisok()
 
 function zayav_info($zayav_id) {
     $sql = "SELECT * FROM `zayav` WHERE `status`>0 AND `id`=".$zayav_id." LIMIT 1";
@@ -709,10 +741,7 @@ function zayav_info($zayav_id) {
             'nomer_dog:"'.$zayav['nomer_dog'].'",'.
             'nomer_vg:"'.$zayav['nomer_vg'].'",'.
             'product_id:'.$zayav['product_id'].','.
-            'adres_set:"'.$zayav['adres_set'].'",'.
-            'prihodtype:'._prihodType(false, 'json').','.
-            'prihodkassa:'._prihodKassa().','.
-            'product:'._product(false, 'json').
+            'adres_set:"'.$zayav['adres_set'].'"'.
         '};'.
     '</script>'.
     '<div id="zayavInfo">'.
@@ -755,7 +784,7 @@ function zayav_info($zayav_id) {
             '<table class="_spisok _money">'.implode($money).'</table>'.
         '</div>'.
     '</div>';
-}//end of zayav_info()
+}//zayav_info()
 function zayav_accrual_unit($acc) {
     return
     '<tr><td class="sum acc" title="Начисление">'.$acc['sum'].'</td>'.
@@ -765,7 +794,7 @@ function zayav_accrual_unit($acc) {
         '</td>'.
         '<td class="del"><div class="img_del acc_del" title="Удалить начисление" val="'.$acc['id'].'"></div></td>'.
     '</tr>';
-}//end of zayav_accrual_unit()
+}//zayav_accrual_unit()
 function zayav_oplata_unit($op) {
     return
     '<tr><td class="sum op" title="Платёж">'.$op['sum'].'</td>'.
@@ -775,7 +804,7 @@ function zayav_oplata_unit($op) {
         '</td>'.
         '<td class="del"><div class="img_del op_del" title="Удалить платёж" val="'.$op['id'].'"></div></td>'.
     '</tr>';
-}//end of zayav_oplata_unit()
+}//zayav_oplata_unit()
 
 
 
@@ -797,7 +826,7 @@ function report() {
         '<tr><td class="left">'.$left.
             '<td class="right">'.$menu.
     '</table>';
-}//end of report()
+}//report()
 
 function history_insert($arr) {
     $sql = "INSERT INTO `history` (
@@ -818,7 +847,7 @@ function history_insert($arr) {
 				".VIEWER_ID."
 			)";
     query($sql);
-}//end of history_insert()
+}//history_insert()
 function history_types($v) {
     switch($v['type']) {
         case 1: return 'Внесение нового клиента '.$v['client'].'.';
@@ -852,9 +881,12 @@ function history_types($v) {
         case 13: return 'Добавление нового сотрудника '._viewer($v['value'], 'link').'.';
         case 14: return 'Удаление сотрудника '._viewer($v['value'], 'link').'.';
 
+        case 501: return 'В установках: внесение нового наименования изделия "'.$v['value'].'".';
+        case 502: return 'В установках: изменение наименования изделия:<div class="changes">'.$v['value'].'</div>';
+        case 503: return 'В установках: удаление наименования изделия "'.$v['value'].'".';
         default: return $v['type'];
     }
-}//end of history_types()
+}//history_types()
 function report_history_spisok($page=1) {
     $limit = 30;
     $cond = "";
@@ -911,7 +943,7 @@ function report_history_spisok($page=1) {
     if($start + $limit < $all)
         $send .= '<div class="ajaxNext" id="report_history_next" val="'.($page + 1).'"><span>Далее...</span></div>';
     return $send;
-}//end of report_history_spisok()
+}//report_history_spisok()
 
 
 
@@ -950,7 +982,13 @@ function setup() {
             }
             $left = setup_worker();
             break;
-        case 'product': $left = setup_product(); break;
+        case 'product':
+            if(preg_match(REGEXP_NUMERIC, @$_GET['id'])) {
+                $left = setup_product_sub(intval($_GET['id']));
+                break;
+            }
+            $left = setup_product();
+            break;
         case 'prihodtype': $left = setup_prihodtype(); break;
     }
     $links = '';
@@ -964,7 +1002,7 @@ function setup() {
                 '<td class="right"><div class="rightLink">'.$links.'</div>'.
         '</table>'.
     '</div>';
-}//end of setup()
+}//setup()
 
 function setup_worker() {
     if(!RULES_WORKER)
@@ -974,7 +1012,7 @@ function setup_worker() {
         '<div class="headName">Управление сотрудниками<a class="add">Новый сотрудник</a></div>'.
         '<div id="spisok">'.setup_worker_spisok().'</div>'.
     '</div>';
-}//end of setup_worker()
+}//setup_worker()
 function setup_worker_spisok() {
     $sql = "SELECT `viewer_id`,
                    CONCAT(`first_name`,' ',`last_name`) AS `name`,
@@ -997,30 +1035,7 @@ function setup_worker_spisok() {
         '</table>';
     }
     return $send;
-}//end of setup_worker_spisok()
-function rulesList($v=false) {
-    $rules = array(
-        'RULES_APPENTER' => 1,   // Разрешать вход в приложение
-        'RULES_SETUP' => 1,      // Управление установками
-        'RULES_WORKER' => 1,     // Сотрудники
-        'RULES_PRODUCT' => 1,    // Виды изделий
-        'RULES_PRIHODTYPE' => 1  // Виды платежей
-    );
-    return $v ? isset($rules[$v]) : $rules;
-}//end of rulesList()
-function workerRulesArray($rules, $noList=false) {
-    $send = array();
-    foreach(explode(',', $rules) as $name)
-        $send[$name] = 1;
-    if(!$noList)
-        foreach(rulesList() as $name => $v)
-            $send[$name] = isset($send[$name]) ? 1 : 0;
-    unset($send['']);
-    return $send;
-}//end of
-function _norules($txt=false) {
-    return '<div class="norules">'.($txt ? '<b>'.$txt.'</b>: н' : 'Н').'едостаточно прав.</div>';
-}//_norules()
+}//setup_worker_spisok()
 function setup_rules($viewer_id) {
     $u = _viewer($viewer_id);
     if(!RULES_WORKER)
@@ -1050,7 +1065,7 @@ function setup_rules($viewer_id) {
             '</table>'.
         '</div>'.
     '</div>';
-}//end of setup_rules()
+}//setup_rules()
 
 
 function setup_product() {
@@ -1061,28 +1076,82 @@ function setup_product() {
         '<div class="headName">Настройки видов изделий<a class="add">Добавить</a></div>'.
         '<div class="spisok">'.setup_product_spisok().'</div>'.
     '</div>';
-}//end of setup_product()
+}//setup_product()
 function setup_product_spisok() {
-    $sql = "SELECT * FROM `setup_product` ORDER BY `sort`";
+    $sql = "SELECT `p`.`id`,
+                   `p`.`name`,
+                   COUNT(`ps`.`id`) AS `sub`
+            FROM `setup_product` AS `p`
+              LEFT JOIN `setup_product_sub` AS `ps`
+              ON `p`.`id`=`ps`.`product_id`
+            GROUP BY `p`.`id`
+            ORDER BY `p`.`name`";
+    $q = query($sql);
+    if(!mysql_num_rows($q))
+        return 'Список пуст.';
+
+    $product = array();
+    while($r = mysql_fetch_assoc($q))
+        $product[$r['id']] = $r;
+
+    $sql = "SELECT `p`.`id`,
+                   COUNT(`z`.`id`) AS `zayav`
+            FROM `setup_product` AS `p`,
+                 `zayav` AS `z`
+            WHERE `p`.`id`=`z`.`product_id`
+            GROUP BY `p`.`id`";
+    $q = query($sql);
+    while($r = mysql_fetch_assoc($q))
+        $product[$r['id']]['zayav'] = $r['zayav'];
+
+    $send = '<table class="_spisok">'.
+                '<tr><th>Наименование'.
+                    '<th>Подвиды'.
+                    '<th>Кол-во<br />заявок'.
+                    '<th>';
+    foreach($product as $id => $r)
+        $send .= '<tr val="'.$id.'">'.
+                    '<td class="name"><a href="'.URL.'&p=setup&d=product&id='.$id.'">'.$r['name'].'</a>'.
+                    '<td class="sub">'.($r['sub'] ? $r['sub'] : '').
+                    '<td class="zayav">'.(isset($r['zayav']) ? $r['zayav'] : '').
+                    '<td><div class="img_edit"></div>'.
+                        ($r['sub'] || isset($r['zayav']) ? '' :'<div class="img_del"></div>');
+    $send .= '</table>';
+    return $send;
+}//setup_product_spisok()
+
+function setup_product_sub($product_id) {
+    if(!RULES_PRODUCT)
+        return _norules('Настройки подвидов изделий');
+    $sql = "SELECT * FROM `setup_product` WHERE `id`=".$product_id;
+    if(!$pr = mysql_fetch_assoc(query($sql)))
+        return 'Изделия id = '.$product_id.' не существует.';
+    return
+    '<script type="text/javascript">var PRODUCT_ID='.$product_id.';</script>'.
+    '<div id="setup_product_sub">'.
+        '<a href="'.URL.'&p=setup&d=product"><< назад к видам изделий</a>'.
+        '<div class="headName">Список подвидов изделий для "'.$pr['name'].'"<a class="add">Добавить</a></div>'.
+        '<div class="spisok">'.setup_product_sub_spisok($product_id).'</div>'.
+    '</div>';
+}//setup_product_sub()
+function setup_product_sub_spisok($product_id) {
+    $sql = "SELECT * FROM `setup_product_sub` WHERE `product_id`=".$product_id." ORDER BY `name`";
     $q = query($sql);
     $send = '';
     if(mysql_num_rows($q)) {
-        $send =
-        '<table class="_spisok">'.
-            '<tr><th class="name">Наименование'.
-                '<th class="set">'.
-        '</table>'.
-        '<dl class="_sort" val="setup_product">';
+        $send = '<table class="_spisok">'.
+            '<tr><th>Наименование'.
+            '<th>Кол-во<br />заявок'.
+            '<th>';
         while($r = mysql_fetch_assoc($q))
-            $send .='<dd val="'.$r['id'].'">'.
-                '<table class="_spisok">'.
-                    '<tr><td class="name">'.$r['name'].
-                        '<td class="set"><div class="img_edit"></div><div class="img_del"></div>'.
-                '</table>';
-        $send .= '</dl>';
+            $send .= '<tr val="'.$r['id'].'">'.
+                '<td class="name">'.$r['name'].
+                '<td>'.
+                '<td><div class="img_edit"></div><div class="img_del"></div>';
+        $send .= '</table>';
     }
     return $send ? $send : 'Список пуст.';
-}//end of setup_product_spisok()
+}//setup_product_sub_spisok()
 
 function setup_prihodtype() {
     if(!RULES_PRIHODTYPE)
@@ -1092,7 +1161,7 @@ function setup_prihodtype() {
         '<div class="headName">Настройки видов платежей<a class="add">Добавить</a></div>'.
         '<div class="spisok">'.setup_prihodtype_spisok().'</div>'.
     '</div>';
-}//end of setup_prihodtype()
+}//setup_prihodtype()
 function setup_prihodtype_spisok() {
     $sql = "SELECT * FROM `setup_prihodtype` ORDER BY `sort`";
     $q = query($sql);
@@ -1115,4 +1184,4 @@ function setup_prihodtype_spisok() {
         $send .= '</dl>';
     }
     return $send ? $send : 'Список пуст.';
-}//end of setup_prihodtype_spisok()
+}//setup_prihodtype_spisok()

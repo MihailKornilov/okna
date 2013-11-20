@@ -389,7 +389,7 @@ $(document)
             width:142,
             display:'inline-block',
             title0:'Изделие не указано',
-            spisok:ZAYAV.product
+            spisok:PRODUCT_SPISOK
         });
 
         function submit() {
@@ -651,7 +651,7 @@ $(document)
                 dialog.bottom.vkHint({
                     msg:'<SPAN class=red>Не указано наименование</SPAN>',
                     top:-47,
-                    left:131,
+                    left:99,
                     indent:50,
                     show:1,
                     remove:1
@@ -664,7 +664,6 @@ $(document)
                         $('.spisok').html(res.html);
                         dialog.close();
                         _msg('Внесено!');
-                        sortable();
                     } else
                         dialog.abort();
                 }, 'json');
@@ -673,12 +672,12 @@ $(document)
     })
     .on('click', '#setup_product .img_edit', function() {
         var t = $(this);
-        while(t[0].tagName != 'DD')
+        while(t[0].tagName != 'TR')
             t = t.parent();
         var id = t.attr('val'),
-            name = t.find('.name').html(),
+            name = t.find('.name a'),
             html = '<table style="border-spacing:10px">' +
-                '<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" value="' + name + '" />' +
+                '<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" value="' + name.html() + '" />' +
                 '</table>',
             dialog = _dialog({
                 top:60,
@@ -699,7 +698,7 @@ $(document)
                 dialog.bottom.vkHint({
                     msg:'<SPAN class=red>Не указано наименование</SPAN>',
                     top:-47,
-                    left:131,
+                    left:99,
                     indent:50,
                     show:1,
                     remove:1
@@ -709,10 +708,9 @@ $(document)
                 dialog.process();
                 $.post(AJAX_MAIN, send, function(res) {
                     if(res.success) {
-                        $('.spisok').html(res.html);
+                        name.html(send.name);
                         dialog.close();
                         _msg('Сохранено!');
-                        sortable();
                     } else
                         dialog.abort();
                 }, 'json');
@@ -730,7 +728,7 @@ $(document)
                 submit:submit
             });
         function submit() {
-            while(t[0].tagName != 'DD')
+            while(t[0].tagName != 'TR')
                 t = t.parent();
             var send = {
                 op:'setup_product_del',
@@ -739,15 +737,132 @@ $(document)
             dialog.process();
             $.post(AJAX_MAIN, send, function(res) {
                 if(res.success) {
-                    $('.spisok').html(res.html);
+                    t.remove();
                     dialog.close();
                     _msg('Удалено!');
-                    sortable();
                 } else
                     dialog.abort();
             }, 'json');
         }
     })
+
+    .on('click', '#setup_product_sub .add', function() {
+        var t = $(this),
+            html = '<table style="border-spacing:10px">' +
+                '<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" />' +
+                '</table>',
+            dialog = _dialog({
+                top:60,
+                width:390,
+                head:'Добавление нового подвида изделия',
+                content:html,
+                submit:submit
+            });
+        $('#name').focus().keyEnter(submit);
+        function submit() {
+            var send = {
+                op:'setup_product_sub_add',
+                product_id:PRODUCT_ID,
+                name:$('#name').val()
+            };
+            if(!send.name) {
+                dialog.bottom.vkHint({
+                    msg:'<SPAN class=red>Не указано наименование</SPAN>',
+                    top:-47,
+                    left:99,
+                    indent:50,
+                    show:1,
+                    remove:1
+                });
+                $('#name').focus();
+            } else {
+                dialog.process();
+                $.post(AJAX_MAIN, send, function(res) {
+                    if(res.success) {
+                        $('.spisok').html(res.html);
+                        dialog.close();
+                        _msg('Внесено!');
+                    } else
+                        dialog.abort();
+                }, 'json');
+            }
+        }
+    })
+    .on('click', '#setup_product_sub .img_edit', function() {
+        var t = $(this);
+        while(t[0].tagName != 'TR')
+            t = t.parent();
+        var name = t.find('.name'),
+            html = '<table style="border-spacing:10px">' +
+                '<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" value="' + name.html() + '" />' +
+                '</table>',
+            dialog = _dialog({
+                top:60,
+                width:390,
+                head:'Редактирование подвида изделия',
+                content:html,
+                butSubmit:'Сохранить',
+                submit:submit
+            });
+        $('#name').focus().keyEnter(submit);
+        function submit() {
+            var send = {
+                op:'setup_product_sub_edit',
+                id:t.attr('val'),
+                name:$('#name').val()
+            };
+            if(!send.name) {
+                dialog.bottom.vkHint({
+                    msg:'<SPAN class=red>Не указано наименование</SPAN>',
+                    top:-47,
+                    left:99,
+                    indent:50,
+                    show:1,
+                    remove:1
+                });
+                $('#name').focus();
+            } else {
+                dialog.process();
+                $.post(AJAX_MAIN, send, function(res) {
+                    if(res.success) {
+                        name.html(send.name);
+                        dialog.close();
+                        _msg('Сохранено!');
+                    } else
+                        dialog.abort();
+                }, 'json');
+            }
+        }
+    })
+    .on('click', '#setup_product_sub .img_del', function() {
+        var t = $(this),
+            dialog = _dialog({
+                top:90,
+                width:300,
+                head:'Удаление подвида',
+                content:'<center><b>Подтвердите удаление подвида изделия.</b></center>',
+                butSubmit:'Удалить',
+                submit:submit
+            });
+        function submit() {
+            while(t[0].tagName != 'TR')
+                t = t.parent();
+            var send = {
+                op:'setup_product_sub_del',
+                id:t.attr('val')
+            };
+            dialog.process();
+            $.post(AJAX_MAIN, send, function(res) {
+                if(res.success) {
+                    t.remove();
+                    dialog.close();
+                    _msg('Удалено!');
+                } else
+                    dialog.abort();
+            }, 'json');
+        }
+    })
+
 
     .on('click', '#setup_prihodtype .add', function() {
         var t = $(this),
@@ -1042,7 +1157,7 @@ $(document)
                 width:142,
                 display:'inline-block',
                 title0:'Изделие не указано',
-                spisok:product
+                spisok:PRODUCT_SPISOK
             });
             $('#comm').autosize();
             $('.vkCancel').click(function() {
@@ -1082,12 +1197,13 @@ $(document)
         }
         if($('#zayavInfo').length > 0) {
             $('.op_add').click(function() {
-                var html = '<TABLE class="zayav_oplata_add">' +
-                    '<TR><TD class="label">Вид платежа:<TD><input type="hidden" id="prihod_type" value="0">' +
-                    '<a href="' + URL + '&p=setup&d=prihodtype" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
-                    '<TR><TD class="label">Сумма:<TD><input type="text" id="sum" class="money" maxlength="5"> руб.' +
-                    '<TR class="tr_kassa dn"><TD class="label">Деньги поступили в кассу?:<TD><input type="hidden" id="kassa" value="-1">' +
-                    '<TR><TD class="label">Примечание:<em>(не обязательно)</em><TD><input type="text" id="prim">' +
+                var html =
+                    '<TABLE class="zayav_oplata_add">' +
+                        '<TR><TD class="label">Вид платежа:<TD><input type="hidden" id="prihod_type" value="0">' +
+                            '<a href="' + URL + '&p=setup&d=prihodtype" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
+                        '<TR><TD class="label">Сумма:<TD><input type="text" id="sum" class="money" maxlength="5"> руб.' +
+                        '<TR class="tr_kassa dn"><TD class="label">Деньги поступили в кассу?:<TD><input type="hidden" id="kassa" value="-1">' +
+                        '<TR><TD class="label">Примечание:<em>(не обязательно)</em><TD><input type="text" id="prim">' +
                     '</TABLE>';
                 var dialog = _dialog({
                     top:60,
@@ -1102,10 +1218,10 @@ $(document)
                     display:'inline-block',
                     width:180,
                     title0:'Не указан',
-                    spisok:ZAYAV.prihodtype,
+                    spisok:PRIHODTYPE_SPISOK,
                     func:function(uid) {
                         $('#kassa')._radio(-1);
-                        $('.tr_kassa')[(ZAYAV.prihodkassa[uid] ? 'remove' : 'add') + 'Class']('dn');
+                        $('.tr_kassa')[(PRIHODKASSA_ASS[uid] ? 'remove' : 'add') + 'Class']('dn');
                         $('#sum').focus();
                     }
                 });
@@ -1132,7 +1248,7 @@ $(document)
                     else if(!REGEXP_NUMERIC.test(send.sum)) {
                         msg = 'Некорректно указана сумма.';
                         $('#sum').focus();
-                    } else if(ZAYAV.prihodkassa[send.type] && send.kassa == -1) msg = 'Укажите, деньги поступили в кассу или нет.';
+                    } else if(PRIHODKASSA_ASS[send.type] && send.kassa == -1) msg = 'Укажите, деньги поступили в кассу или нет.';
                     else {
                         dialog.process();
                         $.post(AJAX_MAIN, send, function (res) {

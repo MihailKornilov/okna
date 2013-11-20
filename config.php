@@ -48,6 +48,7 @@ function _getSetupGlobal() {//Получение глобальных данных
         xcache_set($key, $g, 86400);
     }
     define('VERSION', $g['version']);
+    define('G_VALUES_VERSION', $g['g_values']);
 }//end of _getSetupGlobal()
 function _getVkUser() {//Получение данных о пользователе
     $u = _viewer();

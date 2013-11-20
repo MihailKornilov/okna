@@ -708,7 +708,6 @@ switch(@$_POST['op']) {
         jsonSuccess($send);
         break;
 
-
     case 'setup_worker_add':
         if(!RULES_WORKER)
             jsonError();
@@ -797,18 +796,23 @@ switch(@$_POST['op']) {
         $name = win1251(htmlspecialchars(trim($_POST['name'])));
         if(empty($name))
             jsonError();
-        $sort = query_value("SELECT IFNULL(MAX(`sort`)+1,0) FROM `setup_product`");
         $sql = "INSERT INTO `setup_product` (
                     `name`,
-                    `sort`,
                     `viewer_id_add`
                 ) VALUES (
                     '".addslashes($name)."',
-                    ".$sort.",
                     ".VIEWER_ID."
                 )";
         query($sql);
-        xcache_unset(CACHE_PREFIX.'product_name');
+
+        xcache_unset(CACHE_PREFIX.'product');
+        GvaluesCreate();
+
+        history_insert(array(
+            'type' => 501,
+            'value' => $name
+        ));
+
         $send['html'] = utf8(setup_product_spisok());
         jsonSuccess($send);
         break;
@@ -817,29 +821,125 @@ switch(@$_POST['op']) {
             jsonError();
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
-        $id = intval($_POST['id']);
+        $product_id = intval($_POST['id']);
         $name = win1251(htmlspecialchars(trim($_POST['name'])));
         if(empty($name))
             jsonError();
-        $sql = "UPDATE `setup_product` SET `name`='".addslashes($name)."' WHERE `id`=".$id;
+
+        $sql = "SELECT * FROM `setup_product` WHERE `id`=".$product_id;
+        if(!$r = mysql_fetch_assoc(query($sql)))
+            jsonError();
+
+        $sql = "UPDATE `setup_product` SET `name`='".addslashes($name)."' WHERE `id`=".$product_id;
         query($sql);
-        xcache_unset(CACHE_PREFIX.'product_name');
-        $send['html'] = utf8(setup_product_spisok());
-        jsonSuccess($send);
+
+        xcache_unset(CACHE_PREFIX.'product');
+        GvaluesCreate();
+
+        if($r['name'] != $name)
+            history_insert(array(
+                'type' => 502,
+                'value' => '<table><tr><td>'.$r['name'].'<td>»<td>'.$name.'</table>'
+            ));
+
+        jsonSuccess();
         break;
     case 'setup_product_del':
         if(!RULES_PRODUCT)
             jsonError();
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
-        $id = intval($_POST['id']);
-        if(query_value("SELECT COUNT(`id`) FROM `zayav` WHERE `product_id`=".$id))
+        $product_id = intval($_POST['id']);
+
+        $sql = "SELECT * FROM `setup_product` WHERE `id`=".$product_id;
+        if(!$r = mysql_fetch_assoc(query($sql)))
             jsonError();
-        $sql = "DELETE FROM `setup_product` WHERE `id`=".$id;
+
+        if(query_value("SELECT COUNT(`id`) FROM `setup_product_sub` WHERE `product_id`=".$product_id))
+            jsonError();
+        if(query_value("SELECT COUNT(`id`) FROM `zayav` WHERE `product_id`=".$product_id))
+            jsonError();
+
+        $sql = "DELETE FROM `setup_product` WHERE `id`=".$product_id;
         query($sql);
-        xcache_unset(CACHE_PREFIX.'product_name');
-        $send['html'] = utf8(setup_product_spisok());
+
+        xcache_unset(CACHE_PREFIX.'product');
+        GvaluesCreate();
+
+        history_insert(array(
+            'type' => 503,
+            'value' => $r['name']
+        ));
+
+        jsonSuccess();
+        break;
+    case 'setup_product_sub_add':
+        if(!RULES_PRODUCT)
+            jsonError();
+        if(!preg_match(REGEXP_NUMERIC, $_POST['product_id']))
+            jsonError();
+
+        $product_id = intval($_POST['product_id']);
+        $name = win1251(htmlspecialchars(trim($_POST['name'])));
+        if(empty($name))
+            jsonError();
+
+        if(!query_value("SELECT COUNT(`id`) FROM `setup_product` WHERE `id`=".$product_id))
+            jsonError();
+
+        $sql = "INSERT INTO `setup_product_sub` (
+                    `product_id`,
+                    `name`,
+                    `viewer_id_add`
+                ) VALUES (
+                    ".$product_id.",
+                    '".addslashes($name)."',
+                    ".VIEWER_ID."
+                )";
+        query($sql);
+
+        xcache_unset(CACHE_PREFIX.'product_sub');
+        GvaluesCreate();
+
+        $send['html'] = utf8(setup_product_sub_spisok($product_id));
         jsonSuccess($send);
+        break;
+    case 'setup_product_sub_edit':
+        if(!RULES_PRODUCT)
+            jsonError();
+        if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+            jsonError();
+        $id = intval($_POST['id']);
+        $name = win1251(htmlspecialchars(trim($_POST['name'])));
+        if(empty($name))
+            jsonError();
+        if(!query_value("SELECT COUNT(`id`) FROM `setup_product_sub` WHERE `id`=".$id))
+            jsonError();
+        $sql = "UPDATE `setup_product_sub` SET `name`='".addslashes($name)."' WHERE `id`=".$id;
+        query($sql);
+
+        xcache_unset(CACHE_PREFIX.'product_sub');
+        GvaluesCreate();
+
+        jsonSuccess();
+        break;
+    case 'setup_product_sub_del':
+        if(!RULES_PRODUCT)
+            jsonError();
+        if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+            jsonError();
+        $id = intval($_POST['id']);
+        if(!query_value("SELECT COUNT(`id`) FROM `setup_product_sub` WHERE `id`=".$id))
+            jsonError();
+        if(query_value("SELECT COUNT(`id`) FROM `zayav` WHERE `product_sub_id`=".$id))
+            jsonError();
+        $sql = "DELETE FROM `setup_product_sub` WHERE `id`=".$id;
+        query($sql);
+
+        xcache_unset(CACHE_PREFIX.'product_sub');
+        GvaluesCreate();
+
+        jsonSuccess();
         break;
     case 'setup_prihodtype_add':
         if(!RULES_PRIHODTYPE)
@@ -863,7 +963,10 @@ switch(@$_POST['op']) {
                     ".VIEWER_ID."
                 )";
         query($sql);
+
         xcache_unset(CACHE_PREFIX.'prihodtype');
+        GvaluesCreate();
+
         $send['html'] = utf8(setup_prihodtype_spisok());
         jsonSuccess($send);
         break;
@@ -884,7 +987,10 @@ switch(@$_POST['op']) {
                     `kassa_put`=".$kassa_put."
                 WHERE `id`=".$id;
         query($sql);
+
         xcache_unset(CACHE_PREFIX.'prihodtype');
+        GvaluesCreate();
+
         $send['html'] = utf8(setup_prihodtype_spisok());
         jsonSuccess($send);
         break;
@@ -898,7 +1004,10 @@ switch(@$_POST['op']) {
             jsonError();
         $sql = "DELETE FROM `setup_prihodtype` WHERE `id`=".$id;
         query($sql);
+
         xcache_unset(CACHE_PREFIX.'prihodtype');
+        GvaluesCreate();
+
         $send['html'] = utf8(setup_prihodtype_spisok());
         jsonSuccess($send);
         break;
