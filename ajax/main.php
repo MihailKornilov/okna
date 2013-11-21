@@ -169,7 +169,8 @@ switch(@$_POST['op']) {
         while($r = mysql_fetch_assoc($q)) {
             $unit = array(
                 'uid' => $r['id'],
-                'title' => utf8($r['fio'])
+                'title' => utf8($r['fio']),
+                'adres' => utf8($r['adres'])
             );
             if($r['telefon'] || $r['adres'])
                 $unit['content'] = utf8($r['fio'].'<div class="pole2">'.
@@ -285,34 +286,55 @@ switch(@$_POST['op']) {
     case 'zayav_add':
         if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
             jsonError();
-        if(!preg_match(REGEXP_NUMERIC, $_POST['product_id']))
+
+        if(empty($_POST['product']))
             jsonError();
+        $product = array();
+        $ex = explode(',', $_POST['product']);
+        foreach($ex as $r) {
+            $ids = explode(':', $r);
+            foreach($ids as $id)
+                if(!preg_match(REGEXP_NUMERIC, $id))
+                    jsonError();
+            if($ids[0] == 0 || $ids[2] == 0)
+                jsonError();
+            $product[] = $ids;
+        }
+        if(empty($product))
+            jsonError();
+
         $client_id = intval($_POST['client_id']);
-        $nomer_dog = win1251(htmlspecialchars(trim($_POST['nomer_dog'])));
-        $nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
-        $product_id = intval($_POST['product_id']);
         $adres_set = win1251(htmlspecialchars(trim($_POST['adres_set'])));
         $comm = win1251(htmlspecialchars(trim($_POST['comm'])));
 
         $sql = "INSERT INTO `zayav` (
                     `client_id`,
-                    `nomer_dog`,
-                    `nomer_vg`,
-                    `product_id`,
                     `adres_set`,
                     `status_dtime`,
                     `viewer_id_add`
                 ) VALUES (
                     ".$client_id.",
-                    '".$nomer_dog."',
-                    '".$nomer_vg."',
-                    ".$product_id.",
                     '".$adres_set."',
                     '".curTime()."',
                     ".VIEWER_ID."
                 )";
         query($sql);
         $send['id'] = mysql_insert_id();
+
+        foreach($product as $r) {
+            $sql = "INSERT INTO `zayav_product` (
+                        `zayav_id`,
+                        `product_id`,
+                        `product_sub_id`,
+                        `count`
+                    ) VALUES (
+                        ".$send['id'].",
+                        ".$r[0].",
+                        ".$r[1].",
+                        ".$r[2]."
+                    )";
+            query($sql);
+        }
 
         if($comm) {
             $sql = "INSERT INTO `vk_comment` (
@@ -354,25 +376,38 @@ switch(@$_POST['op']) {
             jsonError();
         if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) && $_POST['client_id'] == 0)
             jsonError();
-        if(!preg_match(REGEXP_NUMERIC, $_POST['product_id']))
-            jsonError();
         $zayav_id = intval($_POST['zayav_id']);
         $client_id = intval($_POST['client_id']);
-        $nomer_dog = win1251(htmlspecialchars(trim($_POST['nomer_dog'])));
+//        $nomer_dog = win1251(htmlspecialchars(trim($_POST['nomer_dog'])));
         $nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
-        $product_id = intval($_POST['product_id']);
         $adres_set = win1251(htmlspecialchars(trim($_POST['adres_set'])));
+
+        if(empty($_POST['product']))
+            jsonError();
+        $product = array();
+        $ex = explode(',', $_POST['product']);
+        foreach($ex as $r) {
+            $ids = explode(':', $r);
+            foreach($ids as $id)
+                if(!preg_match(REGEXP_NUMERIC, $id))
+                    jsonError();
+            if($ids[0] == 0 || $ids[2] == 0)
+                jsonError();
+            $product[] = $ids;
+        }
+        if(empty($product))
+            jsonError();
 
         $sql = "SELECT * FROM `zayav` WHERE `id`=".$zayav_id." LIMIT 1";
         if(!$zayav = mysql_fetch_assoc(query($sql)))
             jsonError();
 
+//     `nomer_dog`='".addslashes($nomer_dog)."',
+
         $sql = "UPDATE `zayav` SET
                     `client_id`=".$client_id.",
-                    `nomer_dog`='".addslashes($nomer_dog)."',
                     `nomer_vg`='".addslashes($nomer_vg)."',
                     `client_id`=".$client_id.",
-                    `product_id`=".$product_id.",
                     `adres_set`='".addslashes($adres_set)."'
                 WHERE `id`=".$zayav_id;
         query($sql);
@@ -395,12 +430,36 @@ switch(@$_POST['op']) {
         $changes = '';
         if($zayav['client_id'] != $client_id)
             $changes .= '<tr><th>Клиент:<td>'._clientLink($zayav['client_id']).'<td>»<td>'._clientLink($client_id);
-        if($zayav['nomer_dog'] != $nomer_dog)
-            $changes .= '<tr><th>Номер договора:<td>'.$zayav['nomer_dog'].'<td>»<td>'.$nomer_dog;
+        $productOld = zayav_product_spisok($zayav_id, 'array');
+        if($product != $productOld) {
+            $sql = "DELETE FROM `zayav_product` WHERE `zayav_id`=".$zayav_id;
+            query($sql);
+            foreach($product as $r) {
+                $sql = "INSERT INTO `zayav_product` (
+                        `zayav_id`,
+                        `product_id`,
+                        `product_sub_id`,
+                        `count`
+                    ) VALUES (
+                        ".$zayav_id.",
+                        ".$r[0].",
+                        ".$r[1].",
+                        ".$r[2]."
+                    )";
+                query($sql);
+            }
+            $old = array();
+            foreach($productOld as $r)
+                $old[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
+            $new = array();
+            foreach($product as $r)
+                $new[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
+            $changes .= '<tr><th>Изделия:<td>'.implode('<br />', $old).'<td>»<td>'.implode('<br />', $new);
+        }
+//        if($zayav['nomer_dog'] != $nomer_dog)
+//            $changes .= '<tr><th>Номер договора:<td>'.$zayav['nomer_dog'].'<td>»<td>'.$nomer_dog;
         if($zayav['nomer_vg'] != $nomer_vg)
             $changes .= '<tr><th>Номер ВГ:<td>'.$zayav['nomer_vg'].'<td>»<td>'.$nomer_vg;
-        if($zayav['product_id'] != $product_id)
-            $changes .= '<tr><th>Изделие:<td>'._product($zayav['product_id']).'<td>»<td>'._product($product_id);
         if($zayav['adres_set'] != $adres_set)
             $changes .= '<tr><th>Адрес установки:<td>'.$zayav['adres_set'].'<td>»<td>'.$adres_set;
         if($changes)
@@ -839,7 +898,7 @@ switch(@$_POST['op']) {
         if($r['name'] != $name)
             history_insert(array(
                 'type' => 502,
-                'value' => '<table><tr><td>'.$r['name'].'<td>»<td>'.$name.'</table>'
+                'value' => '<table><tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name.'</table>'
             ));
 
         jsonSuccess();
@@ -857,7 +916,7 @@ switch(@$_POST['op']) {
 
         if(query_value("SELECT COUNT(`id`) FROM `setup_product_sub` WHERE `product_id`=".$product_id))
             jsonError();
-        if(query_value("SELECT COUNT(`id`) FROM `zayav` WHERE `product_id`=".$product_id))
+        if(query_value("SELECT COUNT(`id`) FROM `zayav_product` WHERE `product_id`=".$product_id))
             jsonError();
 
         $sql = "DELETE FROM `setup_product` WHERE `id`=".$product_id;
@@ -901,6 +960,12 @@ switch(@$_POST['op']) {
         xcache_unset(CACHE_PREFIX.'product_sub');
         GvaluesCreate();
 
+        history_insert(array(
+            'type' => 504,
+            'value' => _product($product_id),
+            'value1' => $name
+        ));
+
         $send['html'] = utf8(setup_product_sub_spisok($product_id));
         jsonSuccess($send);
         break;
@@ -913,13 +978,23 @@ switch(@$_POST['op']) {
         $name = win1251(htmlspecialchars(trim($_POST['name'])));
         if(empty($name))
             jsonError();
-        if(!query_value("SELECT COUNT(`id`) FROM `setup_product_sub` WHERE `id`=".$id))
+
+        $sql = "SELECT * FROM `setup_product_sub` WHERE `id`=".$id;
+        if(!$r = mysql_fetch_assoc(query($sql)))
             jsonError();
+
         $sql = "UPDATE `setup_product_sub` SET `name`='".addslashes($name)."' WHERE `id`=".$id;
         query($sql);
 
         xcache_unset(CACHE_PREFIX.'product_sub');
         GvaluesCreate();
+
+        if($r['name'] != $name)
+            history_insert(array(
+                'type' => 505,
+                'value' => _product($r['product_id']),
+                'value1' => '<table><tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name.'</table>'
+            ));
 
         jsonSuccess();
         break;
@@ -929,15 +1004,24 @@ switch(@$_POST['op']) {
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
         $id = intval($_POST['id']);
-        if(!query_value("SELECT COUNT(`id`) FROM `setup_product_sub` WHERE `id`=".$id))
+
+        $sql = "SELECT * FROM `setup_product_sub` WHERE `id`=".$id;
+        if(!$r = mysql_fetch_assoc(query($sql)))
             jsonError();
-        if(query_value("SELECT COUNT(`id`) FROM `zayav` WHERE `product_sub_id`=".$id))
+
+        if(query_value("SELECT COUNT(`id`) FROM `zayav_product` WHERE `product_sub_id`=".$id))
             jsonError();
         $sql = "DELETE FROM `setup_product_sub` WHERE `id`=".$id;
         query($sql);
 
         xcache_unset(CACHE_PREFIX.'product_sub');
         GvaluesCreate();
+
+        history_insert(array(
+            'type' => 506,
+            'value' => _product($r['product_id']),
+            'value1' => $r['name']
+        ));
 
         jsonSuccess();
         break;
@@ -967,6 +1051,12 @@ switch(@$_POST['op']) {
         xcache_unset(CACHE_PREFIX.'prihodtype');
         GvaluesCreate();
 
+        history_insert(array(
+            'type' => 507,
+            'value' => $name
+        ));
+
+
         $send['html'] = utf8(setup_prihodtype_spisok());
         jsonSuccess($send);
         break;
@@ -982,6 +1072,11 @@ switch(@$_POST['op']) {
         $kassa_put = intval($_POST['kassa_put']);
         if(empty($name))
             jsonError();
+
+        $sql = "SELECT * FROM `setup_prihodtype` WHERE `id`=".$id;
+        if(!$r = mysql_fetch_assoc(query($sql)))
+            jsonError();
+
         $sql = "UPDATE `setup_prihodtype`
                 SET `name`='".addslashes($name)."',
                     `kassa_put`=".$kassa_put."
@@ -990,6 +1085,18 @@ switch(@$_POST['op']) {
 
         xcache_unset(CACHE_PREFIX.'prihodtype');
         GvaluesCreate();
+
+        $changes = '';
+        if($r['name'] != $name)
+            $changes .= '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
+        if($r['kassa_put'] != $kassa_put)
+            $changes .= '<tr><th>Возможность внесения в кассу:<td>'.($r['kassa_put'] ? 'да' : 'нет').'<td>»<td>'.($kassa_put ? 'да' : 'нет');
+        if($changes)
+            history_insert(array(
+                'type' => 508,
+                'value' => $name,
+                'value1' => '<table>'.$changes.'</table>'
+            ));
 
         $send['html'] = utf8(setup_prihodtype_spisok());
         jsonSuccess($send);
@@ -1000,13 +1107,23 @@ switch(@$_POST['op']) {
         if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
             jsonError();
         $id = intval($_POST['id']);
-        if(query_value("SELECT COUNT(`id`) FROM `money` WHERE `status`=1 AND `prihod_type`=".$id))
+
+        $sql = "SELECT * FROM `setup_prihodtype` WHERE `id`=".$id;
+        if(!$r = mysql_fetch_assoc(query($sql)))
+            jsonError();
+
+        if(query_value("SELECT COUNT(`id`) FROM `money` WHERE `prihod_type`=".$id))
             jsonError();
         $sql = "DELETE FROM `setup_prihodtype` WHERE `id`=".$id;
         query($sql);
 
         xcache_unset(CACHE_PREFIX.'prihodtype');
         GvaluesCreate();
+
+        history_insert(array(
+            'type' => 509,
+            'value' => $r['name']
+        ));
 
         $send['html'] = utf8(setup_prihodtype_spisok());
         jsonSuccess($send);

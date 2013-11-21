@@ -5,7 +5,7 @@ _hashRead();
 _header();
 
 if(!AUTH || !RULES_APPENTER)
-    $html .= '<div class="noauth"><div>Недостаточно прав.</div></div>';
+    $html .= _noauth();
 else {
     _mainLinks();
     switch($_GET['p']) {

@@ -240,7 +240,8 @@ $.fn.clientSel = function(obj) {
     obj = $.extend({
         width:240,
         add:null,
-        client_id:t.val() || 0
+        client_id:t.val() || 0,
+        func:function() {}
     }, obj);
 
     if(obj.add)
@@ -256,6 +257,7 @@ $.fn.clientSel = function(obj) {
         spisok:[],
         ro:0,
         nofind:'Клиентов не найдено',
+        func:obj.func,
         funcAdd:obj.add,
         funcKeyup:clientsGet
     }).o;
@@ -265,20 +267,102 @@ $.fn.clientSel = function(obj) {
     function clientsGet(val) {
         var send = {
             op:'client_sel',
-            val:val ? val : '',
+            val:val || '',
             client_id:obj.client_id
         };
         $.post(AJAX_MAIN, send, function(res) {
             if(res.success) {
                 sel.spisok(res.spisok);
                 if(obj.client_id > 0) {
-                    sel.val(obj.client_id)
+                    sel.val(obj.client_id);
                     obj.client_id = 0;
                 }
             }
         }, 'json');
     }
+    t.o = sel;
     return t;
+};
+$.fn.productList = function(o) {
+    var t = $(this),
+        id = t.attr('id'),
+        num = 1,
+        n;
+
+    if(typeof o == 'string') {
+        if(o == 'get') {
+            var units = t.find('.ptab'),
+                send = [];
+            for(n = 0; n < units.length; n++) {
+                var u = units.eq(n),
+                    attr = id + u.attr('val'),
+                    pr = $('#' + attr + 'id').val(),
+                    prsub = $('#' + attr + 'subid').val(),
+                    count = $('#' + attr + 'count').val();
+                if(pr == 0)
+                    continue;
+                if(!REGEXP_NUMERIC.test(count))
+                    return 'count_error';
+                send.push(pr + ':' + prsub + ':' + count);
+            }
+            return send.length == 0 ? false : send.join();
+        }
+    }
+
+    t.html('<div class="_product-list"><a class="add">Добавить поле</a></div>');
+    var add = t.find('.add');
+    add.click(itemAdd);
+
+    if(typeof o == 'object')
+        for(n = 0; n < o.length; n++)
+            itemAdd(o[n])
+    else
+        itemAdd([]);
+
+    function itemAdd(v) {
+        var attr = id + num,
+            attr_id = attr + 'id',
+            attr_subid = attr + 'subid',
+            attr_count = attr + 'count',
+            html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
+                    '<td class="td"><input type="hidden" id="' + attr_id + '" value="' + (v[0] || 0) + '" />' +
+                                   '<input type="hidden" id="' + attr_subid + '" value="' + (v[1] || 0) + '" />' +
+                    '<td class="td"><input type="text" id="' + attr_count + '" value="' + (v[2] || '') + '" class="count" maxlength="3" /> шт.' +
+                    (num > 1 ? '<div class="img_del" val="' + num + '"></div>' : '') +
+                '</table>';
+        add.before(html);
+        $('#ptab' + num).find('.img_del').click(function() {
+            $('#ptab' + $(this).attr('val')).remove();
+        });
+        $('#' + attr_id).vkSel({
+            width:119,
+            display:'inline-block',
+            title0:'Не указано',
+            spisok:PRODUCT_SPISOK,
+            func:function(id) {
+                $('#vkSel_' + attr_subid).remove();
+                $('#' + attr_subid).val(0);
+                if(id > 0 && PRODUCT_SUB_SPISOK[id])
+                    subSel(id, attr_subid, attr_count);
+                $('#' + attr_count).val(id > 0 ? 1 : '').focus();
+            }
+        });
+        subSel(v[0] || 0, attr_subid, attr_count);
+        num++;
+    }
+    function subSel(id, attr_subid, attr_count) {
+        if(id == 0 || !PRODUCT_SUB_SPISOK[id])
+            return;
+        $('#' + attr_subid).vkSel({
+            width:150,
+            display:'inline-block',
+            title0:'Подвид не указан',
+            spisok:PRODUCT_SUB_SPISOK[id],
+            func:function() {
+                $('#' + attr_count).focus();
+            }
+        });
+    }
 };
 
 $(document)
@@ -358,73 +442,6 @@ $(document)
     })
     .on('click', '.zayav_unit', function() {
         document.location.href = URL + '&p=zayav&d=info&id=' + $(this).attr('val');
-    })
-    .on('click', '#zayavInfo .zedit', function() {
-        var html = '<TABLE class="zayav-info-edit">' +
-                '<tr><td class="label r">Клиент:         <td><INPUT type="hidden" id="client_id" value="' + ZAYAV.client_id + '">' +
-                '<tr><td class="label r">Номер договора: <td><INPUT type="text" id="nomer_dog" maxlength="30" value="' + ZAYAV.nomer_dog + '" />' +
-                '<tr><td class="label r">Номер ВГ:       <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
-                '<tr><td class="label r">Изделие:        <td><INPUT type="hidden" id="product_id" value="' + ZAYAV.product_id + '" />' +
-                    '<a href="' + URL + '&p=setup&d=product" class="img_edit product_edit" title="Настроить список изделий"></a>' +
-                '<tr><td class="label r">Адрес установки:<td><INPUT type="text" id="adres_set" maxlength="100" value="' + ZAYAV.adres_set + '" />' +
-        '</TABLE>',
-            dialog = _dialog({
-                width:410,
-                top:30,
-                head:'Заявка №' + ZAYAV.id + ' - Редактирование',
-                content:html,
-                butSubmit:'Сохранить',
-                submit:submit
-            });
-        $('#client_id').clientSel();
-        $('#vkSel_client_id').vkHint({
-            msg:'Если изменяется клиент, то начисления и платежи заявки применяются на нового клиента.',
-            width:200,
-            top:-83,
-            left:-2,
-            delayShow:1500,
-            correct:0
-        });
-        $('#product_id').vkSel({
-            width:142,
-            display:'inline-block',
-            title0:'Изделие не указано',
-            spisok:PRODUCT_SPISOK
-        });
-
-        function submit() {
-            var msg,
-                send = {
-                    op:'zayav_edit',
-                    zayav_id:ZAYAV.id,
-                    client_id:$('#client_id').val(),
-                    nomer_dog:$('#nomer_dog').val(),
-                    nomer_vg:$('#nomer_vg').val(),
-                    product_id:$('#product_id').val(),
-                    adres_set:$('#adres_set').val()
-                };
-            if(send.client_id == 0) msg = 'Не выбран клиент';
-            else {
-                dialog.process();
-                $.post(AJAX_MAIN, send, function (res) {
-                    if(res.success) {
-                        dialog.close();
-                        _msg('Данные изменены!');
-                        document.location.reload();
-                    } else
-                        dialog.abort();
-                }, 'json');
-            }
-            if(msg)
-                dialog.bottom.vkHint({
-                    msg:'<SPAN class="red">' + msg + '</SPAN>',
-                    top:-47,
-                    left:107,
-                    show:1,
-                    remove:1,
-                    correct:0
-                });
-        }
     })
     .on('click', '#zayavInfo .delete', function() {
         var dialog = _dialog({
@@ -1152,12 +1169,24 @@ $(document)
             $('#status').rightLink(zayavSpisokLoad);
         }
         if($('#zayavAdd').length > 0) {
-            $('#client_id').clientSel({add:1});
-            $('#product_id').vkSel({
-                width:142,
-                display:'inline-block',
-                title0:'Изделие не указано',
-                spisok:PRODUCT_SPISOK
+            var client = $('#client_id').clientSel({
+                add:1,
+                func:function(uid) {
+                    HOMEADRES = client.o.item(uid).adres;
+                    if($('#homeadres').val() == 1)
+                        $('#adres_set').val(HOMEADRES);
+                }
+            });
+            $('#product').productList();
+            $('#homeadres')._check(function() {
+                $('#adres_set').val(HOMEADRES);
+            });
+            $('#homeadres_check').vkHint({
+                msg:'Совпадает с адресом проживания',
+                top:-74,
+                left:196,
+                indent:60,
+                delayShow:700
             });
             $('#comm').autosize();
             $('.vkCancel').click(function() {
@@ -1167,19 +1196,23 @@ $(document)
                 var send = {
                     op:'zayav_add',
                     client_id:$('#client_id').val(),
-                    nomer_dog:$('#nomer_dog').val(),
-                    nomer_vg:$('#nomer_vg').val(),
-                    product_id:$('#product_id').val(),
+                    product:$('#product').productList('get'),
                     adres_set:$('#adres_set').val(),
                     comm:$('#comm').val()
                 };
 
                 var msg = '';
-                if(send.client == 0) msg = 'Не выбран клиент';
+                if(send.client_id == 0) msg = 'Не выбран клиент';
+                else if(!send.product) msg = 'Не указано изделие';
+                else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
                 else {
-                    $(this).addClass('busy');
+                    var t = $(this);
+                    t.addClass('busy');
                     $.post(AJAX_MAIN, send, function(res) {
-                        location.href = URL + '&p=zayav&d=info&id=' + res.id;
+                        if(res.success)
+                            location.href = URL + '&p=zayav&d=info&id=' + res.id;
+                        else
+                            t.removeClass('busy');
                     }, 'json');
                 }
 
@@ -1187,7 +1220,7 @@ $(document)
                     $(this).vkHint({
                         msg:'<SPAN class="red">' + msg + '</SPAN>',
                         top:-48,
-                        left:201,
+                        left:151,
                         indent:30,
                         remove:1,
                         show:1,
@@ -1196,6 +1229,73 @@ $(document)
             });
         }
         if($('#zayavInfo').length > 0) {
+            $('.zedit').click(function() {
+                var html = '<table class="zayav-info-edit">' +
+                        '<tr><td class="label r">Клиент:         <td><INPUT type="hidden" id="client_id" value="' + ZAYAV.client_id + '">' +
+                        '<tr><td class="label r top">Изделие:    <td id="product">' +
+                        '<tr><td class="label r">Адрес установки:<td><INPUT type="text" id="adres_set" maxlength="100" value="' + ZAYAV.adres_set + '" />' +
+                        '<tr><td class="label r">Номер ВГ:       <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
+                    '</table>',
+                    dialog = _dialog({
+                        width:500,
+                        top:30,
+                        head:'Заявка №' + ZAYAV.id + ' - Редактирование',
+                        content:html,
+                        butSubmit:'Сохранить',
+                        submit:submit
+                    });
+                $('#client_id').clientSel();
+                $('#product').productList(ZAYAV.product);
+                $('#vkSel_client_id').vkHint({
+                    msg:'Если изменяется клиент, то начисления и платежи заявки применяются на нового клиента.',
+                    width:200,
+                    top:-83,
+                    left:-2,
+                    delayShow:1500
+                });
+                $('#product_id').vkSel({
+                    width:142,
+                    display:'inline-block',
+                    title0:'Изделие не указано',
+                    spisok:PRODUCT_SPISOK
+                });
+
+                function submit() {
+                    var msg,
+                        send = {
+                            op:'zayav_edit',
+                            zayav_id:ZAYAV.id,
+                            client_id:$('#client_id').val(),
+                            //nomer_dog:$('#nomer_dog').val(),
+                            nomer_vg:$('#nomer_vg').val(),
+                            product:$('#product').productList('get'),
+                            adres_set:$('#adres_set').val()
+                        };
+                    if(send.client_id == 0) msg = 'Не выбран клиент';
+                    else if(!send.product) msg = 'Не указано изделие';
+                    else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+                    else {
+                        dialog.process();
+                        $.post(AJAX_MAIN, send, function (res) {
+                            if(res.success) {
+                                dialog.close();
+                                _msg('Данные изменены!');
+                                document.location.reload();
+                            } else
+                                dialog.abort();
+                        }, 'json');
+                    }
+                    if(msg)
+                        dialog.bottom.vkHint({
+                            msg:'<SPAN class="red">' + msg + '</SPAN>',
+                            top:-47,
+                            left:141,
+                            indent:50,
+                            show:1,
+                            remove:1
+                        });
+                }
+            });
             $('.op_add').click(function() {
                 var html =
                     '<TABLE class="zayav_oplata_add">' +
@@ -1218,7 +1318,7 @@ $(document)
                     display:'inline-block',
                     width:180,
                     title0:'Не указан',
-                    spisok:PRIHODTYPE_SPISOK,
+                    spisok:PRIHOD_SPISOK,
                     func:function(uid) {
                         $('#kassa')._radio(-1);
                         $('.tr_kassa')[(PRIHODKASSA_ASS[uid] ? 'remove' : 'add') + 'Class']('dn');
@@ -1323,7 +1423,7 @@ $(document)
                             correct:0
                         });
                 }
-            })
+            });
         }
 
         if($('#setup_rules').length > 0) {

@@ -105,7 +105,6 @@ function _header() {
         '<div id="frameBody">'.
         '<iframe id="frameHidden" name="frameHidden"></iframe>';
 }//_header()
-
 function _footer() {
     global $html, $sqlQuery, $sqlCount, $sqlTime;
     if(SA) {
@@ -155,14 +154,17 @@ function _footer() {
         '</script>'.
         '</div></body></html>';
 }//_footer()
+function _noauth($msg='Недостаточно прав.') {
+    return '<div class="noauth"><div>'.$msg.'</div></div>';
+}//_noauth()
 
 function GvaluesCreate() {//Составление файла G_values.js
     $save = //'function _toSpisok(s){var a=[];for(k in s)a.push({uid:k,title:s[k]});return a}'.
         //'function _toAss(s){var a=[];for(var n=0;n<s.length;a[s[n].uid]=s[n].title,n++);return a}'.
-        'var PRODUCT_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_product` ORDER BY `name`").
-         //',PRODUCT_ASS=_toSpisok(PRODUCT_ASS)'.
-           ',PRIHODTYPE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_prihodtype` ORDER BY `sort`").
-           ',PRIHODKASSA_ASS='.query_ptpJson("SELECT `id`,`kassa_put` FROM `setup_prihodtype` WHERE `kassa_put`=1");
+        'var PRODUCT_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_product` ORDER BY `name`").','.
+         //'PRODUCT_ASS=_toSpisok(PRODUCT_ASS)'.
+           'PRIHOD_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_prihodtype` ORDER BY `sort`").','.
+           'PRIHODKASSA_ASS='.query_ptpJson("SELECT `id`,`kassa_put` FROM `setup_prihodtype` WHERE `kassa_put`=1").',';
 
     $sql = "SELECT * FROM `setup_product_sub` ORDER BY `product_id`,`name`";
     $q = query($sql);
@@ -206,6 +208,26 @@ function _product($product_id=false) {//Список изделий для заявок
         }
     }
     return $product_id !== false ? constant('PRODUCT_'.$product_id) : $arr;
+}//_product()
+function _productSub($product_id=false) {//Список изделий для заявок
+    if(!defined('PRODUCT_SUB_LOADED') || $product_id === false) {
+        $key = CACHE_PREFIX.'product_sub';
+        $arr = xcache_get($key);
+        if(empty($arr)) {
+            $sql = "SELECT `id`,`name` FROM `setup_product_sub` ORDER BY `product_id`,`name`";
+            $q = query($sql);
+            while($r = mysql_fetch_assoc($q))
+                $arr[$r['id']] = $r['name'];
+            xcache_set($key, $arr, 86400);
+        }
+        if(!defined('PRODUCT_SUB_LOADED')) {
+            foreach($arr as $id => $name)
+                define('PRODUCT_SUB_'.$id, $name);
+            define('PRODUCT_SUB_0', '');
+            define('PRODUCT_SUB_LOADED', true);
+        }
+    }
+    return $product_id !== false ? constant('PRODUCT_SUB_'.$product_id) : $arr;
 }//_product()
 function _prihodType($type_id=false) {//Список изделий для заявок
     if(!defined('PRIHODTYPE_LOADED') || $type_id === false) {
@@ -441,7 +463,7 @@ function client_count($count, $dolg=0) {
 function client_info($client_id) {
     $sql = "SELECT * FROM `client` WHERE `status`=1 AND `id`=".$client_id;
     if(!$client = mysql_fetch_assoc(query($sql)))
-        return 'Клиента не существует';
+        return _noauth('Клиента не существует');
 
     $zayavData = zayav_data(1, array('client'=>$client_id), 10);
     $commCount = query_value("SELECT COUNT(`id`)
@@ -563,16 +585,23 @@ function _zayavStatusColor($id=false) {
 }//_zayavStatusColor()
 
 function zayav_add($v=array()) {
+    $homeadres = '';
+    if($v['client_id']) {
+        $sql = "SELECT `adres` FROM `client` WHERE `status`=1 AND `id`=".$v['client_id']." LIMIT 1";
+        if(!$r = mysql_fetch_assoc(query($sql)))
+            $v['client_id'] = 0;
+        else
+            $homeadres = $r['adres'];
+    }
+    $product_edit = RULES_PRODUCT ? '<a href="'.URL.'&p=setup&d=product" class="img_edit product_edit" title="Настроить список изделий"></a>' : '';
     return
+    '<script type="text/javascript">var HOMEADRES="'.$homeadres.'";</script>'.
     '<div id="zayavAdd">'.
         '<div class="headName">Внесение новой заявки</div>'.
-        '<table style="border-spacing:8px">'.
+        '<table class="zatab">'.
             '<tr><td class="label">Клиент:         <td><INPUT TYPE="hidden" id="client_id" value="'.$v['client_id'].'" />'.
-            '<tr><td class="label">Номер договора: <td><INPUT type="text" id="nomer_dog" maxlength="30" />'.
-            '<tr><td class="label">Номер ВГ:       <td><INPUT type="text" id="nomer_vg" maxlength="30" />'.
-            '<tr><td class="label">Изделие:        <td><INPUT type="hidden" id="product_id" value="0" />'.
-                (RULES_PRODUCT ? '<a href="'.URL.'&p=setup&d=product" class="img_edit product_edit" title="Настроить список изделий"></a>' : '').
-            '<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres_set" maxlength="100" />'.
+            '<tr class="product_tr"><td class="label top">'.$product_edit.'Изделия:<td id="product">'.
+            '<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres_set" maxlength="100" />'._check('homeadres').
             '<tr><td class="label top">Заметка:    <td><textarea id="comm"></textarea>'.
         '</table>'.
         '<div class="vkButton"><button>Внести</button></div>'.
@@ -633,10 +662,15 @@ function zayav_data($page=1, $filter=array(), $limit=20) {
     if(empty($filter['client']))
         $client = _clientLink($client);
 
+    $sql = "SELECT * FROM `zayav_product` WHERE `zayav_id` IN (".implode(',', array_keys($zayav)).") ORDER BY `id`";
+    $q = query($sql);
+    while($r = mysql_fetch_assoc($q))
+        $zayav[$r['zayav_id']]['product'][] = $r;
+
     foreach($zayav as $id => $r) {
         $unit = array(
             'status_color' => _zayavStatusColor($r['status']),
-            'product_id' => $r['product_id'],
+            'product' => $r['product'],
             'dtime' => FullData($r['dtime_add'], 1)
         );
         if(empty($filter['client']))
@@ -692,19 +726,49 @@ function zayav_spisok($data) {
 //            '<a class="name">'..'</a>'.
             '<table style="border-spacing:2px">'.
                 (isset($r['client']) ? '<tr><td class="label">Клиент:<td>'.$r['client'] : '').
-                '<tr><td class="label">Изделие:<td>'._product($r['product_id']).
+                '<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($r['product']).
                 '<tr><td class="label">Дата подачи:<td>'.$r['dtime'].
             '</table>'.
         '</div>';
+
     if(isset($data['next']))
         $send .= '<div class="ajaxNext" val="'.($data['next']).'"><span>Следующие '.$data['limit'].' заявок</span></div>';
     return $send;
 }//zayav_spisok()
+function zayav_product_spisok($arr, $type='html') {
+    if(!is_array($arr)) {
+        $sql = "SELECT * FROM `zayav_product` WHERE `zayav_id`=".$arr." ORDER BY `id`";
+        $q = query($sql);
+        $arr = array();
+        while($r = mysql_fetch_assoc($q))
+            $arr[] = $r;
+    }
+    if(empty($arr))
+        return '';
+    $send = '<table class="product">';
+    $json = array();
+    $array = array();
+    foreach($arr as $r) {
+        $send .= '<tr><td>'._product($r['product_id']).
+                            ($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '').':'.
+                     '<td>'.$r['count'].' шт.';
+        $json[] = '['.$r['product_id'].','.$r['product_sub_id'].','.$r['count'].']';
+        $array[] = array($r['product_id'], $r['product_sub_id'], $r['count']);
+    }
+    $send .= '</table>';
+    switch($type) {
+        default:
+        case 'html': return $send;
+        case 'json': return implode(',', $json);
+        case 'array': return $array;
+    }
+}//zayav_product_spisok()
 
 function zayav_info($zayav_id) {
     $sql = "SELECT * FROM `zayav` WHERE `status`>0 AND `id`=".$zayav_id." LIMIT 1";
     if(!$zayav = mysql_fetch_assoc(query($sql)))
-        return 'Заявки не существует.';
+        return _noauth('Заявки не существует.');
+
     $sql = "SELECT *
 		FROM `accrual`
 		WHERE `status`=1
@@ -738,9 +802,8 @@ function zayav_info($zayav_id) {
         'var ZAYAV={'.
             'id:'.$zayav_id.','.
             'client_id:'.$zayav['client_id'].','.
-            'nomer_dog:"'.$zayav['nomer_dog'].'",'.
             'nomer_vg:"'.$zayav['nomer_vg'].'",'.
-            'product_id:'.$zayav['product_id'].','.
+            'product:['.zayav_product_spisok($zayav_id, 'json').'],'.
             'adres_set:"'.$zayav['adres_set'].'"'.
         '};'.
     '</script>'.
@@ -756,12 +819,12 @@ function zayav_info($zayav_id) {
             '<div class="headName">Заявка №'.$zayav_id.'</div>'.
             '<table class="tabInfo">'.
                 '<tr><td class="label">Клиент:<td>'._clientLink($zayav['client_id']).
-                '<tr><td class="label">Номер договора:<td>'.$zayav['nomer_dog'].
-                '<tr><td class="label">Номер ВГ:<td>'.$zayav['nomer_vg'].
-                '<tr><td class="label">Изделие:<td>'._product($zayav['product_id']).
-                '<tr><td class="label">Адрес установки:<td>'.$zayav['adres_set'].
                 '<tr><td class="label">Дата приёма:'.
                     '<td class="dtime_add" title="Заявку внёс '._viewer($zayav['viewer_id_add'], 'name').'">'.FullDataTime($zayav['dtime_add']).
+                '<tr><td class="label">Номер договора:<td><a>Заключить договор</a>'.
+                ($zayav['nomer_vg'] ? '<tr><td class="label">Номер ВГ:<td>'.$zayav['nomer_vg'] : '').
+                '<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($zayav_id).
+                '<tr><td class="label">Адрес установки:<td>'.$zayav['adres_set'].
                 '<tr><td class="label">Статус:'.
                     '<td><div id="status" style="background-color:#'._zayavStatusColor($zayav['status']).'" class="status_place">'.
                             _zayavStatusName($zayav['status']).
@@ -882,8 +945,16 @@ function history_types($v) {
         case 14: return 'Удаление сотрудника '._viewer($v['value'], 'link').'.';
 
         case 501: return 'В установках: внесение нового наименования изделия "'.$v['value'].'".';
-        case 502: return 'В установках: изменение наименования изделия:<div class="changes">'.$v['value'].'</div>';
+        case 502: return 'В установках: изменение данных изделия:<div class="changes">'.$v['value'].'</div>';
         case 503: return 'В установках: удаление наименования изделия "'.$v['value'].'".';
+
+        case 504: return 'В установках: внесение нового подвида для изделия "'.$v['value'].'": '.$v['value1'].'.';
+        case 505: return 'В установках: изменение подвида у изделия "'.$v['value'].'":<div class="changes">'.$v['value1'].'</div>';
+        case 506: return 'В установках: удаление подвида у изделия "'.$v['value'].'": '.$v['value1'].'.';
+
+        case 507: return 'В установках: внесение нового наименования платежа "'.$v['value'].'".';
+        case 508: return 'В установках: изменение данных платежа "'.$v['value'].'":<div class="changes">'.$v['value1'].'</div>';
+        case 509: return 'В установках: удаление данных платежа "'.$v['value'].'".';
         default: return $v['type'];
     }
 }//history_types()
@@ -1067,7 +1138,6 @@ function setup_rules($viewer_id) {
     '</div>';
 }//setup_rules()
 
-
 function setup_product() {
     if(!RULES_PRODUCT)
         return _norules('Настройки видов изделий');
@@ -1097,7 +1167,7 @@ function setup_product_spisok() {
     $sql = "SELECT `p`.`id`,
                    COUNT(`z`.`id`) AS `zayav`
             FROM `setup_product` AS `p`,
-                 `zayav` AS `z`
+                 `zayav_product` AS `z`
             WHERE `p`.`id`=`z`.`product_id`
             GROUP BY `p`.`id`";
     $q = query($sql);
@@ -1135,22 +1205,31 @@ function setup_product_sub($product_id) {
     '</div>';
 }//setup_product_sub()
 function setup_product_sub_spisok($product_id) {
-    $sql = "SELECT * FROM `setup_product_sub` WHERE `product_id`=".$product_id." ORDER BY `name`";
+    $sql = "SELECT `p`.`id`,
+                   `p`.`name`,
+                   COUNT(`z`.`id`) AS `zayav`
+            FROM `setup_product_sub` AS `p`
+                 LEFT JOIN `zayav_product` AS `z`
+                 ON `p`.`id`=`z`.`product_sub_id`
+            WHERE `p`.`product_id`=".$product_id."
+            GROUP BY `p`.`id`
+            ORDER BY `name`";
     $q = query($sql);
-    $send = '';
-    if(mysql_num_rows($q)) {
-        $send = '<table class="_spisok">'.
-            '<tr><th>Наименование'.
-            '<th>Кол-во<br />заявок'.
-            '<th>';
-        while($r = mysql_fetch_assoc($q))
-            $send .= '<tr val="'.$r['id'].'">'.
-                '<td class="name">'.$r['name'].
-                '<td>'.
-                '<td><div class="img_edit"></div><div class="img_del"></div>';
+    if(!mysql_num_rows($q))
+        return 'Список пуст.';
+
+    $send = '<table class="_spisok">'.
+                 '<tr><th>Наименование'.
+                     '<th>Кол-во<br />заявок'.
+                     '<th>';
+    while($r = mysql_fetch_assoc($q))
+        $send .= '<tr val="'.$r['id'].'">'.
+             '<td class="name">'.$r['name'].
+             '<td class="zayav">'.($r['zayav'] ? $r['zayav'] : '').
+             '<td><div class="img_edit"></div>'.
+                    ($r['zayav'] ? '' : '<div class="img_del"></div>');
         $send .= '</table>';
-    }
-    return $send ? $send : 'Список пуст.';
+    return $send;
 }//setup_product_sub_spisok()
 
 function setup_prihodtype() {
@@ -1163,25 +1242,53 @@ function setup_prihodtype() {
     '</div>';
 }//setup_prihodtype()
 function setup_prihodtype_spisok() {
-    $sql = "SELECT * FROM `setup_prihodtype` ORDER BY `sort`";
+    $sql = "SELECT `p`.`id`,
+                   `p`.`name`,
+                   `p`.`kassa_put`,
+                   COUNT(`m`.`id`) AS `money`
+            FROM `setup_prihodtype` AS `p`
+              LEFT JOIN `money` AS `m`
+              ON `p`.`id`=`m`.`prihod_type`
+            GROUP BY `p`.`id`
+            ORDER BY `p`.`sort`";
     $q = query($sql);
-    $send = '';
-    if(mysql_num_rows($q)) {
-        $send =
-        '<table class="_spisok">'.
-            '<tr><th class="name">Наименование'.
-                '<th class="kassa">Возможность<br />внесения<br />в кассу'.
-                '<th class="set">'.
-        '</table>'.
-        '<dl class="_sort" val="setup_prihodtype">';
-        while($r = mysql_fetch_assoc($q))
-            $send .='<dd val="'.$r['id'].'">'.
+    if(!mysql_num_rows($q))
+        return 'Список пуст.';
+
+    $prihod = array();
+    while($r = mysql_fetch_assoc($q))
+        $prihod[$r['id']] = $r;
+
+    $sql = "SELECT `p`.`id`,
+                   COUNT(`m`.`id`) AS `del`
+            FROM `setup_prihodtype` AS `p`,`money` AS `m`
+            WHERE `p`.`id`=`m`.`prihod_type` AND `m`.`status`=0
+            GROUP BY `p`.`id`";
+    $q = query($sql);
+    while($r = mysql_fetch_assoc($q))
+        $prihod[$r['id']]['del'] = $r['del'];
+
+    $send =
+    '<table class="_spisok">'.
+        '<tr><th class="name">Наименование'.
+            '<th class="kassa">Возможность<br />внесения<br />в кассу'.
+            '<th class="money">Кол-во<br />платежей'.
+            '<th class="set">'.
+    '</table>'.
+    '<dl class="_sort" val="setup_prihodtype">';
+    foreach($prihod as $id => $r) {
+        $money = $r['money'] ? '<b>'.$r['money'].'</b>' : '';
+        $money .= isset($r['del']) ? ' <span class="del" title="В том числе удалённые">('.$r['del'].')</span>' : '';
+        $send .='<dd val="'.$id.'">'.
             '<table class="_spisok">'.
                 '<tr><td class="name">'.$r['name'].
                     '<td class="kassa">'.($r['kassa_put'] ? 'да' : '').
-                    '<td class="set"><div class="img_edit"></div><div class="img_del"></div>'.
+                    '<td class="money">'.$money.
+                    '<td class="set">'.
+                        '<div class="img_edit"></div>'.
+                        (!$r['money'] ? '<div class="img_del"></div>' : '').
             '</table>';
-        $send .= '</dl>';
     }
-    return $send ? $send : 'Список пуст.';
+    $send .= '</dl>';
+    return $send;
 }//setup_prihodtype_spisok()

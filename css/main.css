@@ -38,16 +38,23 @@
 #clientInfo .rightLink{margin-bottom:30px}
 #clientInfo .cdel{color:red}
 
+._product-list .td{padding-bottom:6px}
+._product-list .vkSel{margin-right:5px}
+._product-list .count{width:20px;padding-top:4px}
+._product-list .img_del{margin:0 0 -4px 6px}
+._product-list .add{display:inline-block;text-align:center;padding:4px 0 8px}
+
 /* Внесение новой заявки */
-#zayavAdd{padding:20px 10px 140px 10px;background-color:#F7F7F7}
+#zayavAdd{padding:20px 10px 120px 10px;background-color:#F7F7F7}
 #zayavAdd .headName{margin-bottom:15px}
-#zayavAdd .label{width:160px;text-align:right}
-#zayavAdd #nomer_dog{width:130px}
-#zayavAdd #nomer_vg{width:130px}
-#zayavAdd .product_edit{position:relative;top:-2px;left:5px}
-#zayavAdd #adres_set{width:260px}
+#zayavAdd .zatab{border-spacing:8px}
+#zayavAdd .label{width:140px;text-align:right}
+#zayavAdd .product_tr:not(:hover) .product_edit{display:none}
+#zayavAdd .product_edit{margin:0 4px -4px 0}
+#zayavAdd #adres_set{width:240px}
+#zayavAdd #homeadres_check{margin:0 0 -3px 6px}
 #zayavAdd #comm{width:260px;height:40px}
-#zayavAdd .vkButton{margin:10px 7px 0 176px}
+#zayavAdd .vkButton{margin:10px 7px 0 156px}
 
 /* список заявок */
 #zayav #filter_break{float:right}
@@ -64,11 +71,12 @@
 .zayav_unit:hover{border:#bbb solid 1px;box-shadow: 0 0 5px rgba(0,0,0,0.4);}
 .zayav_unit .name{display:block;margin:4px 0 2px 6px;font-size:12px}
 .zayav_unit .name b{font-size:12px}
+.zayav_unit .product{border-spacing:3px;margin-left:-3px}
 .zayav_unit H2{float:right;font-size:10px;color:#777;margin:4px}
 .zayav_unit H2.finded{background:#FFC;color:#444;text-decoration:underline}
 .zayav_unit em{background:#FFC;border-bottom:1px solid #FE2;font-size:12px}
 .zayav_unit b em{font-weight:bold}
-.zayav_unit .label{width:90px;padding-left:10px}
+.zayav_unit .label{width:80px;padding-left:10px}
 #zayav .ajaxNext{margin:6px 5px 0 8px}
 #zayav #find{margin-top:15px}
 #zayav #desc_check{margin-top:10px}
@@ -81,11 +89,11 @@
 #zayavInfo .itab{width:100%;border-spacing:10px}
 #zayavInfo .tabInfo{margin:2px 10px 15px 10px;border-spacing:6px}
 #zayavInfo .label{width:100px}
+#zayavInfo .product{border-spacing:4px;margin-left:-4px}
 #zayavInfo .dtime_add{cursor:help}
 .zayav-info-edit{border-spacing:8px}
 .zayav-info-edit #nomer_dog{width:130px}
 .zayav-info-edit #nomer_vg{width:130px}
-.zayav-info-edit .product_edit{position:relative;top:-2px;left:5px}
 .zayav-info-edit #adres_set{width:260px}
 #zayavInfo #status {
     display:inline-block;
@@ -126,8 +134,8 @@
 .history_unit .txt{margin:7px 0 7px 15px}
 .history_unit .changes{margin:0 0 0 15px}
 .history_unit .changes *{font-size:10px;color:#777}
-.history_unit .changes th{text-align:right;font-weight:700}
-.history_unit .changes td{padding:0 3px}
+.history_unit .changes th{text-align:right;font-weight:700;vertical-align:top}
+.history_unit .changes td{padding:0 3px;vertical-align:top}
 .history_unit a.deleted{color:#a66}
 .history_unit .prim{font:italic 11px Arial;color:#555}
 .history_unit .oplata{color:#770}
@@ -160,8 +168,11 @@
 #setup_product .zayav{text-align:center}
 
 #setup_product_sub .headName{margin-top:10px}
+#setup_product_sub .zayav{text-align:center}
 
-#setup_prihodtype .name{width:200px}
+#setup_prihodtype .name{width:170px}
 #setup_prihodtype td.name{cursor:move}
 #setup_prihodtype .kassa{width:90px;text-align:center}
+#setup_prihodtype .money{width:60px;text-align:center}
+#setup_prihodtype .del{color:#888;cursor:help}
 #setup_prihodtype .set{width:40px}
