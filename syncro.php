@@ -1,10 +1,10 @@
 <?php
 $mysql = array(
-    'host' => '127.0.0.1',
-    'user' => 'root',
-    'pass' => '4909099',
-    'database' => 'okna',
-    'names' => 'cp1251'
+	'host' => '127.0.0.1',
+	'user' => 'root',
+	'pass' => '4909099',
+	'database' => 'okna',
+	'names' => 'cp1251'
 );
 
 define('VKPATH', 'c:/www/nyandoma/vk/');

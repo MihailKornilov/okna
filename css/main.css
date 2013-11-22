@@ -30,7 +30,7 @@
 #clientInfo #zayav_result{color:#777;text-align:center}
 #clientInfo .zayav_unit{margin-right:10px}
 #clientInfo .ajaxNext{margin:5px 10px 0 10px}
-#clientInfo #money_spisok{margin:10px;display:none}
+#clientInfo #money_spisok,#clientInfo #histories{margin:10px;display:none}
 #clientInfo #money_spisok ._empty{margin:0;padding:60px 10px}
 #clientInfo #comments,#clientInfo #remind_spisok{margin:0 10px;display:none}
 #clientInfo #remind_spisok ._empty{margin:10px 0;padding:60px 10px}
@@ -47,14 +47,23 @@
 /* Внесение новой заявки */
 #zayavAdd{padding:20px 10px 120px 10px;background-color:#F7F7F7}
 #zayavAdd .headName{margin-bottom:15px}
-#zayavAdd .zatab{border-spacing:8px}
-#zayavAdd .label{width:140px;text-align:right}
+#zayavAdd .zatab{border-spacing:12px}
+#zayavAdd .label{width:150px;text-align:right}
 #zayavAdd .product_tr:not(:hover) .product_edit{display:none}
 #zayavAdd .product_edit{margin:0 4px -4px 0}
 #zayavAdd #adres_set{width:240px}
+#zayavAdd .to_set.on ._set,
+#zayavAdd .to_set:not(.on) ._zamer,
+#zayavAdd .tr_data:not(.on){display:none}
 #zayavAdd #homeadres_check{margin:0 0 -3px 6px}
+#zayavAdd .vk_calendar{margin-right:8px}
+#zayavAdd #vkSel_zamer_hour{margin-right:2px}
+#zayavAdd #vkSel_zamer_min{margin-left:2px}
+#zayavAdd .tr_data .vkSel .main{height:23px}
+
+
 #zayavAdd #comm{width:260px;height:40px}
-#zayavAdd .vkButton{margin:10px 7px 0 156px}
+#zayavAdd .vkButton{margin:10px 7px 0 174px}
 
 /* список заявок */
 #zayav #filter_break{float:right}
@@ -62,30 +71,29 @@
 #zayav .right{border:0;width:155px;padding-bottom:300px}
 #zayav .condLost.hide{display:none}
 .zayav_unit{
-    cursor:pointer;
-    margin:10px 5px 0 10px;
-    border:#ccc solid 1px;
-    border-radius:2px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+	cursor:pointer;
+	margin:10px 5px 0 10px;
+	border:#ccc solid 1px;
+	border-radius:2px;
+	box-shadow: 0 0 5px rgba(0,0,0,0.2);
 }
-.zayav_unit:hover{border:#bbb solid 1px;box-shadow: 0 0 5px rgba(0,0,0,0.4);}
-.zayav_unit .name{display:block;margin:4px 0 2px 6px;font-size:12px}
-.zayav_unit .name b{font-size:12px}
+.zayav_unit:hover{border:#bbb solid 1px;box-shadow: 0 0 5px rgba(0,0,0,0.4)}
+.zayav_unit .name{display:block;font-size:12px;font-weight:700;margin:5px 0 0 8px}
+.zayav_unit .dtime{float:right;font-size:10px;color:#777;padding:4px}
+.zayav_unit .ztab{border-spacing:2px;margin:4px 0 4px 8px}
+.zayav_unit .label{width:60px}
 .zayav_unit .product{border-spacing:3px;margin-left:-3px}
-.zayav_unit H2{float:right;font-size:10px;color:#777;margin:4px}
-.zayav_unit H2.finded{background:#FFC;color:#444;text-decoration:underline}
 .zayav_unit em{background:#FFC;border-bottom:1px solid #FE2;font-size:12px}
 .zayav_unit b em{font-weight:bold}
-.zayav_unit .label{width:80px;padding-left:10px}
 #zayav .ajaxNext{margin:6px 5px 0 8px}
 #zayav #find{margin-top:15px}
 #zayav #desc_check{margin-top:10px}
 #zayav ._empty{margin-right:6px;}
 
 /* Информация о заявке */
+#zayavInfo .headName{margin-top:15px}
 #zayavInfo .content{margin:10px 15px}
 #zayavInfo .delete{float:right;margin-top:4px;color:#933}
-#zayavInfo .headName{margin:0;padding:4px 3px}
 #zayavInfo .itab{width:100%;border-spacing:10px}
 #zayavInfo .tabInfo{margin:2px 10px 15px 10px;border-spacing:6px}
 #zayavInfo .label{width:100px}
@@ -95,17 +103,18 @@
 .zayav-info-edit #nomer_dog{width:130px}
 .zayav-info-edit #nomer_vg{width:130px}
 .zayav-info-edit #adres_set{width:260px}
-#zayavInfo #status {
-    display:inline-block;
-    border:#DDD solid 1px;
-    width:140px;
-    text-align:center;
-    padding:2px 0 3px 0;
-    color:#666;
-    cursor:pointer;
+#zayavInfo .duration{color:#888;margin-left:15px}
+#zayavInfo .status {
+	display:inline-block;
+	border:#DDD solid 1px;
+	width:140px;
+	text-align:center;
+	padding:2px 0 3px 0;
+	color:#666;
+	cursor:pointer;
 }
-#zayavInfo #status:hover{border-color:#BBD; color:#444}
-#zayavInfo #status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}
+#zayavInfo .status:hover{border-color:#BBD; color:#444}
+#zayavInfo .status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}
 #zayavInfo .dopl{margin-left:10px;color:#888;cursor:help}
 #zayavInfo #remind_spisok{margin:8px 0}
 #zayavInfo .headBlue.mon{margin-top:10px}
@@ -123,6 +132,7 @@
 .zayav_oplata_add #kassa_radio div{display:inline-block;margin-right:15px}
 .zayav_oplata_add .label{width:130px;text-align:right}
 .zayav_oplata_add #prim{width:200px}
+#zayavInfo .histories{min-height:210px;margin:15px 20px;display:none}
 #zayavInfo .deleting{text-align:center;color:#555}
 
 
