@@ -36,6 +36,71 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
+	case 'info_add':
+		if(!SA)
+			jsonError();
+		if(!preg_match(REGEXP_MYSQLTABLE, $_POST['page']))
+			jsonError();
+
+		$page = htmlspecialchars(trim($_POST['page']));
+		$name = win1251(htmlspecialchars(trim($_POST['name'])));
+		$txt = win1251(trim($_POST['txt']));
+
+		if(empty($name))
+			jsonError();
+		if(query_value("SELECT `id` FROM `info` WHERE `page`='".$page."' LIMIT 1"))
+			jsonError();
+
+		$sql = "INSERT INTO `info` (
+					`page`,
+					`name`,
+					`txt`
+				) VALUES (
+					'".addslashes($page)."',
+					'".addslashes($name)."',
+					'".addslashes($txt)."'
+				)";
+		query($sql);
+		jsonSuccess();
+		break;
+	case 'info_get':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+			jsonError();
+		$id = intval($_POST['id']);
+		$sql = "SELECT * FROM `info` WHERE `id`='".$id."' LIMIT 1";
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+		$send['page'] = $r['page'];
+		$send['name'] = utf8($r['name']);
+		$send['edit'] = (SA ? utf8('<a class="add">Редактировать</a>') : '');
+		$send['txt'] = utf8($r['txt']);
+		$send['dtime'] = utf8('<div class="info_show_dtime">Изменено '.FullDataTime($r['updated']).'</div>');
+		jsonSuccess($send);
+		break;
+	case 'info_edit':
+		if(!SA)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+			jsonError();
+
+		$id = intval($_POST['id']);
+		$name = win1251(htmlspecialchars(trim($_POST['name'])));
+		$txt = win1251(trim($_POST['txt']));
+		if(empty($name))
+			jsonError();
+
+		$sql = "SELECT * FROM `info` WHERE `id`='".$id."' LIMIT 1";
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "UPDATE `info`
+				SET	`name`='".addslashes($name)."',
+					`txt`='".addslashes($txt)."'
+				WHERE `id`=".$id;
+		query($sql);
+		jsonSuccess();
+		break;
+
 	case 'vkcomment_add':
 		$table = htmlspecialchars(trim($_POST['table']));
 		if(strlen($table) > 20)

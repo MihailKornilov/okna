@@ -264,7 +264,6 @@ function _zamerDuration($v=false) {
 	return $v ? $arr[$v] : $arr;
 }//_zamerDuration()
 
-
 function _mainLinks() {
 	global $html;
 //	_remindActiveSet();
@@ -277,6 +276,11 @@ function _mainLinks() {
 		array(
 			'name' => 'Заявки',
 			'page' => 'zayav',
+			'show' => 1
+		),
+		array(
+			'name' => 'Напоминания',
+			'page' => 'remind',
 			'show' => 1
 		),
 		array(
@@ -295,7 +299,21 @@ function _mainLinks() {
 	foreach($links as $l)
 		if($l['show'])
 			$send .= '<a href="'.URL.'&p='.$l['page'].'"'.($l['page'] == $_GET['p'] ? 'class="sel"' : '').'>'.$l['name'].'</a>';
-	$send .= '</div>';
+
+	$page[] = $_GET['p'];
+	if(!empty($_GET['d']))
+		$page[] = $_GET['d'];
+	if(!empty($_GET['d1']))
+		$page[] = $_GET['d1'];
+	if(!empty($_GET['id']))
+		$page[] = 'id';
+	$page = implode('_', $page);
+	$id = query_value("SELECT `id` FROM `info` WHERE `page`='".$page."' LIMIT 1");
+	$send .=
+		($id ? '<div class="img_info" val="'.$id.'"></div>' : '').
+		(SA && !$id ? '<div class="info_create" val="'.$page.'">Добавить подсказку</div>' : '').
+	'</div>';
+
 	$html .= $send;
 }//_mainLinks()
 

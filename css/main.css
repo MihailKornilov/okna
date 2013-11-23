@@ -2,6 +2,24 @@
 .noauth div{border:#ddd solid 1px;padding:70px 10px;background-color:#FFF;color:#888;text-align:center;font-size:12px}
 .norules{margin:10px;padding:15px;border:#ddd solid 1px;color:#900}
 
+.img_info{
+	width:16px;
+	height:16px;
+	float:right;
+	background-image:url("data:image/gif;base64,R0lGODlhEAAiAKIAAAAAAP///9Pd6GuNsf///wAAAAAAAAAAACH5BAEAAAQALAAAAAAQACIAAANWSKrSvpC0KEW0dGGZL7vbFzJj1VETiJYp1GpsjHLuiNm2dtLw2jmPnXDYGRiPxQHFGFGenAToUyGNVpVV6zKb3HqbWSb4CxGXo+MzunxdcN1pdvJYTQAAOw==");
+	cursor:pointer;
+	margin-top:4px;
+}
+.img_info:hover{background-position:0 16px}
+.info_create{float:right;margin:6px 5px 0 0;font-size:10px;color:#999;cursor:pointer}
+.info_create:hover{color:#336}
+.info_tab{border-spacing:8px;width:100%}
+.info_tab #name{width:482px}
+.info_tab #info_txt{width:558px;height:200px}
+.info_tab .load{height:200px;text-align:center;vertical-align:middle}
+.info_show_txt{margin:15px 20px}
+.info_show_dtime{margin-top:20px;color:#888;text-align:right}
+
 /* Список клиентов */
 #client #find{background-color:#F7F7F7;padding:10px;border-bottom:#dae1e8 solid 1px}
 #client .result.busy{background-position:585px center}
