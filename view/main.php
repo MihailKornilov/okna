@@ -299,20 +299,7 @@ function _mainLinks() {
 	foreach($links as $l)
 		if($l['show'])
 			$send .= '<a href="'.URL.'&p='.$l['page'].'"'.($l['page'] == $_GET['p'] ? 'class="sel"' : '').'>'.$l['name'].'</a>';
-
-	$page[] = $_GET['p'];
-	if(!empty($_GET['d']))
-		$page[] = $_GET['d'];
-	if(!empty($_GET['d1']))
-		$page[] = $_GET['d1'];
-	if(!empty($_GET['id']))
-		$page[] = 'id';
-	$page = implode('_', $page);
-	$id = query_value("SELECT `id` FROM `info` WHERE `page`='".$page."' LIMIT 1");
-	$send .=
-		($id ? '<div class="img_info" val="'.$id.'"></div>' : '').
-		(SA && !$id ? '<div class="info_create" val="'.$page.'">Добавить подсказку</div>' : '').
-	'</div>';
+	$send .= pageHelpIcon().'</div>';
 
 	$html .= $send;
 }//_mainLinks()
@@ -893,7 +880,10 @@ function zayav_info($zayav_id) {
 				($zayav['nomer_vg'] ? '<tr><td class="label">Номер ВГ:<td>'.$zayav['nomer_vg'] : '').
 				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($zayav_id).
 				'<tr><td class="label">Адрес '.($zayav['zamer'] ? 'замера' : 'установки').':<td>'.$zayav['adres_set'].
-				($zayav['zamer'] ? '<tr><td class="label">Дата замера:<td>'.FullDataTime($zayav['zamer_dtime']).'<span class="duration">'._zamerDuration($zayav['zamer_duration']).'</span>' : '').
+				($zayav['zamer'] ?
+					'<tr><td class="label">Дата замера:'.
+					    '<td><span class="zamer-dtime" title="'._zamerDuration($zayav['zamer_duration']).'">'.FullDataTime($zayav['zamer_dtime']).'</span>'.
+							'<span class="zamer-left">'.remindDayLeft($zayav['zamer_dtime']).'</span>' : '').
 				'<tr><td class="label">Статус:'.
 					'<td><div id="status_'.($zayav['zamer'] ? 'zamer' : 'set').'" style="background-color:#'._zayavStatusColor($zayav['status']).'" class="status">'.
 							_zayavStatusName($zayav['status']).
@@ -941,6 +931,146 @@ function zayav_oplata_unit($op) {
 	'</tr>';
 }//zayav_oplata_unit()
 
+
+
+
+
+// ---===! remind !===--- Секция напоминаний
+
+function remindDayLeft($d) {
+	$dayLeft = floor((strtotime($d) - TODAY_UNIXTIME) / 3600 / 24);
+	if($dayLeft < 0)
+		return 'Просрочен'._end($dayLeft * -1, ' ', 'о ').($dayLeft * -1)._end($dayLeft * -1, ' день', ' дня', ' дней');
+	if($dayLeft > 2)
+		return 'Остал'._end($dayLeft, 'ся ', 'ось ').$dayLeft._end($dayLeft, ' день', ' дня', ' дней');
+	switch($dayLeft) {
+		default:
+		case 0: return 'Выполнить сегодня';
+		case 1: return 'Выполнить завтра';
+		case 2: return 'Выполнить послезавтра';
+	}
+}//remindDayLeft()
+function remindDayLeftBg($d) {
+	$dayLeft = floor((strtotime($d) - TODAY_UNIXTIME) / 3600 / 24);
+	if($dayLeft < 0)
+		return 'f99';
+	if($dayLeft == 0)
+		return 'ffa';
+	return 'ddf';
+}
+function remindCalendar($data=array()) {
+	$year = empty($data['year']) ? strftime('%Y') : $data['year'];
+	$month = empty($data['month']) ? strftime('%m') : ($data['month'] < 10 ? 0 : '').$data['month'];
+	$days = empty($data['days']) ? array() : $data['days'];
+
+	$send = '<div class="remind_calendar">'.
+		'<table class="month">'.
+			'<tr class="week-name"><td>пн<td>вт<td>ср<td>чт<td>пт<td>сб<td>вс';
+
+	$unix = strtotime($year.'-'.$month.'-01');
+	$dayCount = date('t', $unix);   // Количество дней в месяце
+	$week = date('w', $unix);       // Номер первого дня недели
+	if(!$week)
+		$week = 7;
+
+	$curUnix = strtotime(strftime('%Y-%m-%d')); // Текущий день для выделения прошедших дней
+
+	$curMonth = $year == strftime('%Y') && $month == strftime('%m');
+	$curDay = round(strftime('%d'));
+
+	$send .= '<tr>';
+	for($n = $week; $n > 1; $n--, $send .= '<td>'); // Вставка пустых полей, если первый день недели не понедельник
+	for($n = 1; $n <= $dayCount; $n++) {
+		$cur = $curMonth && $curDay == $n ? ' cur' : '';
+		$on = empty($days[$year.'-'.$month.'-'.($n < 10 ? '0' : '').$n]) ? '' : ' on';
+		$old = $unix + $n * 86400 <= $curUnix ? ' old' : '';
+		$val = $on ? ' val="'.$year.'-'.$month.'-'.($n < 10 ? '0' : '').$n.'"' : '';
+		$send .= '<td class="d '.$cur.$on.$old.'"'.$val.'>'.$n;
+		$week++;
+		if($week > 7)
+			$week = 1;
+		if($week == 1)
+			$send .= '<tr>';
+	}
+	$send .= '</table></div>';
+
+	return $send;
+}//remindCalendar()
+function remind() {
+	$sql = "SELECT DATE_FORMAT(`zamer_dtime`,'%Y-%m-%d') AS `day`
+			FROM `zayav`
+			WHERE `status`=1
+			  AND `zamer`=1
+			  AND `zamer_dtime` LIKE ('".strftime('%Y-')."%')
+			GROUP BY DATE_FORMAT(`zamer_dtime`,'%Y-%m-%d')";
+	$q = query($sql);
+	$days = array();
+	while($r = mysql_fetch_assoc($q))
+		$days[$r['day']] = 1;
+
+	$curMon = abs(strftime('%m'));
+
+	$fullCalendar = '<table class="ftab">';
+	$qw = 1;
+	$data['days'] = $days;
+	$data['year'] = strftime('%Y');
+	for($n = 1; $n <= 12; $n++) {
+		if($qw == 1)
+			$fullCalendar .= '<tr>';
+		$data['month'] = $n;
+		$cur = $n == $curMon;
+		$fullCalendar .=
+			'<td class="ftd'.($cur ? ' fcur' : '').'">'.
+				'<a class="fmon" val="'.$n.'">'._monthDef($n).'</a>'.
+				remindCalendar($data);
+		$qw++;
+		if($qw > 3)
+			$qw = 1;
+	}
+	$fullCalendar .= '</table>';
+
+	return
+	'<div id="remind">'.
+		'<table class="tabLR">'.
+			'<tr><td class="left">'.remind_spisok().
+				'<td class="right">'.
+					'<div class="cal_select"><a class="goyear"><span>'._monthDef($curMon).'</span> '.strftime('%Y').'</a></div>'.
+					'<div id="cal_div">'.remindCalendar(array('days'=>$days)).'</div>'.
+		'</table>'.
+		'<div class="full"><div class="fhead">Календарь напоминаний: 2013 </div>'.$fullCalendar.'</div>'.
+	'</div>';
+}//remind()
+function remind_spisok($page=1, $filter=array()) {
+	$cond = "`status`=1 AND `zamer`=1";
+	if(isset($filter['day']))
+		$cond .= " AND `zamer_dtime` LIKE '".$filter['day']." %'";
+	$sql = "SELECT *
+			FROM `zayav`
+			WHERE ".$cond."
+			ORDER BY `zamer_dtime`";
+	$q = query($sql);
+	if(!mysql_num_rows($q))
+		return 'Напоминаний нет.';
+	$remind = array();
+	while($r = mysql_fetch_assoc($q)) {
+		$remind[$r['id']] = $r;
+	}
+	$send = '';
+	foreach($remind as $r) {
+		$send .=
+		'<div class="remind_unit">'.
+			'<a class="head" '.
+			   'href="'.URL.'&p=zayav&d=info&id='.$r['id'].'" '.
+			   'style="background-color:#'.remindDayLeftBg($r['zamer_dtime']).'">'.
+					'Заявка на замер №'.$r['id'].
+			'</a>'.
+			'<div class="to">Дата: '.FullDataTime($r['zamer_dtime']).'<span class="dur">'._zamerDuration($r['zamer_duration']).'</span></div>'.
+			'<div class="left">'.remindDayLeft($r['zamer_dtime']).'<a class="action">Действие</a></div>'.
+		'</div>';
+	}
+
+	return $send;
+}//remind_spisok()
 
 
 // ---===! report !===--- Секция отчётов

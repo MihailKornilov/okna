@@ -2,24 +2,6 @@
 .noauth div{border:#ddd solid 1px;padding:70px 10px;background-color:#FFF;color:#888;text-align:center;font-size:12px}
 .norules{margin:10px;padding:15px;border:#ddd solid 1px;color:#900}
 
-.img_info{
-	width:16px;
-	height:16px;
-	float:right;
-	background-image:url("data:image/gif;base64,R0lGODlhEAAiAKIAAAAAAP///9Pd6GuNsf///wAAAAAAAAAAACH5BAEAAAQALAAAAAAQACIAAANWSKrSvpC0KEW0dGGZL7vbFzJj1VETiJYp1GpsjHLuiNm2dtLw2jmPnXDYGRiPxQHFGFGenAToUyGNVpVV6zKb3HqbWSb4CxGXo+MzunxdcN1pdvJYTQAAOw==");
-	cursor:pointer;
-	margin-top:4px;
-}
-.img_info:hover{background-position:0 16px}
-.info_create{float:right;margin:6px 5px 0 0;font-size:10px;color:#999;cursor:pointer}
-.info_create:hover{color:#336}
-.info_tab{border-spacing:8px;width:100%}
-.info_tab #name{width:482px}
-.info_tab #info_txt{width:558px;height:200px}
-.info_tab .load{height:200px;text-align:center;vertical-align:middle}
-.info_show_txt{margin:15px 20px}
-.info_show_dtime{margin-top:20px;color:#888;text-align:right}
-
 /* Список клиентов */
 #client #find{background-color:#F7F7F7;padding:10px;border-bottom:#dae1e8 solid 1px}
 #client .result.busy{background-position:585px center}
@@ -121,7 +103,8 @@
 .zayav-info-edit #nomer_dog{width:130px}
 .zayav-info-edit #nomer_vg{width:130px}
 .zayav-info-edit #adres_set{width:260px}
-#zayavInfo .duration{color:#888;margin-left:15px}
+#zayavInfo .zamer-dtime{cursor:help}
+#zayavInfo .zamer-left{margin-left:15px;color:#884}
 #zayavInfo .status {
 	display:inline-block;
 	border:#DDD solid 1px;
@@ -152,6 +135,36 @@
 .zayav_oplata_add #prim{width:200px}
 #zayavInfo .histories{min-height:210px;margin:15px 20px;display:none}
 #zayavInfo .deleting{text-align:center;color:#555}
+
+.remind_calendar .week-name{border-spacing:5px}
+.remind_calendar .month td{width:22px;padding:4px 0;text-align:center}
+.remind_calendar .week-name{color:#777;background-color:#eee}
+.remind_calendar .d:hover{background-color:#eee}
+.remind_calendar .cur{font-weight:bold;color:#000}
+.remind_calendar .on{text-decoration:underline;color:#33d;cursor:pointer}
+.remind_calendar .old{color:#888}
+.remind_calendar .old.on{color:#e44}
+.remind_calendar.busy{opacity:.4}
+
+#remind:not(.y) .full{display:none}
+#remind.y .tabLR{display:none}
+#remind .right{width:155px}
+#remind .cal_select{text-align:center;margin-bottom:3px}
+#remind .full{margin-left:40px}
+#remind .fhead{margin-top:15px;text-align:center;color:#357;font:bold 13px Vedrana}
+#remind .fmon{display:block;text-align:center;margin:3px 0}
+#remind .fcur .fmon{font-weight:bold}
+#remind .ftab{border-spacing:10px}
+#remind .ftd{vertical-align:top;padding:0 5px}
+#remind .fcur.ftd{border:#cec solid 1px;background-color:#e8ffe8}
+.remind_unit{margin:10px 10px 20px}
+.remind_unit .head{display:block;padding:5px 8px;font-size:13px;font-weight:700}
+.remind_unit .to{margin:4px 8px}
+.remind_unit .dur{margin-left:10px;color:#777}
+.remind_unit .left{margin:4px 8px;color:#884}
+.remind_unit .action{float:right}
+.remind_unit:not(:hover) .action{display:none}
+
 
 
 

@@ -67,6 +67,7 @@ else {
 					$html .= zayav_list(zayav_data(1, zayavfilter($values)), $values);
 			}
 			break;
+		case 'remind': $html .= remind(); break;
 		case 'report': $html .= report(); break;
 		case 'setup':
 			$html .= RULES_SETUP ? setup() : _norules('Настройки');

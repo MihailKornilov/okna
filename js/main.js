@@ -525,6 +525,31 @@ $(document)
 		}, 'json');
 	})
 
+	.on('click', '.remind_calendar .on', function() {
+		var t = $(this),
+			cal = t.parent().parent(),
+			send = {
+				op:'remind_day',
+				day:t.attr('val')
+			};
+		if(cal.hasClass('busy'))
+			return;
+		cal.addClass('busy');
+		$.post(AJAX_MAIN, send, function (res) {
+			if(res.success) {
+				$('#remind .left').html(res.html);
+				$('#remind').removeClass('y');
+			}
+			cal.removeClass('busy');
+		}, 'json');
+	})
+	.on('click', '#remind .fmon', function() {
+		var t = $(this);
+		$('.right .remind_calendar').html(t.next().html());
+		$('.goyear span').html(t.html());
+		$('#remind').removeClass('y');
+	})
+
 	.on('click', '#report_history_next', function() {
 		if($(this).hasClass('busy'))
 			return;
@@ -1035,143 +1060,6 @@ $(document)
 		sortable();
 		_fbhs();
 
-		$('.info_create').click(function() {
-			var t = $(this),
-				page = t.attr('val'),
-				html =
-				'<TABLE class="info_tab">' +
-					'<TR><TD class="label">Страница:<TD><b>' + page + '</b>' +
-					'<TR><TD class="label">Название:<TD><input type="text" id="name" maxlength="200">' +
-					'<TR><TD class="label">Содержание:<TD>' +
-					'<TR><td colspan="2"><textarea id="info_txt"></textarea>' +
-				'</TABLE>';
-			var dialog = _dialog({
-				top:10,
-				width:610,
-				head:'Создание новой подсказки',
-				content:html,
-				submit:submit
-			});
-			$('#name').focus();
-			$('#info_txt').autosize();
-			function submit() {
-				var send = {
-					op:'info_add',
-					page:page,
-					name:$('#name').val(),
-					txt:$('#info_txt').val()
-				};
-				if(!send.name) {
-					dialog.bottom.vkHint({
-						msg:'<SPAN class="red">Не введено название</SPAN>',
-						remove:1,
-						indent:40,
-						show:1,
-						top:-48,
-						left:217
-					});
-					$('#name').focus();
-				} else {
-					dialog.process();
-					$.post(AJAX_MAIN, send, function (res) {
-						if(res.success) {
-							dialog.close();
-							_msg('Внесёно!');
-							document.location.reload();
-						} else
-							dialog.abort();
-					}, 'json');
-				}
-			}
-		});
-		$('#mainLinks .img_info').click(function() {
-			var t = $(this),
-				id = t.attr('val'),
-				dialog,
-				send = {
-					op:'info_get',
-					id:id
-				};
-			info_get();
-			$.post(AJAX_MAIN, send, function(res) {
-				if(res.success) {
-					dialog.content
-						.html(html_create(res))
-						.find('.add').click(function() {
-							edit(res);
-						});
-				} else
-					$('.info_tab .load').html('<span class="red">Ошибка загрузки.</span>');
-			}, 'json');
-
-			function html_create(res) {
-				return '<div class="headName">' + res.name + res.edit + '</div>' +
-					'<div class="info_show_txt">' + res.txt + res.dtime + '</div>';
-			}
-			function info_get(html) {
-				dialog = _dialog({
-					top:10,
-					width:610,
-					head:'Информация о странице',
-					content:html || '<TABLE class="info_tab"><TR><TD class="load"><img src="/img/upload.gif"></TABLE>',
-					butSubmit:'',
-					butCancel:'Закрыть'
-				});
-			}
-			function edit(res) {
-				dialog.close();
-				var html =
-					'<TABLE class="info_tab">' +
-						'<TR><TD class="label">Страница:<TD><b>' + res.page + '</b>' +
-						'<TR><TD class="label">Название:<TD><input type="text" id="name" maxlength="200" value="' + res.name + '">' +
-						'<TR><TD class="label">Содержание:<TD>' +
-						'<TR><td colspan="2"><textarea id="info_txt">' + res.txt + '</textarea>' +
-					'</TABLE>';
-				dialog = _dialog({
-					top:10,
-					width:610,
-					head:'Редактирование подсказки',
-					content:html,
-					butSubmit:'Сохранить',
-					submit:function() {
-						var send = {
-							op:'info_edit',
-							id:id,
-							name:$('#name').val(),
-							txt:$('#info_txt').val()
-						};
-						if(!send.name) {
-							dialog.bottom.vkHint({
-								msg:'<SPAN class="red">Не введено название</SPAN>',
-								remove:1,
-								indent:40,
-								show:1,
-								top:-48,
-								left:217
-							});
-							$('#name').focus();
-						} else {
-							dialog.process();
-							$.post(AJAX_MAIN, send, function() {
-								if(res.success) {
-									dialog.close();
-									res.name = send.name;
-									res.txt = send.txt;
-									info_get(html_create(res));
-									dialog.content.find('.add').click(function() {
-										edit(res);
-									});
-								} else
-									dialog.abort();
-							}, 'json');
-						}
-					}
-				});
-				$('#name').focus();
-				$('#info_txt').autosize();
-			}
-		});
-
 		if($('#client').length > 0) {
 			window.cFind = $('#find')._search({
 				width:602,
@@ -1666,6 +1554,12 @@ $(document)
 							correct:0
 						});
 				}
+			});
+		}
+
+		if($('#remind').length > 0) {
+			$('.goyear').click(function() {
+				$('#remind').addClass('y');
 			});
 		}
 

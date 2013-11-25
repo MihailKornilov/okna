@@ -23,6 +23,7 @@ require_once(VKPATH.'/vk.php');
 _appAuth();
 require_once(DOCUMENT_ROOT.'/view/main.php');
 
+define('TODAY_UNIXTIME', strtotime(strftime("%Y-%m-%d", time())));
 define('REGEXP_NUMERIC', '/^[0-9]{1,20}$/i');
 define('REGEXP_CENA', '/^[0-9]{1,6}(.[0-9]{1,2})?$/i');
 define('REGEXP_BOOL', '/^[0-1]$/');
