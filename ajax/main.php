@@ -215,20 +215,8 @@ switch(@$_POST['op']) {
 			query($sql);
 		}
 
-		if($comm) {
-			$sql = "INSERT INTO `vk_comment` (
-						`table_name`,
-						`table_id`,
-						`txt`,
-						`viewer_id_add`
-					) VALUES (
-						'zayav',
-						".$send['id'].",
-						'".$comm."',
-						".VIEWER_ID."
-					)";
-			query($sql);
-		}
+		_vkCommentAdd('zayav', $send['id'], $comm);
+
 		history_insert(array(
 			'type' => 4,
 			'zayav_id' => $send['id'],
@@ -621,14 +609,11 @@ switch(@$_POST['op']) {
 		$send['html'] = utf8(zayav_oplata_unit($r));
 		jsonSuccess($send);
 		break;
-	case 'zayav_zamer_status':
+	case 'zayav_zamer_get':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) || $_POST['status'] == 0)
 			jsonError();
 
 		$zayav_id = intval($_POST['zayav_id']);
-		$status = intval($_POST['status']);
 
 		$sql = "SELECT *
 				FROM `zayav`
@@ -639,10 +624,64 @@ switch(@$_POST['op']) {
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-		if($status != $zayav['status']) {
-			$sql = "UPDATE `zayav` SET `zamer`=0 WHERE `id`=".$zayav_id;
-			query($sql);
+		$ex = explode(' ', $zayav['zamer_dtime']);
+		$time = explode(':', $ex[1]);
+		$send['day'] = $ex[0];
+		$send['hour'] = intval($time[0]);
+		$send['min'] = intval($time[1]);
+		$send['dur'] = $zayav['zamer_duration'];
+		jsonSuccess($send);
+		break;
+	case 'zayav_zamer_status':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) || $_POST['status'] == 0)
+			jsonError();
+
+		$zayav_id = intval($_POST['zayav_id']);
+		$status = intval($_POST['status']);
+		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `id`=".$zayav_id."
+				  AND `status`=1
+				  AND `zamer`=1
+				LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		switch($status) {
+			case 1:
+				if(!preg_match(REGEXP_DATE, $_POST['zamer_day']))
+					jsonError();
+				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_hour']))
+					jsonError();
+				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_min']))
+					jsonError();
+				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_duration']) || $_POST['zamer_duration'] == 0)
+					jsonError();
+				$zamer_dtime = $_POST['zamer_day'].' '.$_POST['zamer_hour'].':'.$_POST['zamer_min'].':00';
+				$zamer_duration = intval($_POST['zamer_duration']);
+				$sql = "UPDATE `zayav`
+				        SET `zamer_dtime`='".$zamer_dtime."',
+				            `zamer_duration`=".$zamer_duration."
+				        WHERE `id`=".$zayav_id;
+				query($sql);
+				break;
+			case 2:
+				$sql = "UPDATE `zayav` SET `zamer`=0,`status_dtime`=CURRENT_TIMESTAMP WHERE `id`=".$zayav_id;
+				query($sql);
+				break;
+			case 3:
+				$sql = "UPDATE `zayav` SET `status`=3,`status_dtime`=CURRENT_TIMESTAMP WHERE `id`=".$zayav_id;
+				query($sql);
+				break;
+			default:
+				jsonError();
 		}
+
+		_vkCommentAdd('zayav', $zayav_id, $prim);
 
 		jsonSuccess();
 		break;

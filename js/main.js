@@ -524,6 +524,103 @@ $(document)
 			}
 		}, 'json');
 	})
+	.on('click', '.zamer_status', function() {
+		var t = $(this),
+			id = typeof ZAYAV != 'undefined' ? ZAYAV.id : t.attr('val'),
+			dialog = _dialog({
+				width:380,
+				top:60,
+				head:'Заявка №' + id + ' - Изменение статуса замера',
+				load:1,
+				butSubmit:'Применить',
+				submit:submit
+			});
+		if(typeof ZAYAV == 'undefined')
+			$.post(AJAX_MAIN, {op:'zayav_zamer_get',zayav_id:id}, function (res) {
+				if(res.success)
+					info_get(res);
+				else
+					dialog.loadError();
+			}, 'json');
+		else
+			info_get(ZAYAV);
+		function info_get(res) {
+			dialog.content.html('<table class="zayav-info-edit">' +
+				'<tr><td class="label r top">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
+				'<tr class="tr_data dn"><td class="label r">Новое время:' +
+					'<td><table><tr>' +
+						'<td><INPUT TYPE="hidden" id="zamer_day" value="' + res.day + '" "/>' +
+						'<td><INPUT TYPE="hidden" id="zamer_hour" value="' + res.hour + '" />' +
+						'<td> : ' +
+						'<td><INPUT TYPE="hidden" id="zamer_min" value="' + res.min + '" />' +
+					'</table>' +
+				'<tr class="tr_data dn"><td class="label r">Длительность:<td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
+				'<tr class="tr_prim dn"><td class="label r top">Комментарий:<td><textarea id="prim"></textarea>' +
+				'</table>');
+			$('#edit_zamer')._radio({
+				bottom:20,
+				spisok:[
+					{uid:1,title:'Указать другое время<span>Замер будет перенесён на другое время.</span>'},
+					{uid:2,title:'Выполнено<span>Замер выполнен успешно. Заявка будет помечена как "Установка изделия".</span>'},
+					{uid:3,title:'Отказ<span>Отмена заявки по какой-либо причине.</span>'}
+				],
+				func:function(v) {
+					$('.tr_data')[(v == 1 ? 'remove' : 'add') + 'Class']('dn');
+					$('.tr_prim').removeClass('dn');
+				}
+			});
+			$('#zamer_day').vkCalendar();
+			$('#zamer_hour').vkSel({
+				width:40,
+				display:'inline-block',
+				spisok:ZAMER_HOUR
+			});
+			$('#zamer_min').vkSel({
+				width:40,
+				display:'inline-block',
+				spisok:ZAMER_MIN
+			});
+			$('#zamer_duration').vkSel({
+				width:100,
+				display:'inline-block',
+				spisok:ZAMER_DURATION
+			});
+		}
+		function submit() {
+			var msg,
+				send = {
+					op:'zayav_zamer_status',
+					zayav_id:id,
+					status:$('#edit_zamer').val(),
+					zamer_day:$('#zamer_day').val(),
+					zamer_hour:$('#zamer_hour').val(),
+					zamer_min:$('#zamer_min').val(),
+					zamer_duration:$('#zamer_duration').val(),
+					prim:$('#prim').val()
+				};
+			if(send.status == -1) msg = 'Выберите вариант.';
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function (res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Данные изменены!');
+						document.location.reload();
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+			if(msg)
+				$(this).vkHint({
+					msg:'<SPAN class="red">' + msg + '</SPAN>',
+					top:-58,
+					left:-5,
+					indent:40,
+					remove:1,
+					show:1
+				});
+		}
+	})
 
 	.on('click', '.remind_calendar .on', function() {
 		var t = $(this),
@@ -1226,44 +1323,17 @@ $(document)
 			$('#zamer_hour').vkSel({
 				width:40,
 				display:'inline-block',
-				spisok:[
-					{uid:10,title:10},
-					{uid:11,title:11},
-					{uid:12,title:12},
-					{uid:13,title:13},
-					{uid:14,title:14},
-					{uid:15,title:15},
-					{uid:16,title:16},
-					{uid:17,title:17},
-					{uid:18,title:18},
-					{uid:19,title:19},
-					{uid:20,title:20},
-					{uid:21,title:21}
-				]
+				spisok:ZAMER_HOUR
 			});
 			$('#zamer_min').vkSel({
 				width:40,
 				display:'inline-block',
-				spisok:[
-					{uid:0,title:'00'},
-					{uid:10,title:10},
-					{uid:20,title:20},
-					{uid:30,title:30},
-					{uid:40,title:40},
-					{uid:50,title:50}
-				]
+				spisok:ZAMER_MIN
 			});
 			$('#zamer_duration').vkSel({
 				width:100,
 				display:'inline-block',
-				spisok:[
-					{uid:30,title:'30 мин.'},
-					{uid:60,title:'1 час'},
-					{uid:90,title:'1 час 30 мин.'},
-					{uid:120,title:'2 часа'},
-					{uid:150,title:'2 часа 30 мин.'},
-					{uid:180,title:'3 часа'}
-				]
+				spisok:ZAMER_DURATION
 			});
 			$('#comm').autosize();
 			$('.vkCancel').click(function() {
@@ -1388,43 +1458,6 @@ $(document)
 							show:1,
 							remove:1
 						});
-				}
-			});
-			$('#status_zamer').click(function() {
-				var html = '<table class="zayav-info-edit">' +
-						'<tr><td class="label r top">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="1">' +
-						'</table>',
-					dialog = _dialog({
-						width:330,
-						top:60,
-						head:'Заявка №' + ZAYAV.id + ' - Изменение статуса замера',
-						content:html,
-						butSubmit:'Применить',
-						submit:submit
-					});
-				$('#edit_zamer')._radio({
-					light:1,
-					spisok:[
-						{uid:1,title:'Ожидает выполнения'},
-						{uid:2,title:'Выполнено'},
-						{uid:3,title:'Отказ'}
-					]
-				});
-				function submit() {
-					var send = {
-						op:'zayav_zamer_status',
-						zayav_id:ZAYAV.id,
-						status:$('#edit_zamer').val()
-					};
-					dialog.process();
-					$.post(AJAX_MAIN, send, function (res) {
-						if(res.success) {
-							dialog.close();
-							_msg('Данные изменены!');
-							document.location.reload();
-						} else
-							dialog.abort();
-					}, 'json');
 				}
 			});
 			$('.op_add').click(function() {

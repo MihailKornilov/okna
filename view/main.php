@@ -72,7 +72,7 @@ function _header() {
 		'<title>Пластиковые окна - Приложение 3978722</title>'.
 
 		//Отслеживание ошибок в скриптах
-		(SA ? '<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/js/errors-utf8.js?'.VERSION.'"></script>' : '').
+		(SA ? '<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/js/errors.js?'.VERSION.'"></script>' : '').
 
 		//Стороние скрипты
 		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/js/jquery-2.0.3.min.js"></script>'.
@@ -163,8 +163,29 @@ function GvaluesCreate() {//Составление файла G_values.js
 		//'function _toAss(s){var a=[];for(var n=0;n<s.length;a[s[n].uid]=s[n].title,n++);return a}'.
 		'var PRODUCT_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_product` ORDER BY `name`").','.
 		 //'PRODUCT_ASS=_toSpisok(PRODUCT_ASS)'.
-		   'PRIHOD_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_prihodtype` ORDER BY `sort`").','.
-		   'PRIHODKASSA_ASS='.query_ptpJson("SELECT `id`,`kassa_put` FROM `setup_prihodtype` WHERE `kassa_put`=1").',';
+		    'PRIHOD_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_prihodtype` ORDER BY `sort`").','.
+		    'PRIHODKASSA_ASS='.query_ptpJson("SELECT `id`,`kassa_put` FROM `setup_prihodtype` WHERE `kassa_put`=1").','.
+			'ZAMER_HOUR=['.
+				'{uid:10,title:10},'.
+				'{uid:11,title:11},'.
+				'{uid:12,title:12},'.
+				'{uid:13,title:13},'.
+				'{uid:14,title:14},'.
+				'{uid:15,title:15},'.
+				'{uid:16,title:16},'.
+				'{uid:17,title:17},'.
+				'{uid:18,title:18},'.
+				'{uid:19,title:19},'.
+				'{uid:20,title:20},'.
+				'{uid:21,title:21}],'.
+			'ZAMER_MIN=['.
+				'{uid:0,title:"00"},'.
+				'{uid:10,title:10},'.
+				'{uid:20,title:20},'.
+				'{uid:30,title:30},'.
+				'{uid:40,title:40},'.
+				'{uid:50,title:50}],'.
+			'ZAMER_DURATION='._selJson(_zamerDuration()).',';
 
 	$sql = "SELECT * FROM `setup_product_sub` ORDER BY `product_id`,`name`";
 	$q = query($sql);
@@ -851,6 +872,9 @@ function zayav_info($zayav_id) {
 	$dopl = $accSum - $opSum;
 	ksort($money);
 
+	$ex = explode(' ', $zayav['zamer_dtime']);
+	$time = explode(':', $ex[1]);
+
 	return
 	'<script type="text/javascript">'.
 		'var ZAYAV={'.
@@ -858,7 +882,11 @@ function zayav_info($zayav_id) {
 			'client_id:'.$zayav['client_id'].','.
 			'nomer_vg:"'.$zayav['nomer_vg'].'",'.
 			'product:['.zayav_product_spisok($zayav_id, 'json').'],'.
-			'adres_set:"'.$zayav['adres_set'].'"'.
+			'adres_set:"'.$zayav['adres_set'].'",'.
+			'day:"'.$ex[0].'",'.
+			'hour:'.intval($time[0]).','.
+			'min:'.intval($time[1]).','.
+			'dur:'.$zayav['zamer_duration'].
 		'};'.
 	'</script>'.
 	'<div id="zayavInfo">'.
@@ -885,7 +913,7 @@ function zayav_info($zayav_id) {
 					    '<td><span class="zamer-dtime" title="'._zamerDuration($zayav['zamer_duration']).'">'.FullDataTime($zayav['zamer_dtime']).'</span>'.
 							'<span class="zamer-left">'.remindDayLeft($zayav['zamer_dtime']).'</span>' : '').
 				'<tr><td class="label">Статус:'.
-					'<td><div id="status_'.($zayav['zamer'] ? 'zamer' : 'set').'" style="background-color:#'._zayavStatusColor($zayav['status']).'" class="status">'.
+					'<td><div style="background-color:#'._zayavStatusColor($zayav['status']).'" class="status zamer_'.($zayav['zamer'] ? 'status' : 'set').'">'.
 							_zayavStatusName($zayav['status']).
 						'</div>'.
 						'<div class="status_dtime">от '.FullDataTime($zayav['status_dtime'], 1).'</div>'.
@@ -1065,7 +1093,7 @@ function remind_spisok($page=1, $filter=array()) {
 					'Заявка на замер №'.$r['id'].
 			'</a>'.
 			'<div class="to">Дата: '.FullDataTime($r['zamer_dtime']).'<span class="dur">'._zamerDuration($r['zamer_duration']).'</span></div>'.
-			'<div class="left">'.remindDayLeft($r['zamer_dtime']).'<a class="action">Действие</a></div>'.
+			'<div class="day_left">'.remindDayLeft($r['zamer_dtime']).'<a class="action zamer_status" val="'.$r['id'].'">Действие</a></div>'.
 		'</div>';
 	}
 
