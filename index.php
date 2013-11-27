@@ -43,7 +43,8 @@ else {
 					$html .= zayav_info(intval($_GET['id']));
 					break;
 				default:
-					$values = array();
+					$html .= zayav();
+/*					$values = array();
 					if(HASH_VALUES) {
 						$ex = explode('.', HASH_VALUES);
 						foreach($ex as $r) {
@@ -65,6 +66,7 @@ else {
 						'status' => isset($values['status']) ? intval($values['status']) : 0
 					);
 					$html .= zayav_list(zayav_data(1, zayavfilter($values)), $values);
+					*/
 			}
 			break;
 		case 'remind': $html .= remind(); break;

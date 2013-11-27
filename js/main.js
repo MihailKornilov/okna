@@ -170,6 +170,38 @@ var REGEXP_NUMERIC = /^\d+$/,
 		}, 'json');
 	},
 
+	zayavZamerDtime = function(v) {
+		v = $.extend({
+			day:'',
+			hour:10,
+			min:0
+		}, v);
+		var html =
+		'<table><tr>' +
+			'<td><INPUT TYPE="hidden" id="zamer_day" value="' + v.day + '" />' +
+			'<td><INPUT TYPE="hidden" id="zamer_hour" value="' + v.hour + '" />' +
+			'<td> : ' +
+			'<td><INPUT TYPE="hidden" id="zamer_min" value="' + v.min + '" />' +
+		'</table>';
+		$('.zayav-zamer-dtime').html(html);
+		$('#zamer_day').vkCalendar();
+		$('#zamer_hour').vkSel({
+			width:40,
+			display:'inline-block',
+			spisok:ZAMER_HOUR
+		});
+		$('#zamer_min').vkSel({
+			width:40,
+			display:'inline-block',
+			spisok:ZAMER_MIN
+		});
+		$('#zamer_duration').vkSel({
+			width:100,
+			display:'inline-block',
+			spisok:ZAMER_DURATION
+		});
+
+	},
 	zayavFilter = function () {
 		var v = {
 				find:$.trim($('#find input').val()),
@@ -428,6 +460,87 @@ $(document)
 		$('#status').rightLink(0);
 		zayavSpisokLoad();
 	})
+	.on('click', '.zamer_add', function() {
+		var HOMEADRES = '',
+			html =
+			'<table class="zayav-add">' +
+				'<tr><td class="label">Клиент:<td><INPUT type="hidden" id="client_id">' +
+				'<tr><td class="label top">Изделие:<td id="product">' +
+				'<tr><td class="label">Адрес проведения замера:' +
+					'<td><INPUT type="text" id="adres" maxlength="100" />' +
+						'<INPUT type="hidden" id="homeadres" />' +
+				'<tr><td class="label">Дата и время замера:<td class="zayav-zamer-dtime">' +
+				'<tr><td class="label">Длительность замера:<td><INPUT TYPE="hidden" id="zamer_duration" value="30" />' +
+				'<tr><td class="label top">Заметка:	<td><textarea id="comm"></textarea>' +
+			'</table>',
+			dialog = _dialog({
+				width:550,
+				top:30,
+				head:'Внесение новой заявки на замер',
+				content:html,
+				submit:submit
+			});
+		var client = $('#client_id').clientSel({
+			add:1,
+			func:function(uid) {
+				HOMEADRES = client.item(uid).adres;
+				if($('#homeadres').val() == 1)
+					$('#adres').val(HOMEADRES);
+			}
+		}).o;
+		$('#product').productList();
+		$('#homeadres')._check({
+			func:function() {
+				$('#adres').val(HOMEADRES);
+			}
+		});
+		$('#homeadres_check').vkHint({
+			msg:'Совпадает с адресом проживания',
+			top:-74,
+			left:196,
+			indent:60,
+			delayShow:700
+		});
+		zayavZamerDtime({});
+		$('#comm').autosize();
+		function submit() {
+			var msg,
+				send = {
+					op:'zamer_add',
+					client_id:$('#client_id').val(),
+					product:$('#product').productList('get'),
+					adres:$('#adres').val(),
+					zamer_day:$('#zamer_day').val(),
+					zamer_hour:$('#zamer_hour').val(),
+					zamer_min:$('#zamer_min').val(),
+					zamer_duration:$('#zamer_duration').val(),
+					comm:$('#comm').val()
+				};
+			if(send.client_id == 0) msg = 'Не выбран клиент';
+			else if(!send.product) msg = 'Не указано изделие';
+			else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function (res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Заявка внесена');
+						location.href = URL + '&p=zayav&d=info&id=' + res.id;
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+			if(msg)
+				dialog.bottom.vkHint({
+					msg:'<SPAN class="red">' + msg + '</SPAN>',
+					top:-48,
+					left:171,
+					indent:50,
+					show:1,
+					remove:1
+				});
+		}
+	})
 	.on('click', '#zayav .ajaxNext', function() {
 		if($(this).hasClass('busy'))
 			return;
@@ -528,15 +641,15 @@ $(document)
 		var t = $(this),
 			id = typeof ZAYAV != 'undefined' ? ZAYAV.id : t.attr('val'),
 			dialog = _dialog({
-				width:380,
-				top:60,
-				head:'Заявка №' + id + ' - Изменение статуса замера',
+				width:400,
+				top:30,
+				head:'Изменение статуса замера',
 				load:1,
 				butSubmit:'Применить',
 				submit:submit
 			});
 		if(typeof ZAYAV == 'undefined')
-			$.post(AJAX_MAIN, {op:'zayav_zamer_get',zayav_id:id}, function (res) {
+			$.post(AJAX_MAIN, {op:'zamer_info_get',zayav_id:id}, function (res) {
 				if(res.success)
 					info_get(res);
 				else
@@ -545,51 +658,30 @@ $(document)
 		else
 			info_get(ZAYAV);
 		function info_get(res) {
-			dialog.content.html('<table class="zayav-info-edit">' +
-				'<tr><td class="label r top">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
-				'<tr class="tr_data dn"><td class="label r">Новое время:' +
-					'<td><table><tr>' +
-						'<td><INPUT TYPE="hidden" id="zamer_day" value="' + res.day + '" "/>' +
-						'<td><INPUT TYPE="hidden" id="zamer_hour" value="' + res.hour + '" />' +
-						'<td> : ' +
-						'<td><INPUT TYPE="hidden" id="zamer_min" value="' + res.min + '" />' +
-					'</table>' +
-				'<tr class="tr_data dn"><td class="label r">Длительность:<td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
-				'<tr class="tr_prim dn"><td class="label r top">Комментарий:<td><textarea id="prim"></textarea>' +
+			dialog.content.html('<table class="zamer-status-edit">' +
+				'<tr><td class="label top">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
+				'<tr class="tr_data dn"><td class="label">Новое время:<td class="zayav-zamer-dtime">' +
+				'<tr class="tr_data dn"><td class="label">Длительность:<td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
+				'<tr class="tr_prim dn"><td class="label top">Комментарий:<td><textarea id="prim"></textarea>' +
 				'</table>');
 			$('#edit_zamer')._radio({
 				bottom:20,
 				spisok:[
 					{uid:1,title:'Указать другое время<span>Замер будет перенесён на другое время.</span>'},
-					{uid:2,title:'Выполнено<span>Замер выполнен успешно. Заявка будет помечена как "Установка изделия".</span>'},
-					{uid:3,title:'Отказ<span>Отмена заявки по какой-либо причине.</span>'}
+					{uid:2,title:'Выполнен<span>Замер выполнен успешно. Заявка будет переведена на подписание договора.</span>'},
+					{uid:3,title:'Отмена<span>Отмена заявки по какой-либо причине.</span>'}
 				],
 				func:function(v) {
 					$('.tr_data')[(v == 1 ? 'remove' : 'add') + 'Class']('dn');
 					$('.tr_prim').removeClass('dn');
 				}
 			});
-			$('#zamer_day').vkCalendar();
-			$('#zamer_hour').vkSel({
-				width:40,
-				display:'inline-block',
-				spisok:ZAMER_HOUR
-			});
-			$('#zamer_min').vkSel({
-				width:40,
-				display:'inline-block',
-				spisok:ZAMER_MIN
-			});
-			$('#zamer_duration').vkSel({
-				width:100,
-				display:'inline-block',
-				spisok:ZAMER_DURATION
-			});
+			zayavZamerDtime(res);
 		}
 		function submit() {
 			var msg,
 				send = {
-					op:'zayav_zamer_status',
+					op:'zamer_status',
 					zayav_id:id,
 					status:$('#edit_zamer').val(),
 					zamer_day:$('#zamer_day').val(),
@@ -774,7 +866,8 @@ $(document)
 	.on('click', '#setup_product .add', function() {
 		var t = $(this),
 			html = '<table style="border-spacing:10px">' +
-				'<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" />' +
+				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" />' +
+				'<tr><td class="label r">Требуется заключение договора:<td><input id="dogovor" type="hidden" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -784,10 +877,12 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
+		$('#dogovor')._check();
 		function submit() {
 			var send = {
 				op:'setup_product_add',
-				name:$('#name').val()
+				name:$('#name').val(),
+				dogovor:$('#dogovor').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
@@ -818,8 +913,10 @@ $(document)
 			t = t.parent();
 		var id = t.attr('val'),
 			name = t.find('.name a'),
+			dog = t.find('.dog').html() ? 1 : 0,
 			html = '<table style="border-spacing:10px">' +
 				'<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" value="' + name.html() + '" />' +
+				'<tr><td class="label r">Требуется заключение договора:<td><input id="dogovor" type="hidden" value="' + dog + '" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -830,11 +927,13 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
+		$('#dogovor')._check();
 		function submit() {
 			var send = {
 				op:'setup_product_edit',
 				id:id,
-				name:$('#name').val()
+				name:$('#name').val(),
+				dogovor:$('#dogovor').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
@@ -850,7 +949,7 @@ $(document)
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
-						name.html(send.name);
+						$('.spisok').html(res.html);
 						dialog.close();
 						_msg('Сохранено!');
 					} else
@@ -1290,110 +1389,23 @@ $(document)
 				enter:1,
 				func:zayavSpisokLoad
 			});
-			zFind.inp(ZAYAV.find);
-			$('#desc')._check(zayavSpisokLoad);
-			$('#category')._radio(zayavSpisokLoad);
-			$('#status').rightLink(zayavSpisokLoad);
+//			zFind.inp(ZAYAV.find);
+//			$('#desc')._check(zayavSpisokLoad);
+//			$('#category')._radio(zayavSpisokLoad);
+//			$('#status').rightLink(zayavSpisokLoad);
 		}
-		if($('#zayavAdd').length > 0) {
-			$('#zamer')._check(function(v) {
-				$('.to_set')[(v == 1 ? 'add' : 'remove') + 'Class']('on');
-				$('.tr_data')[(v == 1 ? 'add' : 'remove') + 'Class']('on');
-			});
-			var client = $('#client_id').clientSel({
-				add:1,
-				func:function(uid) {
-					HOMEADRES = client.o.item(uid).adres;
-					if($('#homeadres').val() == 1)
-						$('#adres_set').val(HOMEADRES);
-				}
-			});
-			$('#product').productList();
-			$('#homeadres')._check(function() {
-				$('#adres_set').val(HOMEADRES);
-			});
-			$('#homeadres_check').vkHint({
-				msg:'Совпадает с адресом проживания',
-				top:-74,
-				left:196,
-				indent:60,
-				delayShow:700
-			});
-			$('#zamer_day').vkCalendar();
-			$('#zamer_hour').vkSel({
-				width:40,
-				display:'inline-block',
-				spisok:ZAMER_HOUR
-			});
-			$('#zamer_min').vkSel({
-				width:40,
-				display:'inline-block',
-				spisok:ZAMER_MIN
-			});
-			$('#zamer_duration').vkSel({
-				width:100,
-				display:'inline-block',
-				spisok:ZAMER_DURATION
-			});
-			$('#comm').autosize();
-			$('.vkCancel').click(function() {
-				location.href = URL + '&p=' + $(this).attr('val');
-			});
-			$('.vkButton').click(function () {
-				var send = {
-					op:'zayav_add',
-					client_id:$('#client_id').val(),
-					product:$('#product').productList('get'),
-					zamer:$('#zamer').val(),
-					zamer_day:$('#zamer_day').val(),
-					zamer_hour:$('#zamer_hour').val(),
-					zamer_min:$('#zamer_min').val(),
-					zamer_duration:$('#zamer_duration').val(),
-					adres_set:$('#adres_set').val(),
-					comm:$('#comm').val()
-				};
-
-				var msg = '';
-				if(send.client_id == 0) msg = 'Не выбран клиент';
-				else if(!send.product) msg = 'Не указано изделие';
-				else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
-				else {
-					var t = $(this);
-					t.addClass('busy');
-					$.post(AJAX_MAIN, send, function(res) {
-						if(res.success)
-							location.href = URL + '&p=zayav&d=info&id=' + res.id;
-						else
-							t.removeClass('busy');
-					}, 'json');
-				}
-
-				if(msg)
-					$(this).vkHint({
-						msg:'<SPAN class="red">' + msg + '</SPAN>',
-						top:-48,
-						left:151,
-						indent:30,
-						remove:1,
-						show:1,
-						correct:0
-					});
-			});
-		}
-		if($('#zayavInfo').length > 0) {
+		if($('.zayav-info').length > 0) {
 			$('.zinfo').click(function() {
 				$(this).parent().find('.sel').removeClass('sel');
 				$(this).addClass('sel');
-				$('.histories').hide();
-				$('.content').show();
+				$('.zayav-info').removeClass('h');
 			});
 			$('.hist').click(function() {
 				$(this).parent().find('.sel').removeClass('sel');
 				$(this).addClass('sel');
-				$('.histories').show();
-				$('.content').hide();
+				$('.zayav-info').addClass('h');
 			});
-			$('.zedit').click(function() {
+/*			$('.zedit').click(function() {
 				var html = '<table class="zayav-info-edit">' +
 						'<tr><td class="label r">Клиент:		 <td><INPUT type="hidden" id="client_id" value="' + ZAYAV.client_id + '">' +
 						'<tr><td class="label r top">Изделие:	<td id="product">' +
@@ -1588,6 +1600,7 @@ $(document)
 						});
 				}
 			});
+*/
 		}
 
 		if($('#remind').length > 0) {

@@ -150,10 +150,8 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 
-	case 'zayav_add':
+	case 'zamer_add':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
-			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['zamer']))
 			jsonError();
 		if(!preg_match(REGEXP_DATE, $_POST['zamer_day']))
 			jsonError();
@@ -169,32 +167,25 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		$client_id = intval($_POST['client_id']);
-		$zamer = intval($_POST['zamer']);
-		if($zamer) {
-			$zamer_dtime = $_POST['zamer_day'].' '.$_POST['zamer_hour'].':'.$_POST['zamer_min'].':00';
-			$zamer_duration = intval($_POST['zamer_duration']);
-		} else {
-			$zamer_dtime = '0000-00-00 00:00:00';
-			$zamer_duration = 0;
-		}
-		$adres_set = win1251(htmlspecialchars(trim($_POST['adres_set'])));
+		$zamer_dtime = $_POST['zamer_day'].' '.$_POST['zamer_hour'].':'.$_POST['zamer_min'].':00';
+		$zamer_duration = intval($_POST['zamer_duration']);
+		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
 		$comm = win1251(htmlspecialchars(trim($_POST['comm'])));
 
+		$nomer = _getMaxSql('zayav', 'zamer_nomer');
 		$sql = "INSERT INTO `zayav` (
 					`client_id`,
-					`zamer`,
+					`zamer_nomer`,
 					`zamer_dtime`,
 					`zamer_duration`,
-					`adres_set`,
-					`status_dtime`,
+					`adres`,
 					`viewer_id_add`
 				) VALUES (
 					".$client_id.",
-					".$zamer.",
+					".$nomer.",
 					'".$zamer_dtime."',
 					".$zamer_duration.",
-					'".$adres_set."',
-					CURRENT_TIMESTAMP,
+					'".$adres."',
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -219,10 +210,85 @@ switch(@$_POST['op']) {
 
 		history_insert(array(
 			'type' => 4,
+			'client_id' => $client_id,
 			'zayav_id' => $send['id'],
-			'client_id' => $client_id
+			'value' => $nomer
 		));
 		jsonSuccess($send);
+		break;
+	case 'zamer_info_get':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
+			jsonError();
+
+		$zayav_id = intval($_POST['zayav_id']);
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `id`=".$zayav_id."
+				  AND (`zamer_status`=1 OR `zamer_status`=3)
+				LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$ex = explode(' ', $zayav['zamer_dtime']);
+		$time = explode(':', $ex[1]);
+		$send['day'] = $ex[0];
+		$send['hour'] = intval($time[0]);
+		$send['min'] = intval($time[1]);
+		$send['dur'] = $zayav['zamer_duration'];
+		jsonSuccess($send);
+		break;
+	case 'zamer_status':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) || $_POST['status'] == 0)
+			jsonError();
+
+		$zayav_id = intval($_POST['zayav_id']);
+		$status = intval($_POST['status']);
+		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `id`=".$zayav_id."
+				  AND (`zamer_status`=1 OR `zamer_status`=3)
+				LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		switch($status) {
+			case 1:
+				if(!preg_match(REGEXP_DATE, $_POST['zamer_day']))
+					jsonError();
+				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_hour']))
+					jsonError();
+				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_min']))
+					jsonError();
+				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_duration']) || $_POST['zamer_duration'] == 0)
+					jsonError();
+				$zamer_dtime = $_POST['zamer_day'].' '.$_POST['zamer_hour'].':'.$_POST['zamer_min'].':00';
+				$zamer_duration = intval($_POST['zamer_duration']);
+				$sql = "UPDATE `zayav`
+				        SET `zamer_dtime`='".$zamer_dtime."',
+				            `zamer_duration`=".$zamer_duration."
+				        WHERE `id`=".$zayav_id;
+				query($sql);
+				break;
+			case 2:
+				$sql = "UPDATE `zayav` SET `zamer_status`=2 WHERE `id`=".$zayav_id;
+				query($sql);
+				break;
+			case 3:
+				$sql = "UPDATE `zayav` SET `zamer_status`=3 WHERE `id`=".$zayav_id;
+				query($sql);
+				break;
+			default:
+				jsonError();
+		}
+
+		_vkCommentAdd('zayav', $zayav_id, $prim);
+
+		jsonSuccess();
 		break;
 	case 'zayav_spisok_load':
 		$_POST['find'] = win1251($_POST['find']);
@@ -609,82 +675,6 @@ switch(@$_POST['op']) {
 		$send['html'] = utf8(zayav_oplata_unit($r));
 		jsonSuccess($send);
 		break;
-	case 'zayav_zamer_get':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
-			jsonError();
-
-		$zayav_id = intval($_POST['zayav_id']);
-
-		$sql = "SELECT *
-				FROM `zayav`
-				WHERE `id`=".$zayav_id."
-				  AND `status`=1
-				  AND `zamer`=1
-				LIMIT 1";
-		if(!$zayav = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		$ex = explode(' ', $zayav['zamer_dtime']);
-		$time = explode(':', $ex[1]);
-		$send['day'] = $ex[0];
-		$send['hour'] = intval($time[0]);
-		$send['min'] = intval($time[1]);
-		$send['dur'] = $zayav['zamer_duration'];
-		jsonSuccess($send);
-		break;
-	case 'zayav_zamer_status':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) || $_POST['status'] == 0)
-			jsonError();
-
-		$zayav_id = intval($_POST['zayav_id']);
-		$status = intval($_POST['status']);
-		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
-
-		$sql = "SELECT *
-				FROM `zayav`
-				WHERE `id`=".$zayav_id."
-				  AND `status`=1
-				  AND `zamer`=1
-				LIMIT 1";
-		if(!$zayav = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		switch($status) {
-			case 1:
-				if(!preg_match(REGEXP_DATE, $_POST['zamer_day']))
-					jsonError();
-				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_hour']))
-					jsonError();
-				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_min']))
-					jsonError();
-				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_duration']) || $_POST['zamer_duration'] == 0)
-					jsonError();
-				$zamer_dtime = $_POST['zamer_day'].' '.$_POST['zamer_hour'].':'.$_POST['zamer_min'].':00';
-				$zamer_duration = intval($_POST['zamer_duration']);
-				$sql = "UPDATE `zayav`
-				        SET `zamer_dtime`='".$zamer_dtime."',
-				            `zamer_duration`=".$zamer_duration."
-				        WHERE `id`=".$zayav_id;
-				query($sql);
-				break;
-			case 2:
-				$sql = "UPDATE `zayav` SET `zamer`=0,`status_dtime`=CURRENT_TIMESTAMP WHERE `id`=".$zayav_id;
-				query($sql);
-				break;
-			case 3:
-				$sql = "UPDATE `zayav` SET `status`=3,`status_dtime`=CURRENT_TIMESTAMP WHERE `id`=".$zayav_id;
-				query($sql);
-				break;
-			default:
-				jsonError();
-		}
-
-		_vkCommentAdd('zayav', $zayav_id, $prim);
-
-		jsonSuccess();
-		break;
 
 	case 'remind_day':
 		if(!preg_match(REGEXP_DATE, $_POST['day']))
@@ -790,14 +780,20 @@ switch(@$_POST['op']) {
 	case 'setup_product_add':
 		if(!RULES_PRODUCT)
 			jsonError();
+		if(!preg_match(REGEXP_BOOL, $_POST['dogovor']))
+			jsonError();
+
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
+		$dogovor = intval($_POST['dogovor']);
 		if(empty($name))
 			jsonError();
 		$sql = "INSERT INTO `setup_product` (
 					`name`,
+					`dogovor`,
 					`viewer_id_add`
 				) VALUES (
 					'".addslashes($name)."',
+					".$dogovor.",
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -818,8 +814,12 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
+		if(!preg_match(REGEXP_BOOL, $_POST['dogovor']))
+			jsonError();
+
 		$product_id = intval($_POST['id']);
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
+		$dogovor = intval($_POST['dogovor']);
 		if(empty($name))
 			jsonError();
 
@@ -827,19 +827,29 @@ switch(@$_POST['op']) {
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-		$sql = "UPDATE `setup_product` SET `name`='".addslashes($name)."' WHERE `id`=".$product_id;
+		$sql = "UPDATE `setup_product`
+		        SET `name`='".addslashes($name)."',
+		            `dogovor`=".$dogovor."
+		        WHERE `id`=".$product_id;
 		query($sql);
 
 		xcache_unset(CACHE_PREFIX.'product');
 		GvaluesCreate();
 
+		$changes = '';
 		if($r['name'] != $name)
+			$changes = '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
+		if($r['dogovor'] != $dogovor)
+			$changes .= '<tr><th>Требуется договор:<td>'.($r['dogovor'] ? 'да' : 'нет').'<td>»<td>'.($dogovor ? 'да' : 'нет');
+		if($changes)
 			history_insert(array(
 				'type' => 502,
-				'value' => '<table><tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name.'</table>'
+				'value' => '<table>'.$changes.'</table>',
+				'value1' => $name
 			));
 
-		jsonSuccess();
+		$send['html'] = utf8(setup_product_spisok());
+		jsonSuccess($send);
 		break;
 	case 'setup_product_del':
 		if(!RULES_PRODUCT)
