@@ -2,6 +2,22 @@
 .noauth div{border:#ddd solid 1px;padding:70px 10px;background-color:#FFF;color:#888;text-align:center;font-size:12px}
 .norules{margin:10px;padding:15px;border:#ddd solid 1px;color:#900}
 
+
+/* Внесение и редактирование клиента */
+.client-add{border-spacing:10px}
+.client-add td.label{width:70px;text-align:right}
+.client-add #fio,
+.client-add #telefon,
+.client-add #adres,
+.client-add #pasp_adres,
+.client-add #pasp_ovd
+{width:240px}
+.client-add .tr_pasp{text-align:center}
+.client-add span.label{color:#888;margin:0 8px 0 30px}
+.client-add #pasp_seria{width:55px}
+.client-add #pasp_nomer{width:100px}
+.client-add #pasp_data{width:180px}
+
 /* Список клиентов */
 #client #find{background-color:#F7F7F7;padding:10px;border-bottom:#dae1e8 solid 1px}
 #client .result.busy{background-position:585px center}
@@ -18,13 +34,13 @@
 
 /* Информация о клиенте */
 #clientInfo .left{padding-bottom:10px}
-#clientInfo .fio{color:#31618C;font-size:12px;font-weight:bold;margin:15px 5px 5px 30px}
-#clientInfo .cinf{margin:0 10px 0 28px;height:116px}
+#clientInfo .fio{color:#31618C;font-size:12px;font-weight:bold;margin:15px 5px 5px 20px}
+#clientInfo .cinf{border-spacing:2px;margin:0 10px 0 28px}
 #clientInfo .cinf .label{width:60px}
-#clientInfo .dtime{font-size:10px;color:#999;text-align:right}
-.client_edit{margin-left:5px;border-spacing:10px}
-.client_edit .label{width:60px;text-align:right}
-.client_edit #fio,.client_edit #telefon,.client_edit #adres{width:228px}
+#clientInfo .pasp-head{margin:8px 0 3px 20px;color:#31618C}
+#clientInfo .pasp{margin-left:30px}
+#clientInfo .pasp .label{width:85px}
+#clientInfo .dtime_add{font-size:10px;color:#999;text-align:right;margin:10px}
 #clientInfo #dopLinks{border-top:#dae1e8 solid 1px}
 #clientInfo #dopLinks.busy{background-position:right center}
 #clientInfo #zayav_result{color:#777;text-align:center}
@@ -34,10 +50,10 @@
 #clientInfo #money_spisok ._empty{margin:0;padding:60px 10px}
 #clientInfo #comments,#clientInfo #remind_spisok{margin:0 10px;display:none}
 #clientInfo #remind_spisok ._empty{margin:10px 0;padding:60px 10px}
-#clientInfo .right{width:145px}
-#clientInfo .rightLink{margin-bottom:30px}
+#clientInfo .right{width:145px;height:auto}
 #clientInfo .cdel{color:red}
 
+/* Поля изделий при управлении заявкой */
 ._product-list .td{padding-bottom:6px}
 ._product-list .vkSel{margin-right:5px}
 ._product-list .count{width:20px;padding-top:4px}
@@ -57,13 +73,6 @@
 .zayav-zamer-dtime .vkSel .main{height:23px}
 
 
-
-/* список заявок */
-#zayav ._search{float:right;margin:-3px -5px 0 0}
-#zayav .filter_clear{float:right}
-#zayav #spisok{padding-bottom:10px;background-color:#f7f7f7;vertical-align:top}
-#zayav .right{border:0;width:155px;padding-bottom:300px}
-#zayav .condLost.hide{display:none}
 .zayav_unit{
 	cursor:pointer;
 	margin:10px 5px 0 10px;
@@ -81,6 +90,13 @@
 .zayav_unit .product{border-spacing:3px;margin-left:-3px}
 .zayav_unit em{background:#FFC;border-bottom:1px solid #FE2;font-size:12px}
 .zayav_unit b em{font-weight:bold}
+
+/* список заявок */
+#zayav ._search{float:right;margin:-3px -5px 0 0}
+#zayav .filter_clear{float:right}
+#zayav #spisok{padding-bottom:10px;background-color:#f7f7f7;vertical-align:top}
+#zayav .right{border:0;width:155px;padding-bottom:300px}
+#zayav .condLost.hide{display:none}
 #zayav .ajaxNext{margin:6px 5px 0 8px}
 #zayav #desc_check{margin-top:10px}
 #zayav ._empty{margin-right:6px;}

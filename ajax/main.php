@@ -52,17 +52,32 @@ switch(@$_POST['op']) {
 		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
 		$telefon = win1251(htmlspecialchars(trim($_POST['telefon'])));
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+		$pasp_seria = win1251(htmlspecialchars(trim($_POST['pasp_seria'])));
+		$pasp_nomer = win1251(htmlspecialchars(trim($_POST['pasp_nomer'])));
+		$pasp_adres = win1251(htmlspecialchars(trim($_POST['pasp_adres'])));
+		$pasp_ovd = win1251(htmlspecialchars(trim($_POST['pasp_ovd'])));
+		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
 		if(empty($fio))
 			jsonError();
 		$sql = "INSERT INTO `client` (
 					`fio`,
 					`telefon`,
 					`adres`,
+					`pasp_seria`,
+					`pasp_nomer`,
+					`pasp_adres`,
+					`pasp_ovd`,
+					`pasp_data`,
 					`viewer_id_add`
 				) VALUES (
 					'".addslashes($fio)."',
 					'".addslashes($telefon)."',
 					'".addslashes($adres)."',
+					'".addslashes($pasp_seria)."',
+					'".addslashes($pasp_nomer)."',
+					'".addslashes($pasp_adres)."',
+					'".addslashes($pasp_ovd)."',
+					'".addslashes($pasp_data)."',
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -97,6 +112,11 @@ switch(@$_POST['op']) {
 		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
 		$telefon = win1251(htmlspecialchars(trim($_POST['telefon'])));
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+		$pasp_seria = win1251(htmlspecialchars(trim($_POST['pasp_seria'])));
+		$pasp_nomer = win1251(htmlspecialchars(trim($_POST['pasp_nomer'])));
+		$pasp_adres = win1251(htmlspecialchars(trim($_POST['pasp_adres'])));
+		$pasp_ovd = win1251(htmlspecialchars(trim($_POST['pasp_ovd'])));
+		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
 		if(empty($fio))
 			jsonError();
 		$sql = "SELECT * FROM `client` WHERE `status`=1 AND `id`=".$client_id;
@@ -105,22 +125,55 @@ switch(@$_POST['op']) {
 		query("UPDATE `client` SET
 				`fio`='".$fio."',
 				`telefon`='".$telefon."',
-				`adres`='".$adres."'
+				`adres`='".$adres."',
+				`pasp_seria`='".$pasp_seria."',
+				`pasp_nomer`='".$pasp_nomer."',
+				`pasp_adres`='".$pasp_adres."',
+				`pasp_ovd`='".$pasp_ovd."',
+				`pasp_data`='".$pasp_data."'
 			   WHERE `id`=".$client_id);
 		$changes = '';
 		if($client['fio'] != $fio)
 			$changes .= '<tr><th>Фио:<td>'.$client['fio'].'<td>»<td>'.$fio;
 		if($client['telefon'] != $telefon)
-			$changes .= '<tr><th>Тел.:<td>'.$client['telefon'].'<td>»<td>'.$telefon;
+			$changes .= '<tr><th>Телефон.:<td>'.$client['telefon'].'<td>»<td>'.$telefon;
 		if($client['adres'] != $adres)
 			$changes .= '<tr><th>Адрес:<td>'.$client['adres'].'<td>»<td>'.$adres;
+		if($client['pasp_seria'] != $pasp_seria)
+			$changes .= '<tr><th>Паспорт серия:<td>'.$client['pasp_seria'].'<td>»<td>'.$pasp_seria;
+		if($client['pasp_nomer'] != $pasp_nomer)
+			$changes .= '<tr><th>Паспорт номер:<td>'.$client['pasp_nomer'].'<td>»<td>'.$pasp_nomer;
+		if($client['pasp_adres'] != $pasp_adres)
+			$changes .= '<tr><th>Паспорт прописка:<td>'.$client['pasp_adres'].'<td>»<td>'.$pasp_adres;
+		if($client['pasp_ovd'] != $pasp_ovd)
+			$changes .= '<tr><th>Паспорт кем выдан:<td>'.$client['pasp_ovd'].'<td>»<td>'.$pasp_ovd;
+		if($client['pasp_data'] != $pasp_data)
+			$changes .= '<tr><th>Паспорт когда выдан:<td>'.$client['pasp_data'].'<td>»<td>'.$pasp_data;
 		if($changes)
 			history_insert(array(
 				'type' => 2,
 				'client_id' => $client_id,
 				'value' => '<table>'.$changes.'</table>'
 			));
-		jsonSuccess();
+		$send = array(
+			'id' => $client_id,
+			'fio' => $fio,
+			'telefon' => $telefon,
+			'adres' => $adres,
+			'pasp_seria' => $pasp_seria,
+			'pasp_nomer' => $pasp_nomer,
+			'pasp_adres' => $pasp_adres,
+			'pasp_ovd' => $pasp_ovd,
+			'pasp_data' => $pasp_data,
+
+			'balans' => clientBalansUpdate($client_id),
+			'viewer_id_add' => $client['viewer_id_add'],
+			'dtime_add' => $client['dtime_add']
+		);
+		$send['html'] = clientInfoGet($send);
+		foreach($send as $i => $v)
+			$send[$i] = utf8($v);
+		jsonSuccess($send);
 		break;
 	case 'client_del':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))

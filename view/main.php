@@ -90,15 +90,13 @@ function _header() {
 			'VIEWER_ID='.VIEWER_ID.';'.
 		'</script>'.
 
-		//Подключение стилей VK. Должны стоять до основных стилей сайта
+		//Подключение api VK. Стили VK должны стоять до основных стилей сайта
 		'<link href="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/'.(DEBUG ? '' : 'min/').'vk.css?'.VERSION.'" rel="stylesheet" type="text/css" />'.
+		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/'.(DEBUG ? '' : 'min/').'vk.js?'.VERSION.'"></script>'.
 
 		'<link href="'.SITE.'/css/main.css?'.VERSION.'" rel="stylesheet" type="text/css" />'.
 		'<script type="text/javascript" src="'.SITE.'/js/main.js?'.VERSION.'"></script>'.
 		'<script type="text/javascript" src="'.SITE.'/js/G_values.js?'.G_VALUES_VERSION.'"></script>'.
-
-		//Подключение API VK
-		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/'.(DEBUG ? '' : 'min/').'vk.js?'.VERSION.'"></script>'.
 
 		'</head>'.
 		'<body>'.
@@ -450,7 +448,7 @@ function client_data($page=1, $filter=array()) {
 				`client_id` AS `id`,
 				COUNT(`id`) AS `count`
 			FROM `zayav`
-			WHERE `status`>0
+			WHERE `deleted`=0
 			  AND `client_id` IN (".implode(',', array_keys($spisok)).")
 			GROUP BY `client_id`";
 	$q = query($sql);
@@ -500,12 +498,30 @@ function client_count($count, $dolg=0) {
 		'Клиентов не найдено');
 }//client_count()
 
+function clientInfoGet($client) {
+	return
+		'<div class="fio">'.$client['fio'].'</div>'.
+		'<table class="cinf">'.
+			'<tr><td class="label">Телефон:<td>'.$client['telefon'].
+			'<tr><td class="label">Адрес:  <td>'.$client['adres'].
+			'<tr><td class="label">Баланс: <td><b style=color:#'.($client['balans'] < 0 ? 'A00' : '090').'>'.$client['balans'].'</b>'.
+		'</table>'.
+	($client['pasp_seria'] || $client['pasp_nomer'] || $client['pasp_adres'] || $client['pasp_ovd'] || $client['pasp_data'] ?
+		'<div class="pasp-head">Паспортные данные:</div>'.
+		'<table class="pasp">'.
+			'<tr><td class="label">Серия и номер:<td>'.$client['pasp_seria'].' '.$client['pasp_nomer'].
+			'<tr><td class="label">Прописка:<td>'.$client['pasp_adres'].
+			'<tr><td class="label">Выдан:<td>'.$client['pasp_ovd'].', '.$client['pasp_data'].
+		'</table>' : '').
+		'<div class="dtime_add">Клиента внёс '._viewer($client['viewer_id_add'], 'name').' '.FullData($client['dtime_add'], 1).'</div>';
+
+}
 function client_info($client_id) {
 	$sql = "SELECT * FROM `client` WHERE `status`=1 AND `id`=".$client_id;
 	if(!$client = mysql_fetch_assoc(query($sql)))
 		return _noauth('Клиента не существует');
 
-	$zayavData = zayav_data(1, array('client'=>$client_id), 10);
+	$zamer = zamer_spisok(1, array('client'=>$client_id), 10);
 	$commCount = query_value("SELECT COUNT(`id`)
 							  FROM `vk_comment`
 							  WHERE `status`=1
@@ -540,45 +556,49 @@ function client_info($client_id) {
 	return
 	'<script type="text/javascript">'.
 		'var CLIENT={'.
-			'id:'.$client_id.
+			'id:'.$client_id.','.
+			'fio:"'.$client['fio'].'",'.
+			'telefon:"'.$client['telefon'].'",'.
+			'adres:"'.$client['adres'].'",'.
+			'pasp_seria:"'.$client['pasp_seria'].'",'.
+			'pasp_nomer:"'.$client['pasp_nomer'].'",'.
+			'pasp_adres:"'.$client['pasp_adres'].'",'.
+			'pasp_ovd:"'.$client['pasp_ovd'].'",'.
+			'pasp_data:"'.$client['pasp_data'].'"'.
 		'};'.
 	'</script>'.
 	'<div id="clientInfo">'.
 		'<table class="tabLR">'.
+			'<tr><td class="left">'.clientInfoGet($client).
+				'<td class="right">'.
+					'<div class="rightLink">'.
+						'<a class="sel">Информация</a>'.
+						'<a class="cedit">Редактировать</a>'.
+						'<a class="zamer_add"><b>Новый замер</b></a>'.
+						'<a class="cdel">Удалить клиента</a>'.
+					'</div>'.
+		'</table>'.
+
+		'<div id="dopLinks">'.
+			'<a class="link sel" val="zayav">Заявки'.($zamer['all'] ? ' ('.$zamer['all'].')' : '').'</a>'.
+			'<a class="link" val="money">Платежи'.($moneyCount ? ' ('.$moneyCount.')' : '').'</a>'.
+			//'<a class="link" val="remind">Задания'.(!empty($remindData) ? ' ('.$remindData['all'].')' : '').'</a>'.
+			'<a class="link" val="comm">Заметки'.($commCount ? ' ('.$commCount.')' : '').'</a>'.
+			'<a class="link" val="hist">История'.($histCount ? ' ('.$histCount.')' : '').'</a>'.
+		'</div>'.
+
+		'<table class="tabLR">'.
 			'<tr><td class="left">'.
-					'<div class="fio">'.$client['fio'].'</div>'.
-					'<div class="cinf">'.
-						'<table style="border-spacing:2px">'.
-							'<tr><td class="label">Телефон:<td class="telefon">'.$client['telefon'].'</TD>'.
-							'<tr><td class="label">Адрес:  <td class="adres">'.$client['adres'].'</TD>'.
-							'<tr><td class="label">Баланс: <td><b style=color:#'.($client['balans'] < 0 ? 'A00' : '090').'>'.$client['balans'].'</b>'.
-						'</table>'.
-						'<div class="dtime">Клиента внёс '._viewer($client['viewer_id_add'], 'name').' '.FullData($client['dtime_add'], 1).'</div>'.
-					'</div>'.
-					'<div id="dopLinks">'.
-						'<a class="link sel" val="zayav">Заявки'.($zayavData['all'] ? ' ('.$zayavData['all'].')' : '').'</a>'.
-						'<a class="link" val="money">Платежи'.($moneyCount ? ' ('.$moneyCount.')' : '').'</a>'.
-						//'<a class="link" val="remind">Задания'.(!empty($remindData) ? ' ('.$remindData['all'].')' : '').'</a>'.
-						'<a class="link" val="comm">Заметки'.($commCount ? ' ('.$commCount.')' : '').'</a>'.
-						'<a class="link" val="hist">История'.($histCount ? ' ('.$histCount.')' : '').'</a>'.
-					'</div>'.
-					'<div id="zayav_spisok">'.zayav_spisok($zayavData).'</div>'.
+					'<div id="zayav_spisok">'.$zamer['spisok'].'</div>'.
 					'<div id="money_spisok">'.$money.'</div>'.
 					'<div id="remind_spisok">'.(!empty($remindData) ? report_remind_spisok($remindData) : '<div class="_empty">Заданий нет.</div>').'</div>'.
 					'<div id="comments">'._vkComment('client', $client_id).'</div>'.
 					'<div id="histories">'.report_history_spisok(1, array('client_id'=>$client_id)).'</div>'.
 				'<td class="right">'.
-					'<div class="rightLink">'.
-						'<a class="sel">Информация</a>'.
-						'<a class="cedit">Редактировать</a>'.
-						'<a href="'.URL.'&p=zayav&d=add&back=client&id='.$client_id.'"><b>Новая заявка</b></a>'.
-						//'<a class="remind_add">Новое задание</a>'.
-						'<a class="cdel">Удалить клиента</a>'.
-					'</div>'.
 					'<div id="zayav_filter">'.
-						'<div id="zayav_result">'.zayav_count($zayavData['all'], 0).'</div>'.
-						'<div class="findHead">Статус заявки</div>'.
-						_rightLink('status', _zayavStatusName()).
+						//'<div id="zayav_result">'.zayav_count($zayavData['all'], 0).'</div>'.
+						//'<div class="findHead">Статус заявки</div>'.
+						//_rightLink('status', _zayavStatusName()).
 					'</div>'.
 		'</table>'.
 	'</div>';
@@ -655,20 +675,20 @@ function zayav() {
 			$_GET['d'] = 'zamer';
 		case 'zamer':
 			$right = '<div id="buttonCreate" class="zamer_add"><a>Новый замер</a></div>';
-			$data = zamer_data();
-			$count = zamer_count($data['all']);
-			$spisok = zamer_spisok($data);
+			$data = zamer_spisok();
+			$result = $data['result'];
+			$spisok = $data['spisok'];
 			break;
 		case 'dog':
 			$right = '';
 			$data = dogovor_data();
-			$count = dogovor_count($data['all']);
+			$result = dogovor_count($data['all']);
 			$spisok = dogovor_spisok($data);
 			break;
 		case 'set':
 			$right = '<div id="buttonCreate"><a>Новая заявка<br />на установку</a></div>';
 			$data = set_data();
-			$count = set_count($data['all']);
+			$result = set_count($data['all']);
 			$spisok = set_spisok($data);
 			break;
 	}
@@ -680,24 +700,31 @@ function zayav() {
 			'<a class="link'.($_GET['d'] == 'dog' ? ' sel' : '').'" href="'.URL.'&p=zayav&d=dog">Договор</a>'.
 			'<a class="link'.($_GET['d'] == 'set' ? ' sel' : '').'" href="'.URL.'&p=zayav&d=set">Установка</a>'.
 		'</div>'.
-		'<div class="result">'.$count.'</div>'.
+		'<div class="result">'.$result.'</div>'.
 		'<table class="tabLR">'.
 			'<tr><td id="spisok">'.$spisok.
 				'<td class="right">'.$right.
 		'</table>'.
 	'</div>';
 }//zayav()
-function zamer_data($page=1, $filter=array()) {
+function zamer_spisok($page=1, $filter=array()) {
 	$cond = "(`zamer_status`=1 OR `zamer_status`=3)";
 
 	if(empty($filter['desc']))
 		$filter['desc'] = 'DESC';
-	$zayav = array();
-	$client = array();
+	if(isset($filter['client']) && $filter['client'] > 0)
+		$cond .= " AND `client_id`=".$filter['client'];
 
 	$send['all'] = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE ".$cond." LIMIT 1");
 	if($send['all'] == 0)
-		return $send;
+		return array(
+			'all' => 0,
+			'result' => 'Замеров не найдено',
+			'spisok' => '<div class="_empty">Замеров не найдено.</div>'
+		);
+
+	$send['result'] = '<a class="filter_clear">Очисить условия поиска</a>'.
+		'Показан'._end($send['all'], '', 'о').' '.$send['all'].' замер'._end($send['all'], '', 'а', 'ов');
 
 	$limit=20;
 	$start = ($page - 1) * $limit;
@@ -707,6 +734,8 @@ function zamer_data($page=1, $filter=array()) {
 			ORDER BY `id` ".$filter['desc']."
 			LIMIT ".$start.",".$limit;
 	$q = query($sql);
+	$zayav = array();
+	$client = array();
 	while($r = mysql_fetch_assoc($q)) {
 		if(isset($zayav_id) && $zayav_id == $r['id'])
 			continue;
@@ -717,53 +746,27 @@ function zamer_data($page=1, $filter=array()) {
 	if(empty($filter['client']))
 		$client = _clientLink($client);
 
-	foreach($zayav as $id => $r) {
-		$unit = array(
-			'nomer' => $r['zamer_nomer'],
-			'adres' => $r['adres'],
-			'color' => _zayavStatusColor($r['zamer_status']),
-			'dtime' => FullData($r['dtime_add'], 1)
-		);
-		if(empty($filter['client']))
-			$unit['client'] = $client[$r['client_id']];
-		$send['spisok'][$id] = $unit;
-	}
-	$send['next'] = '';
+	$send['spisok'] = '';
+	foreach($zayav as $id => $r)
+		$send['spisok'] .=
+			'<div class="zayav_unit" style="background-color:#'._zayavStatusColor($r['zamer_status']).'" val="'.$id.'">'.
+				'<div class="dtime">'.FullData($r['dtime_add'], 1).'</div>'.
+				'<a class="name">Замер №'.$r['zamer_nomer'].'</a>'.
+				'<table class="ztab">'.
+					(empty($filter['client']) ? '<tr><td class="label">Клиент:<td>'.$client[$r['client_id']] : '').
+					'<tr><td class="label top">Адрес:<td>'.$r['adres'].
+				'</table>'.
+			'</div>';
 	if($start + $limit < $send['all']) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
-		$send['next'] =
+		$send['spisok'] .=
 			'<div class="ajaxNext" val="'.($page + 1).'">'.
 				'<span>Показать ещё '.$c.' замер'._end($c, '', 'а', 'ов').'</span>'.
 			'</div>';
 	}
 	return $send;
 }//zayav_data()
-function zamer_count($count) {
-	return
-		($count > 0 ?
-			'<a class="filter_clear">Очисить условия поиска</a>'.
-			'Показан'._end($count, '', 'о').' '.$count.' замер'._end($count, '', 'а', 'ов')
-			:
-			'Замеров не найдено');
-}//zayav_count()
-function zamer_spisok($data) {
-	if(!isset($data['spisok']))
-		return '<div class="_empty">Замеров не найдено.</div>';
-	$send = '';
-	foreach($data['spisok'] as $id => $r)
-		$send .=
-		'<div class="zayav_unit" style="background-color:#'.$r['color'].'" val="'.$id.'">'.
-			'<div class="dtime">'.$r['dtime'].'</div>'.
-			'<a class="name">Замер №'.$r['nomer'].'</a>'.
-			'<table class="ztab">'.
-				(isset($r['client']) ? '<tr><td class="label">Клиент:<td>'.$r['client'] : '').
-				'<tr><td class="label top">Адрес:<td>'.$r['adres'].
-			'</table>'.
-		'</div>';
-	$send .= $data['next'];
-	return $send;
-}//zamer_spisok()
 function dogovor_data($page=1, $filter=array()) {
 	$cond = "`zamer_status`=2 AND `dogovor_nomer`=0";
 
@@ -1368,8 +1371,8 @@ function remindCalendar($data=array()) {
 function remind() {
 	$sql = "SELECT DATE_FORMAT(`zamer_dtime`,'%Y-%m-%d') AS `day`
 			FROM `zayav`
-			WHERE `status`=1
-			  AND `zamer`=1
+			WHERE `deleted`=0
+			  AND `zamer_status`=1
 			  AND `zamer_dtime` LIKE ('".strftime('%Y-')."%')
 			GROUP BY DATE_FORMAT(`zamer_dtime`,'%Y-%m-%d')";
 	$q = query($sql);
@@ -1410,7 +1413,7 @@ function remind() {
 	'</div>';
 }//remind()
 function remind_spisok($page=1, $filter=array()) {
-	$cond = "`status`=1 AND `zamer`=1";
+	$cond = "`deleted`=0 AND `zamer_status`=1";
 	if(isset($filter['day']))
 		$cond .= " AND `zamer_dtime` LIKE '".$filter['day']." %'";
 	$sql = "SELECT *

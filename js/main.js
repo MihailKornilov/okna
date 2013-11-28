@@ -1,60 +1,4 @@
-var REGEXP_NUMERIC = /^\d+$/,
-	REGEXP_CENA = /^[\d]+(.[\d]{1,2})?$/,
-	URL = 'http://' + DOMAIN + '/index.php?' + VALUES,
-	AJAX_MAIN = 'http://' + DOMAIN + '/ajax/main.php?' + VALUES,
-	setCookie = function(name, value) {
-		var exdate = new Date();
-		exdate.setDate(exdate.getDate() + 1);
-		document.cookie = name + '=' + value + '; path=/; expires=' + exdate.toGMTString();
-	},
-	getCookie = function(name) {
-		var arr1 = document.cookie.split(name);
-		if(arr1.length > 1) {
-			var arr2 = arr1[1].split(/;/);
-			var arr3 = arr2[0].split(/=/);
-			return arr3[0] ? arr3[0] : arr3[1];
-		} else
-			return null;
-	},
-	delCookie = function(name) {
-		var exdate = new Date();
-		exdate.setDate(exdate.getDate()-1);
-		document.cookie = name + '=; path=/; expires=' + exdate.toGMTString();
-	},
-	sortable = function() {
-		$('._sort').sortable({
-			axis:'y',
-			update:function () {
-				var dds = $(this).find('dd'),
-					arr = [];
-				for(var n = 0; n < dds.length; n++)
-					arr.push(dds.eq(n).attr('val'));
-				var send = {
-					op:'sort',
-					table:$(this).attr('val'),
-					ids:arr.join()
-				};
-				$('#mainLinks').addClass('busy');
-				$.post(AJAX_MAIN, send, function(res) {
-					$('#mainLinks').removeClass('busy');
-				}, 'json');
-			}
-		});
-	},
-	_end = function(count, arr) {
-		if(arr.length == 2)
-			arr.push(arr[1]);
-		var send = arr[2];
-		if(Math.floor(count / 10 % 10) != 1)
-			switch(count % 10) {
-				case 1: send = arr[0]; break;
-				case 2: send = arr[1]; break;
-				case 3: send = arr[1]; break;
-				case 4: send = arr[1]; break;
-			}
-		return send;
-	},
-	hashLoc,
+var hashLoc,
 	hashSet = function(hash) {
 		if(!hash && !hash.p)
 			return;
@@ -84,35 +28,53 @@ var REGEXP_NUMERIC = /^\d+$/,
 			VK.callMethod('setLocation', hashLoc);
 	},
 	clientAdd = function(callback) {
-		var html = '<table style="border-spacing:10px">' +
-				'<tr><td class="label">Имя:<TD><input type="text" id="fio" style="width:220px;">' +
-				'<tr><td class="label">Телефон:<TD><input type="text" id="telefon" style=width:220px;>' +
-				'<tr><td class="label">Адрес:<TD><input type="text" id="adres" style=width:220px;>' +
-				'</TABLE>',
+		var html = '<table class="client-add">' +
+				'<tr><td class="label">Имя:<td><input type="text" id="fio" maxlength="100">' +
+				'<tr><td class="label">Телефон:<td><input type="text" id="telefon" maxlength="100">' +
+				'<tr><td class="label">Адрес:<td><input type="text" id="adres" maxlength="100">' +
+				'<tr class="tr_pasp"><td colspan="2"><a>Заполнить паспортные данные</a>' +
+				'<tr class="dn"><td><td><b>Паспортные данные:</b>' +
+				'<tr class="dn"><td class="label">Серия:' +
+							   '<td><input type="text" id="pasp_seria" maxlength="8">' +
+								   '<span class="label">Номер:</span><input type="text" id="pasp_nomer" maxlength="10">' +
+				'<tr class="dn"><td class="label">Прописка:<td><input type="text" id="pasp_adres" maxlength="100">' +
+				'<tr class="dn"><td class="label">Выдан кем:<td><input type="text" id="pasp_ovd" maxlength="100">' +
+				'<tr class="dn"><td class="label">Выдан когда:<td><input type="text" id="pasp_data" maxlength="100">' +
+			'</table>';
 			dialog = _dialog({
-				width:340,
+				top:60,
+				width:380,
 				head:'Добавление нoвого клиента',
 				content:html,
 				submit:submit
 			});
 		$('#fio').focus();
 		$('#fio,#telefon,#adres').keyEnter(submit);
+		$('.tr_pasp a').click(function() {
+			$('.tr_pasp').remove();
+			$('.client-add .dn').removeClass('dn');
+			$('#pasp_seria').focus();
+		});
 		function submit() {
 			var send = {
 				op:'client_add',
 				fio:$('#fio').val(),
 				telefon:$('#telefon').val(),
-				adres:$('#adres').val()
+				adres:$('#adres').val(),
+				pasp_seria:$('#pasp_seria').val(),
+				pasp_nomer:$('#pasp_nomer').val(),
+				pasp_adres:$('#pasp_adres').val(),
+				pasp_ovd:$('#pasp_ovd').val(),
+				pasp_data:$('#pasp_data').val()
 			};
 			if(!send.fio) {
 				dialog.bottom.vkHint({
 					msg:'<SPAN class="red">Не указано имя клиента.</SPAN>',
 					top:-47,
-					left:81,
+					left:103,
 					indent:40,
 					show:1,
-					remove:1,
-					correct:0
+					remove:1
 				});
 				$('#fio').focus();
 			} else {
@@ -401,26 +363,6 @@ $.fn.productList = function(o) {
 };
 
 $(document)
-	.ajaxError(function(event, request, settings) {
-		if(!request.responseText)
-			return;
-		alert('Ошибка:\n\n' + request.responseText);
-	})
-	.on('click', '#cache_clear', function() {
-		$.post(AJAX_MAIN, {'op':'cache_clear'}, function(res) {
-			if(res.success) {
-				_msg('Кэш очищен.');
-				document.location.reload();
-			}
-		}, 'json');
-	})
-	.on('click', '.debug_toggle', function() {
-		var d = getCookie('debug');
-		setCookie('debug', d == 1 ? 0 : 1);
-		_msg('Debug включен.');
-		document.location.reload();
-	})
-
 	.on('click', '#client .ajaxNext', function() {
 		if($(this).hasClass('busy'))
 			return;
@@ -461,10 +403,18 @@ $(document)
 		zayavSpisokLoad();
 	})
 	.on('click', '.zamer_add', function() {
-		var HOMEADRES = '',
+		if(typeof CLIENT == 'undefined')
+			CLIENT = {
+				id:0,
+				fio:'',
+				adres:''
+			};
+		var HOMEADRES = CLIENT.adres,
 			html =
 			'<table class="zayav-add">' +
-				'<tr><td class="label">Клиент:<td><INPUT type="hidden" id="client_id">' +
+				'<tr><td class="label">Клиент:' +
+					'<td><INPUT type="hidden" id="client_id" value="' + CLIENT.id + '">' +
+						'<b>' + CLIENT.fio + '</b>' +
 				'<tr><td class="label top">Изделие:<td id="product">' +
 				'<tr><td class="label">Адрес проведения замера:' +
 					'<td><INPUT type="text" id="adres" maxlength="100" />' +
@@ -480,14 +430,15 @@ $(document)
 				content:html,
 				submit:submit
 			});
-		var client = $('#client_id').clientSel({
-			add:1,
-			func:function(uid) {
-				HOMEADRES = client.item(uid).adres;
-				if($('#homeadres').val() == 1)
-					$('#adres').val(HOMEADRES);
-			}
-		}).o;
+		if(CLIENT.id == 0)
+			var client = $('#client_id').clientSel({
+				add:1,
+				func:function(uid) {
+					HOMEADRES = client.item(uid).adres;
+					if($('#homeadres').val() == 1)
+						$('#adres').val(HOMEADRES);
+				}
+			}).o;
 		$('#product').productList();
 		$('#homeadres')._check({
 			func:function() {
@@ -668,7 +619,7 @@ $(document)
 				bottom:20,
 				spisok:[
 					{uid:1,title:'Указать другое время<span>Замер будет перенесён на другое время.</span>'},
-					{uid:2,title:'Выполнен<span>Замер выполнен успешно. Заявка будет переведена на подписание договора.</span>'},
+					{uid:2,title:'Выполнен<span>Замер выполнен успешно. Заявка будет переведена на заключение договора.</span>'},
 					{uid:3,title:'Отмена<span>Отмена заявки по какой-либо причине.</span>'}
 				],
 				func:function(v) {
@@ -1247,15 +1198,6 @@ $(document)
 	})
 
 	.ready(function() {
-		frameHidden.onresize = _fbhs;
-
-		VK.callMethod('scrollWindow', 0);
-		VK.callMethod('scrollSubscribe');
-		VK.addCallback('onScroll', function(top) { VK_SCROLL = top; });
-
-		sortable();
-		_fbhs();
-
 		if($('#client').length > 0) {
 			window.cFind = $('#find')._search({
 				width:602,
@@ -1303,54 +1245,62 @@ $(document)
 				$('#histories').css('display', val == 'hist' ? 'block' : 'none');
 			});
 			$('.cedit').click(function() {
-				var html = '<TABLE class="client_edit">' +
-					'<tr><td class="label">Имя:<TD><input type="text" id="fio" value="' + $('.fio').html() + '">' +
-					'<tr><td class="label">Телефон:<TD><input type="text" id="telefon" value="' + $('.telefon').html() + '">' +
-					'<tr><td class="label">Адрес:<TD><input type="text" id="adres" value="' + $('.adres').html() + '">' +
-					'</TABLE>';
+				var html = '<table class="client-add">' +
+					'<tr><td class="label">Имя:<td><input type="text" id="fio" maxlength="100" value="' + CLIENT.fio + '">' +
+					'<tr><td class="label">Телефон:<td><input type="text" id="telefon" maxlength="100" value="' + CLIENT.telefon + '">' +
+					'<tr><td class="label">Адрес:<td><input type="text" id="adres" maxlength="100" value="' + CLIENT.adres + '">' +
+					'<tr><td><td><b>Паспортные данные:</b>' +
+					'<tr><td class="label">Серия:' +
+						'<td><input type="text" id="pasp_seria" maxlength="8" value="' + CLIENT.pasp_seria + '">' +
+							'<span class="label">Номер:</span><input type="text" id="pasp_nomer" maxlength="10" value="' + CLIENT.pasp_nomer + '">' +
+					'<tr><td class="label">Прописка:<td><input type="text" id="pasp_adres" maxlength="100" value="' + CLIENT.pasp_adres + '">' +
+					'<tr><td class="label">Выдан кем:<td><input type="text" id="pasp_ovd" maxlength="100" value="' + CLIENT.pasp_ovd + '">' +
+					'<tr><td class="label">Выдан когда:<td><input type="text" id="pasp_data" maxlength="100" value="' + CLIENT.pasp_data + '">' +
+				'</table>';
 				var dialog = _dialog({
 					head:'Редактирование данных клиента',
-					top:60,
+					top:30,
 					width:380,
 					content:html,
 					butSubmit:'Сохранить',
 					submit:submit
 				});
-				$('#fio,#telefon,#adres').keyEnter(submit);
+				$('#fio,#telefon,#adres,#pasp_seria,#pasp_nomer,#pasp_adres,#pasp_ovd,#pasp_data').keyEnter(submit);
 				function submit() {
-					var msg,
-						send = {
+					var send = {
 							op:'client_edit',
 							client_id:CLIENT.id,
-							fio:$.trim($('#fio').val()),
-							telefon:$.trim($('#telefon').val()),
-							adres:$.trim($('#adres').val())
+							fio:$('#fio').val(),
+							telefon:$('#telefon').val(),
+							adres:$('#adres').val(),
+							pasp_seria:$('#pasp_seria').val(),
+							pasp_nomer:$('#pasp_nomer').val(),
+							pasp_adres:$('#pasp_adres').val(),
+							pasp_ovd:$('#pasp_ovd').val(),
+							pasp_data:$('#pasp_data').val()
 						};
 					if(!send.fio) {
-						msg = 'Не указано имя клиента.';
-						$("#fio").focus();
-					} else {
-						dialog.process();
-						$.post(AJAX_MAIN, send, function(res) {
-							if(res.success) {
-								$('.fio').html(send.fio);
-								$('.telefon').html(send.telefon);
-								$('.adres').html(send.adres);
-								dialog.close();
-								_msg('Данные клиента изменены.');
-							} else
-								dialog.abort();
-						}, 'json');
-					}
-					if(msg)
 						dialog.bottom.vkHint({
-							msg:'<SPAN class=red>' + msg + '</SPAN>',
+							msg:'<span class="red">Не указано имя клиента.</span>',
 							top:-47,
 							left:100,
 							indent:50,
 							show:1,
 							remove:1
 						});
+						$("#fio").focus();
+					} else {
+						dialog.process();
+						$.post(AJAX_MAIN, send, function(res) {
+							if(res.success) {
+								CLIENT = res;
+								$('#clientInfo .left:first').html(res.html);
+								dialog.close();
+								_msg('Данные клиента изменены.');
+							} else
+								dialog.abort();
+						}, 'json');
+					}
 				}
 			});
 			$('.cdel').click(function() {
