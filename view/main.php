@@ -651,7 +651,7 @@ function _zayavStatusColor($id=false) {
 	return $send;
 }//_zayavStatusColor()
 
-function product_spisok_test($product) {
+function product_spisok_test($product) {// Проверка корректности данных изделий при внесении в базу
 	if(empty($product))
 		return false;
 	$send = array();
@@ -681,24 +681,27 @@ function zayav() {
 			break;
 		case 'dog':
 			$right = '';
-			$data = dogovor_data();
-			$result = dogovor_count($data['all']);
-			$spisok = dogovor_spisok($data);
+			$data = dogovor_spisok();
+			$result = $data['result'];
+			$spisok = $data['spisok'];
 			break;
 		case 'set':
 			$right = '<div id="buttonCreate"><a>Новая заявка<br />на установку</a></div>';
-			$data = set_data();
-			$result = set_count($data['all']);
-			$spisok = set_spisok($data);
+			$data = set_spisok();
+			$result = $data['result'];
+			$spisok = $data['spisok'];
 			break;
 	}
+	$zamerCount = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE `deleted`=0 AND `zamer_status`=1 LIMIT 1");
+	$dogovorCount = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE `deleted`=0 AND `zamer_status`=2 AND `dogovor_nomer`=0 LIMIT 1");
+	$setCount = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE `deleted`=0 AND `set_status`=1 LIMIT 1");
 	return
 	'<div id="zayav">'.
 		'<div id="dopLinks">'.
 			'<div id="find"></div>'.
-			'<a class="link'.($_GET['d'] == 'zamer' ? ' sel' : '').'" href="'.URL.'&p=zayav&d=zamer">Замер</a>'.
-			'<a class="link'.($_GET['d'] == 'dog' ? ' sel' : '').'" href="'.URL.'&p=zayav&d=dog">Договор</a>'.
-			'<a class="link'.($_GET['d'] == 'set' ? ' sel' : '').'" href="'.URL.'&p=zayav&d=set">Установка</a>'.
+			'<a class="link'.($_GET['d'] == 'zamer' ? ' sel' : '').'" href="'.URL.'&p=zayav&d=zamer">Замер'.($zamerCount ? ' ('.$zamerCount.')' : '').'</a>'.
+			'<a class="link'.($_GET['d'] == 'dog' ? ' sel' : '').'" href="'.URL.'&p=zayav&d=dog">Договор'.($dogovorCount ? ' ('.$dogovorCount.')' : '').'</a>'.
+			'<a class="link'.($_GET['d'] == 'set' ? ' sel' : '').'" href="'.URL.'&p=zayav&d=set">Установка'.($setCount ? ' ('.$setCount.')' : '').'</a>'.
 		'</div>'.
 		'<div class="result">'.$result.'</div>'.
 		'<table class="tabLR">'.
@@ -715,16 +718,16 @@ function zamer_spisok($page=1, $filter=array()) {
 	if(isset($filter['client']) && $filter['client'] > 0)
 		$cond .= " AND `client_id`=".$filter['client'];
 
+	$clear = '<a class="filter_clear">Очисить условия поиска</a>';
 	$send['all'] = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE ".$cond." LIMIT 1");
 	if($send['all'] == 0)
 		return array(
 			'all' => 0,
-			'result' => 'Замеров не найдено',
+			'result' => $clear.'Замеров не найдено',
 			'spisok' => '<div class="_empty">Замеров не найдено.</div>'
 		);
 
-	$send['result'] = '<a class="filter_clear">Очисить условия поиска</a>'.
-		'Показан'._end($send['all'], '', 'о').' '.$send['all'].' замер'._end($send['all'], '', 'а', 'ов');
+	$send['result'] = $clear.'Показан'._end($send['all'], '', 'о').' '.$send['all'].' замер'._end($send['all'], '', 'а', 'ов');
 
 	$limit=20;
 	$start = ($page - 1) * $limit;
@@ -767,26 +770,35 @@ function zamer_spisok($page=1, $filter=array()) {
 	}
 	return $send;
 }//zayav_data()
-function dogovor_data($page=1, $filter=array()) {
+function dogovor_spisok($page=1, $filter=array()) {
 	$cond = "`zamer_status`=2 AND `dogovor_nomer`=0";
 
 	if(empty($filter['desc']))
 		$filter['desc'] = 'DESC';
-	$zayav = array();
-	$client = array();
+	if(isset($filter['client']) && $filter['client'] > 0)
+		$cond .= " AND `client_id`=".$filter['client'];
 
+	$clear = '<a class="filter_clear">Очисить условия поиска</a>';
 	$send['all'] = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE ".$cond." LIMIT 1");
 	if($send['all'] == 0)
-		return $send;
+		return array(
+			'all' => 0,
+			'result' => $clear.'Заявок на заключение договора не найдено',
+			'spisok' => '<div class="_empty">Заявок на заключение договора не найдено.</div>'
+		);
+
+	$send['result'] = $clear.'Показан'._end($send['all'], '', 'о').' '.$send['all'].' заяв'._end($send['all'], 'ка', 'ки', 'ок');
 
 	$limit=20;
 	$start = ($page - 1) * $limit;
 	$sql = "SELECT *
 			FROM `zayav`
 			WHERE ".$cond."
-			ORDER BY `id` ".$filter['desc']."
+			ORDER BY `dogovor_nomer` ".$filter['desc']."
 			LIMIT ".$start.",".$limit;
 	$q = query($sql);
+	$zayav = array();
+	$client = array();
 	while($r = mysql_fetch_assoc($q)) {
 		if(isset($zayav_id) && $zayav_id == $r['id'])
 			continue;
@@ -797,72 +809,56 @@ function dogovor_data($page=1, $filter=array()) {
 	if(empty($filter['client']))
 		$client = _clientLink($client);
 
-	foreach($zayav as $id => $r) {
-		$unit = array(
-			'nomer' => $r['zamer_nomer'],
-			'adres' => $r['adres'],
-			'dtime' => FullData($r['dtime_add'], 1)
-		);
-		if(empty($filter['client']))
-			$unit['client'] = $client[$r['client_id']];
-		$send['spisok'][$id] = $unit;
-	}
-	$send['next'] = '';
+	$send['spisok'] = '';
+	foreach($zayav as $id => $r)
+		$send['spisok'] .=
+		'<div class="zayav_unit" val="'.$id.'">'.
+			'<div class="dtime">'.FullData($r['dtime_add'], 1).'</div>'.
+			'<a class="name">Договор не заключен <span>(замер №'.$r['zamer_nomer'].')</span></a>'.
+			'<table class="ztab">'.
+				(empty($filter['client']) ? '<tr><td class="label">Клиент:<td>'.$client[$r['client_id']] : '').
+				'<tr><td class="label top">Адрес:<td>'.$r['adres'].
+			'</table>'.
+		'</div>';
 	if($start + $limit < $send['all']) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
-		$send['next'] =
+		$send['spisok'] .=
 			'<div class="ajaxNext" val="'.($page + 1).'">'.
 				'<span>Показать ещё '.$c.' заяв'._end($c, 'ку', 'ки', 'ок').'</span>'.
 			'</div>';
 	}
 	return $send;
-}//dogovor_data()
-function dogovor_count($c) {
-	return
-		($c > 0 ?
-			'<a class="filter_clear">Очисить условия поиска</a>'.
-			'Показан'._end($c, 'а', 'о').' '.$c.' заяв'._end($c, 'ка', 'ки', 'ок')
-			:
-			'Заявок не найдено');
-}//dogovor_count()
-function dogovor_spisok($data) {
-	if(!isset($data['spisok']))
-		return '<div class="_empty">Заявок не найдено.</div>';
-	$send = '';
-	foreach($data['spisok'] as $id => $r)
-		$send .=
-			'<div class="zayav_unit" val="'.$id.'">'.
-				'<div class="dtime">'.$r['dtime'].'</div>'.
-				'<a class="name">Договор не заключен <span>(замер №'.$r['nomer'].')</span></a>'.
-				'<table class="ztab">'.
-					(isset($r['client']) ? '<tr><td class="label">Клиент:<td>'.$r['client'] : '').
-					'<tr><td class="label top">Адрес:<td>'.$r['adres'].
-				'</table>'.
-			'</div>';
-	$send .= $data['next'];
-	return $send;
 }//dogovor_spisok()
-function set_data($page=1, $filter=array()) {
+function set_spisok($page=1, $filter=array()) {
 	$cond = "`zamer_status`!=1 && `zamer_status`!=3 AND `dogovor_nomer`>0";
 
 	if(empty($filter['desc']))
 		$filter['desc'] = 'DESC';
-	$zayav = array();
-	$client = array();
+	if(isset($filter['client']) && $filter['client'] > 0)
+		$cond .= " AND `client_id`=".$filter['client'];
 
+	$clear = '<a class="filter_clear">Очисить условия поиска</a>';
 	$send['all'] = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE ".$cond." LIMIT 1");
 	if($send['all'] == 0)
-		return $send;
+		return array(
+			'all' => 0,
+			'result' => $clear.'Установок не найдено',
+			'spisok' => '<div class="_empty">Установок не найдено.</div>'
+		);
+
+	$send['result'] = $clear.'Показан'._end($send['all'], '', 'о').' '.$send['all'].' заяв'._end($send['all'], 'ка', 'ки', 'ок');
 
 	$limit=20;
 	$start = ($page - 1) * $limit;
 	$sql = "SELECT *
 			FROM `zayav`
 			WHERE ".$cond."
-			ORDER BY `id` ".$filter['desc']."
+			ORDER BY `set_nomer` ".$filter['desc']."
 			LIMIT ".$start.",".$limit;
 	$q = query($sql);
+	$zayav = array();
+	$client = array();
 	while($r = mysql_fetch_assoc($q)) {
 		if(isset($zayav_id) && $zayav_id == $r['id'])
 			continue;
@@ -873,54 +869,27 @@ function set_data($page=1, $filter=array()) {
 	if(empty($filter['client']))
 		$client = _clientLink($client);
 
-	foreach($zayav as $id => $r) {
-		$unit = array(
-			'nomer' => $r['zamer_nomer'],
-			'adres' => $r['adres'],
-			'dtime' => FullData($r['dtime_add'], 1)
-		);
-		if(empty($filter['client']))
-			$unit['client'] = $client[$r['client_id']];
-		$send['spisok'][$id] = $unit;
-	}
-	$send['next'] = '';
+	$send['spisok'] = '';
+	foreach($zayav as $id => $r)
+		$send['spisok'] .=
+		'<div class="zayav_unit" style="background-color:#'._zayavStatusColor($r['set_status']).'" val="'.$id.'">'.
+			'<div class="dtime">'.FullData($r['dtime_add'], 1).'</div>'.
+			'<a class="name">Установка №'.$r['set_nomer'].'</a>'.
+			'<table class="ztab">'.
+				(empty($filter['client']) ? '<tr><td class="label">Клиент:<td>'.$client[$r['client_id']] : '').
+				'<tr><td class="label top">Адрес:<td>'.$r['adres'].
+			'</table>'.
+		'</div>';
 	if($start + $limit < $send['all']) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
-		$send['next'] =
+		$send['spisok'] .=
 			'<div class="ajaxNext" val="'.($page + 1).'">'.
-			'<span>Показать ещё '.$c.' заяв'._end($c, 'ку', 'ки', 'ок').'</span>'.
+				'<span>Показать ещё '.$c.' заяв'._end($c, 'ку', 'ки', 'ок').'</span>'.
 			'</div>';
 	}
 	return $send;
-}//set_data()
-function set_count($c) {
-	return
-		($c > 0 ?
-			'<a class="filter_clear">Очисить условия поиска</a>'.
-			'Показан'._end($c, 'а', 'о').' '.$c.' заяв'._end($c, 'ка', 'ки', 'ок')
-			:
-			'Заявок не найдено');
-}//set_count()
-function set_spisok($data) {
-	if(!isset($data['spisok']))
-		return '<div class="_empty">Заявок не найдено.</div>';
-	$send = '';
-	foreach($data['spisok'] as $id => $r)
-		$send .=
-			'<div class="zayav_unit" val="'.$id.'">'.
-			'<div class="dtime">'.$r['dtime'].'</div>'.
-			'<a class="name">Договор не заключен <span>(замер №'.$r['nomer'].')</span></a>'.
-			'<table class="ztab">'.
-			(isset($r['client']) ? '<tr><td class="label">Клиент:<td>'.$r['client'] : '').
-			'<tr><td class="label top">Адрес:<td>'.$r['adres'].
-			'</table>'.
-			'</div>';
-	$send .= $data['next'];
-	return $send;
 }//set_spisok()
-
-
 
 function zayav_info($zayav_id) {
 	$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id." LIMIT 1";
@@ -929,8 +898,10 @@ function zayav_info($zayav_id) {
 
 	if($r['zamer_status'] == 1 || $r['zamer_status'] == 3)
 		return zamer_info($r);
-	if($r['dogovor_nomer'] == 0 && $r['zamer_status'] != 1 && $r['zamer_status'] != 3)
+	if($r['dogovor_nomer'] == 0)
 		return dogovor_info($r);
+	if($r['dogovor_nomer'] > 0 && $r['set_status'] > 0)
+		return set_info($r);
 	return _noauth('Неизвестная заявка');
 }//zayav_info()
 function zamer_info($z) {
@@ -979,20 +950,20 @@ function zamer_info($z) {
 	'</div>';
 }//zamer_info()
 function dogovor_info($z) {
-	$ex = explode(' ', $z['zamer_dtime']);
-	$time = explode(':', $ex[1]);
+	$sql = "SELECT * FROM `client` WHERE `id`=".$z['client_id'];
+	$client = mysql_fetch_assoc(query($sql));
 
 	return
 	'<script type="text/javascript">'.
 		'var ZAYAV={'.
 			'id:'.$z['id'].','.
-			'client_id:'.$z['client_id'].','.
-			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
-			'adres:"'.$z['adres'].'",'.
-			'day:"'.$ex[0].'",'.
-			'hour:'.intval($time[0]).','.
-			'min:'.intval($time[1]).','.
-			'dur:'.$z['zamer_duration'].
+			'fio:"'.$client['fio'].'",'.
+			'adres:"'.$client['adres'].'",'.
+			'pasp_seria:"'.$client['pasp_seria'].'",'.
+			'pasp_nomer:"'.$client['pasp_nomer'].'",'.
+			'pasp_adres:"'.$client['pasp_adres'].'",'.
+			'pasp_ovd:"'.$client['pasp_ovd'].'",'.
+			'pasp_data:"'.$client['pasp_data'].'"'.
 		'};'.
 	'</script>'.
 	'<div class="zayav-info">'.
@@ -1019,8 +990,188 @@ function dogovor_info($z) {
 		'<div class="histories">'.report_history_spisok(1, array('zayav_id'=>$z['id'])).'</div>'.
 	'</div>';
 }//dogovor_info()
+function set_info($z) {
+	$dog_dtime = query_value("SELECT `dtime_add` FROM `zayav_dogovor` WHERE `zayav_id`=".$z['id']);
+	return
+	'<script type="text/javascript">'.
+		'var ZAYAV={'.
+			'id:'.$z['id'].
+		'};'.
+	'</script>'.
+	'<div class="zayav-info">'.
+		'<div id="dopLinks">'.
+//			'<a class="delete">Удалить завку</a>'.
+			'<a class="link sel zinfo">Информация</a>'.
+			'<a class="link zedit">Редактирование</a>'.
+			'<a class="link hist">История</a>'.
+		'</div>'.
+		'<div class="headName">Установка №'.$z['set_nomer'].'</div>'.
+		'<div class="content">'.
+			'<table class="tabInfo">'.
+				'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
+//				'<tr><td class="label">Дата приёма:'.
+//					'<td class="dtime_add" title="Заявку внёс '._viewer($z['viewer_id_add'], 'name').'">'.FullDataTime($z['dtime_add']).
+				'<tr><td class="label">Договор:'.
+					'<td><b>№'.$z['dogovor_nomer'].'</b> от '.FullData($dog_dtime, 1).
+					   ' <a class="dogovor_print" href="'.URL.'&p=zayav&d=dogovor_print&id='.$z['id'].'">распечатать</a>'.
+				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).
+				'<tr><td class="label">Адрес установки:<td>'.$z['adres'].
+				'<tr><td class="label">Статус:'.
+					'<td><div style="background-color:#'._zayavStatusColor($z['set_status']).'" class="status">'._zayavStatusName($z['set_status']).'</div>'.
+			'</table>'.
+			_vkComment('zayav', $z['id']).
+		'</div>'.
+		'<div class="histories">'.report_history_spisok(1, array('zayav_id'=>$z['id'])).'</div>'.
+	'</div>';
+}//set_info()
+function dogovor_print($v) {
+	require_once(DOCUMENT_ROOT.'/include/clsMsDocGenerator.php');
 
+	if(!is_array($v)) {
+		$sql = "SELECT * FROM `zayav_dogovor` WHERE `zayav_id`=".$v." LIMIT 1";
+		$v = mysql_fetch_assoc(query($sql));
+	}
 
+	$sql = "SELECT * FROM `setup_global`";
+	$g = mysql_fetch_assoc(query($sql));
+
+	$ex = explode(' ', $v['dtime_add']);
+	$d = explode('-', $ex[0]);
+
+	$ex = explode(' ', $v['fio']);
+	$fioPodpis = $ex[0].' '.
+				 (isset($ex[1]) ? ' '.$ex[1][0].'.' : '').
+				 (isset($ex[2]) ? ' '.$ex[2][0].'.' : '');
+
+	$send =
+	'<div class="head-name">ДОГОВОР №'.$v['id'].'</div>'.
+	'<table class="city_data"><tr><td>Город Няндома<th>'.$d[2].'/'.$d[1].'/'.$d[0].' г.</table>'.
+	'<div class="paragraph">'.
+		'<p>Общество с ограниченной ответственностью «Территория Комфорта», '.
+		'в лице менеджера по продажам, Билоченко Юлия Александровна, действующей на основании доверенности, '.
+		'с одной стороны, и ООО, именуемый в дальнейшем «Заказчик», с другой стороны, '.
+		'заключили настоящий договор, далее «Договор», о нижеследующем:'.
+	'</div>'.
+	'<div class="p-head">1. Предмет договора</div>'.
+	'<div class="paragraph">'.
+		'<p>1.1. Поставщик принимает на себя обязательство по исполнению ЗАКАЗА на изготовление и доставку изделий (оконных блоков, дверных блоков, защитных роллет, гаражных и промышленных ворот) в соответствии с индивидуальными характеристиками объекта и требованиями Заказчика (далее «Товар»). Работы по установке изделий и конструкций из них по адресу заказчика.'.
+		'<p>1.2. Полная характеристика Заказа содержится в Спецификации, являющейся неотъемлемой частью настоящего договора.'.
+	'</div>'.
+	'<div class="p-head">2. Обязанности сторон</div>'.
+	'<div class="paragraph">'.
+		'<p>2.1. Поставщик обязуется исполнить заказ с соблюдением условий настоящего договора и требований, предъявляемых к продукции данного типа и указанных в ГОСТах №23166-99 «Блоки оконные ТУ», №30970-2002 «Блоки оконные из ПВХ» для оконных блоков, в рабочей документации разработчиков систем профилей для дверных блоков, в «Инструкции по изготовлению роллет», «Инструкции по изготовлению ворот», в ГОСТах №111-2001 «Стекло листовое», №24866-99 «Стеклопакеты клееные строительного назначения ».'.
+		'<p>2.2. Предварительный согласованный срок поставки товара и выполнения предусмотренных работ составляет 20 рабочих дней. Окончательный срок выполнения договора не более тридцати рабочих дней с момента поступления от Заказчика полной оплаты по договору и обеспечения Заказчиком условий пунктов 2.3. и 2.4. Данные сроки предусмотрены по стандартным изделиям. В случае заказа сложных и цветных изделий, срок договора увеличивается на количество дополнительных дней на изготовление сложной конструкции, указанное в Спецификации.'.
+		'<p>2.3. Заказчик обязуется обеспечить доступ монтажников и подвод электропитания к оконным проемам, защиту личного имущества, напольных покрытий от пыли и повреждений, если договор предполагает выполнение работ по установке продукции по адресу заказчика. '.
+		'Поставщик не отвечает за сохранность стеновых покрытий в зоне работ. Поставщик не несёт ответственности за нарушение элементов конструкций фасадов зданий при выполнении монтажных и отделочных работ, возникших в следствии ветхости строений и наличия скрытых строительных дефектов. Восстановительные работы проводятся по желанию и за счёт заказчика. В стоимость отделки откосов не входит герметизация наружного шва до 4 см шириной.'.
+		'<p>2.4. Заказчик обязуется принять меры по обеспечению отсутствия автотранспорта на тротуаре под оконными проемами. В случае, если Заказчик не принял данные меры и монтаж осуществить невозможно, Заказчик оплачивает дополнительный выезд монтажной бригады из расчета 1000 руб./выезд, при этом окончательный срок выполнения договора составит 10 рабочих дней с момента обеспечения надлежащего доступа к месту установки.'.
+		'<p>2.5. Все необходимые материалы доставляются Поставщиком на адрес Заказчика к моменту установки. В случае, отсутствия заказчика или его представителя на объекте в согласованный день поставки, повторная доставка оплачивается из расчёта 1000 руб./заказ, при этом окончательный срок выполнения договора составит 10 рабочих дней с момента обеспечения надлежащего доступа к месту установки.'.
+		'<p>2.6. Поставщик обязуется собрать строительный мусор в мешки, если они присутствуют на объекте. Поставщик не несет ответственности за вывоз строительного мусора, образованного после выполнения работ по установке продукции. Заказчик обязуется осуществить вывоз и размещение мусора согласно действующим нормам. Поставщик обязуется вывезти строительный мусор на специализированную площадку (в соответствии с законом №239-29 от 29.05.2003), только в случае, если данная услуга была заказана Заказчиком и указана в Спецификации.'.
+		'<p>2.7. Заказчик обязуется оплатить полную стоимость Заказа до начала установки изделий и конструкций из них в соответствии со Спецификацией.'.
+		'<p>2.8. Право собственности на товар переходит к Заказчику в момент подписания им товаросопроводительных документов. В случае разногласия по количеству, комплектности и внешнему виду, суть разногласий отмечается в товаросопроводительных документах.'.
+		'<p>2.9. Заказчик обязуется осуществить приёмку выполненных работ по монтажу изделий, по количеству, качеству, комплектности, внешнему виду и качеству отделки и заполнить две идентичные части «Приложения» к Акту сдачи – приёмки заказа и две идентичные части Акта сдачи - приёмки заказа. Отрывная часть №1 «Приложения» остаётся у заказчика, а часть №2 данного «Приложения» передается бригадиру установщиков. Акт приёма-передачи передаётся бригадиру мастеров по восстановлению откосов или бригадиру установщиков в случае, если отделка производится унифицированной бригадой. «Приложение» необходимо для оперативного обоснования претензии Заказчиком по качеству выполнения Поставщиком условий договора. В случае, если Заказчик отказывается подписывать «Акт сдачи-приемки заказа» и/или «Приложение», заказ считается автоматически выполненным.'.
+		'<p>2.10. В случае подписания заказчиком товаросопроводительных документов или Акта выполненных работ с разногласиями, Поставщик обязуется рассмотреть данные разногласия в течение 5 дней, при этом срок выполнения договора автоматически продлевается на указанный срок.'.
+		'<p>2.11. В случае согласия с претензией Заказчика Поставщик обязан заменить соответствующую часть товара или выполнить иные действия, предусмотренные настоящим договором для таких случаев в течение 14 рабочих дней, следующих за днем получения претензии Заказчика.'.
+	'</div>'.
+	'<div class="p-head">3. Цена товара и порядок расчетов</div>'.
+	'<div class="paragraph">'.
+		'<p>3.1. Полная стоимость заказа составляет: 14750 (Четырнадцать тысяч семьсот пятьдесят рублей) указанные в спецификации, являются твердыми, и изменению без обоюдного согласия сторон не подлежат.'.
+		'<p>3.2. Оплата по настоящему договору осуществляется в следующем порядке:'.
+		'<p>3.2.1. Авансовый платёж в размере 14750 (Четылей) вносится Заказчиком в день заключения настоящего договора. В случае отсутствия работ по договору, авансовый платёж составляет 100% суммы договора.'.
+		'<p>3.2.2. Доплата по договору, в сумме 6500 (Шесть тысяч пятьсот рублей), оплачивается в кассу до установки изделий: ______________________________________.'.
+	'</div>'.
+	'<div class="p-head">4. Качество и гарантийные обязательства</div>'.
+	'<div class="paragraph">'.
+		'<p>4.1. Гарантийный срок на оконные блоки – три года, на монтажные и отделочные работы по оконным блокам – один год. Гарантийный срок на дверные блоки, роллетные системы и ворота - один год. На монтажные и отделочные работы по установке дверных блоков, роллетных систем и ворот – один год. Гарантийный срок действует с момента подписания сторонами отгрузочных документов (Акт сдачи – приемки заказа).Для климатических условий Северо - Запададного и Центрального региона России рекомендовано использовать двухкамерные стеклопакеты. Заказчик предупреждается, что при установке однокамерного стеклопакета, возможно образование конденсата и промерзание стеклопакета в зимний период при более высокой температуре окружающей среды, чем при установке двухкамерного стеклопакета. Заказчик предупреждён, что для исключения возможности выпадения конденсата и образования наледи на стеклопакетах, необходимо поддержание уровня температуры и влажности рекомендованного для жилого помещения.'.
+		'<p>4.2. Поставщик обязуется заменить входящие в состав товара комплектующие за свой счёт, в случае выхода их из строя в течение Гарантийного срока. Срок выполнения гарантийных работ составляет не более 20 рабочих дней с момента поступления письменной претензии. Письменная претензия принимается в центральном офисе компании либо по почте.'.
+		'<p>4.3. Гарантия не распространяется на случаи, когда товар (или его комплектующие) утратили свои качественные характеристики вследствие неправильной эксплуатации Товара, действий третьих лиц или в случае возникновения обстоятельств непреодолимой силы.'.
+	'</div>'.
+	'<div class="p-head">5. Ответственность сторон, форс-мажорные обстоятельства и ответственность сторон</div>'.
+	'<div class="paragraph">'.
+		'<p>5.1. Стороны освобождаются от ответственности за частичное или полное неисполнение обязательств по настоящему Договору, если это явилось следствием обстоятельств непреодолимой силы (форс-мажор), т.е. пожара, стихийных бедствий, войны, блокад, введение правительственных ограничений постфактум, объявления карантина и эпидемий. При этом срок исполнения обязательств по Договору продлевается на период действия указанных обстоятельств.'.
+		'<p>5.2. За неисполнение или ненадлежащее исполнение обязательств стороны несут ответственность в соответствии с действующим законодательством Российской Федерации. В случае нарушения сроков выполнения договора поставщик выплачивает Заказчику неустойку в соответствии с Законом РФ "О защите прав потребителей" размере 3% в день от суммы недопоставленных комплектующих Заказа указанных в Спецификации и от суммы не оказанных услуг и работ указанных в Спецификации.'.
+	'</div>'.
+	'<div class="p-head">6. Изменение условий договора и порядок разрешения споров</div>'.
+	'<div class="paragraph">'.
+		'<p>6.1. Все изменения и дополнения к настоящему договору действительны лишь в том случае, если они оформлены в письменном виде и подписаны обеими сторонами.'.
+		'<p>6.2. Все споры и разногласия, которые могут возникнуть из настоящего договора будут по возможности разрешаться путём двусторонних переговоров.'.
+		'<p>6.3. Споры, не получившие разрешения в результате переговоров, подлежат разрешению в соответствии с действующим законодательством РФ.'.
+	'</div>'.
+	'<div class="p-head">7. Срок действия договора</div>'.
+	'<div class="paragraph">'.
+		'<p>7.1. Настоящий договор вступает в силу с момента его подписания и действует до полного выполнения обязательств обеими сторонами.'.
+	'</div>'.
+	'<div class="p-head">8. Заключительные положения</div>'.
+	'<div class="paragraph">'.
+		'<p>8.1. Настоящий договор составлен в двух экземплярах по одному для каждой из сторон, имеющих равную юридическую силу.'.
+	'</div>'.
+	'<div class="p-head">9. Юридические адреса и банковские реквизиты сторон</div>'.
+	'<table class="rekvisit">'.
+		'<tr><td><b>Поставщик:</b><br />'.
+				'ООО «'.$g['org_name'].'»<br />'.
+				'ОГРН '.$g['ogrn'].'<br />'.
+				'ИНН '.$g['inn'].'<br />'.
+				'КПП '.$g['kpp'].'<br />'.
+				''.$g['yur_adres'].'<br />'.
+				'Тел. '.$g['telefon'].'<br /><br />'.
+				'Адрес офиса: '.$g['ofice_adres'].
+			'<td><b>Заказчик:</b><br />'.
+				$v['fio'].'<br />'.
+				'Паспорт серии '.$v['pasp_seria'].' '.$v['pasp_nomer'].'<br />'.
+				'выдан '.$v['pasp_ovd'].' '.$v['pasp_data'].'<br /><br />'.
+				$v['pasp_adres'].
+	'</table>'.
+	'<div class="podpis-head">Подписи сторон:</div>'.
+	'<table class="podpis">'.
+		'<tr><td>Поставщик ________________ Билоченко Ю.А.'.
+			'<td>Заказчик ________________ '.$fioPodpis.
+	'</table>'.
+	'<div class="mp">М.П.</div>'.
+	'';
+
+	$doc = new clsMsDocGenerator(
+		$pageOrientation = 'PORTRAIT',
+		$pageType = 'A4',
+		$cssFile = DOCUMENT_ROOT.'/css/dogovor.css',
+		$topMargin = 0.6,
+		$rightMargin = 2.5,
+		$bottomMargin = 1.5,
+		$leftMargin = 1.0
+	);
+	$doc->addParagraph($send);
+	$doc->output('dogovor_'.$v['id']);
+	exit;
+}//dogovor_print()
+
+function zayav_product_spisok($arr, $type='html') {
+	if(!is_array($arr)) {
+		$sql = "SELECT * FROM `zayav_product` WHERE `zayav_id`=".$arr." ORDER BY `id`";
+		$q = query($sql);
+		$arr = array();
+		while($r = mysql_fetch_assoc($q))
+			$arr[] = $r;
+	}
+	if(empty($arr))
+		return '';
+	$send = '<table class="product">';
+	$json = array();
+	$array = array();
+	foreach($arr as $r) {
+		$send .= '<tr><td>'._product($r['product_id']).
+			($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '').':'.
+			'<td>'.$r['count'].' шт.';
+		$json[] = '['.$r['product_id'].','.$r['product_sub_id'].','.$r['count'].']';
+		$array[] = array($r['product_id'], $r['product_sub_id'], $r['count']);
+	}
+	$send .= '</table>';
+	switch($type) {
+		default:
+		case 'html': return $send;
+		case 'json': return implode(',', $json);
+		case 'array': return $array;
+	}
+}//zayav_product_spisok()
+
+/*
 function zayavFilter($v) {
 	if(empty($v['category']) || !preg_match(REGEXP_NUMERIC, $v['category']))
 		$v['category'] = 0;
@@ -1154,34 +1305,6 @@ function zayav_spisok($data) {
 		$send .= '<div class="ajaxNext" val="'.($data['next']).'"><span>Следующие '.$data['limit'].' заявок</span></div>';
 	return $send;
 }//zayav_spisok()
-function zayav_product_spisok($arr, $type='html') {
-	if(!is_array($arr)) {
-		$sql = "SELECT * FROM `zayav_product` WHERE `zayav_id`=".$arr." ORDER BY `id`";
-		$q = query($sql);
-		$arr = array();
-		while($r = mysql_fetch_assoc($q))
-			$arr[] = $r;
-	}
-	if(empty($arr))
-		return '';
-	$send = '<table class="product">';
-	$json = array();
-	$array = array();
-	foreach($arr as $r) {
-		$send .= '<tr><td>'._product($r['product_id']).
-							($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '').':'.
-					 '<td>'.$r['count'].' шт.';
-		$json[] = '['.$r['product_id'].','.$r['product_sub_id'].','.$r['count'].']';
-		$array[] = array($r['product_id'], $r['product_sub_id'], $r['count']);
-	}
-	$send .= '</table>';
-	switch($type) {
-		default:
-		case 'html': return $send;
-		case 'json': return implode(',', $json);
-		case 'array': return $array;
-	}
-}//zayav_product_spisok()
 
 function zayav_info_($zayav_id) {
 	$sql = "SELECT * FROM `zayav` WHERE `status`>0 AND `id`=".$zayav_id." LIMIT 1";
@@ -1302,7 +1425,7 @@ function zayav_oplata_unit($op) {
 		'<td class="del"><div class="img_del op_del" title="Удалить платёж" val="'.$op['id'].'"></div></td>'.
 	'</tr>';
 }//zayav_oplata_unit()
-
+*/
 
 
 
@@ -1602,6 +1725,7 @@ function setup() {
 	$pageDef = 'worker';
 	$pages = array(
 		'worker' => 'Сотрудники',
+		'rekvisit' => 'Реквизиты организации',
 		'product' => 'Виды изделий',
 		'prihodtype' => 'Виды платежей'
 	);
@@ -1625,11 +1749,12 @@ function setup() {
 		default: $d = $pageDef;
 		case 'worker':
 			if(preg_match(REGEXP_NUMERIC, @$_GET['id'])) {
-				$left = setup_rules(intval($_GET['id']));
+				$left = setup_worker_rules(intval($_GET['id']));
 				break;
 			}
 			$left = setup_worker();
 			break;
+		case 'rekvisit': $left = setup_rekvisit(); break;
 		case 'product':
 			if(preg_match(REGEXP_NUMERIC, @$_GET['id'])) {
 				$left = setup_product_sub(intval($_GET['id']));
@@ -1684,7 +1809,7 @@ function setup_worker_spisok() {
 	}
 	return $send;
 }//setup_worker_spisok()
-function setup_rules($viewer_id) {
+function setup_worker_rules($viewer_id) {
 	$u = _viewer($viewer_id);
 	if(!RULES_WORKER)
 		return _norules('Настройка прав для сотрудника '.$u['name']);
@@ -1713,7 +1838,26 @@ function setup_rules($viewer_id) {
 			'</table>'.
 		'</div>'.
 	'</div>';
-}//setup_rules()
+}//setup_worker_rules()
+
+function setup_rekvisit() {
+	$sql = "SELECT * FROM `setup_global`";
+	$r = mysql_fetch_assoc(query($sql));
+	return
+	'<div id="setup_rekvisit">'.
+		'<div class="headName">Реквизиты организации</div>'.
+		'<table class="t">'.
+			'<tr><td class="label">Название организации:<td><input type="text" id="org_name" maxlength="100" value="'.$r['org_name'].'">'.
+			'<tr><td class="label">ОГРН:<td><input type="text" id="ogrn" maxlength="100" value="'.$r['ogrn'].'">'.
+			'<tr><td class="label">ИНН:<td><input type="text" id="inn" maxlength="100" value="'.$r['inn'].'">'.
+			'<tr><td class="label">КПП:<td><input type="text" id="kpp" maxlength="100" value="'.$r['kpp'].'">'.
+			'<tr><td class="label">Юридический адрес:<td><input type="text" maxlength="100" id="yur_adres" value="'.$r['yur_adres'].'">'.
+			'<tr><td class="label">Телефоны:<td><input type="text" id="telefon" maxlength="100" value="'.$r['telefon'].'">'.
+			'<tr><td class="label">Адрес офиса:<td><input type="text" maxlength="100" id="ofice_adres" value="'.$r['ofice_adres'].'">'.
+			'<tr><td><td><div class="vkButton"><button>Сохранить</button></div>'.
+		'</table>'.
+	'</div>';
+}//setup_rekvisit()
 
 function setup_product() {
 	if(!RULES_PRODUCT)

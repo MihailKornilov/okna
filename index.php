@@ -42,6 +42,14 @@ else {
 					}
 					$html .= zayav_info(intval($_GET['id']));
 					break;
+				case 'dogovor_print':
+					if(!preg_match(REGEXP_NUMERIC, $_GET['id'])) {
+						$html .= _noauth('Ошибка данных.');
+						break;
+					}
+					$zayav_id = intval($_GET['id']);
+					dogovor_print($zayav_id);
+					break;
 				default:
 					$html .= zayav();
 /*					$values = array();

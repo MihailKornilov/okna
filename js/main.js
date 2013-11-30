@@ -38,8 +38,8 @@ var hashLoc,
 							   '<td><input type="text" id="pasp_seria" maxlength="8">' +
 								   '<span class="label">Номер:</span><input type="text" id="pasp_nomer" maxlength="10">' +
 				'<tr class="dn"><td class="label">Прописка:<td><input type="text" id="pasp_adres" maxlength="100">' +
-				'<tr class="dn"><td class="label">Выдан кем:<td><input type="text" id="pasp_ovd" maxlength="100">' +
-				'<tr class="dn"><td class="label">Выдан когда:<td><input type="text" id="pasp_data" maxlength="100">' +
+				'<tr class="dn"><td class="label">Кем выдан:<td><input type="text" id="pasp_ovd" maxlength="100">' +
+				'<tr class="dn"><td class="label">Когда выдан:<td><input type="text" id="pasp_data" maxlength="100">' +
 			'</table>';
 			dialog = _dialog({
 				top:60,
@@ -1254,8 +1254,8 @@ $(document)
 						'<td><input type="text" id="pasp_seria" maxlength="8" value="' + CLIENT.pasp_seria + '">' +
 							'<span class="label">Номер:</span><input type="text" id="pasp_nomer" maxlength="10" value="' + CLIENT.pasp_nomer + '">' +
 					'<tr><td class="label">Прописка:<td><input type="text" id="pasp_adres" maxlength="100" value="' + CLIENT.pasp_adres + '">' +
-					'<tr><td class="label">Выдан кем:<td><input type="text" id="pasp_ovd" maxlength="100" value="' + CLIENT.pasp_ovd + '">' +
-					'<tr><td class="label">Выдан когда:<td><input type="text" id="pasp_data" maxlength="100" value="' + CLIENT.pasp_data + '">' +
+					'<tr><td class="label">Кем выдан:<td><input type="text" id="pasp_ovd" maxlength="100" value="' + CLIENT.pasp_ovd + '">' +
+					'<tr><td class="label">Когда выдан:<td><input type="text" id="pasp_data" maxlength="100" value="' + CLIENT.pasp_data + '">' +
 				'</table>';
 				var dialog = _dialog({
 					head:'Редактирование данных клиента',
@@ -1354,6 +1354,100 @@ $(document)
 				$(this).parent().find('.sel').removeClass('sel');
 				$(this).addClass('sel');
 				$('.zayav-info').addClass('h');
+			});
+			$('.dogovor_create').click(function() {
+				var html = '<table class="zayav-dogovor">' +
+						'<tr><td class="label">Фио клиента:<td><INPUT type="text" id="fio" value="' + ZAYAV.fio + '">' +
+						'<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres" value="' + ZAYAV.adres + '">' +
+						'<tr><td class="label">Паспорт:' +
+							'<td>Серия:<input type="text" id="pasp_seria" maxlength="8" value="' + ZAYAV.pasp_seria + '">' +
+								'Номер:<input type="text" id="pasp_nomer" maxlength="10" value="' + ZAYAV.pasp_nomer + '">' +
+						'<tr><td><td><span class="l">Прописка:</span><input type="text" id="pasp_adres" maxlength="100" value="' + ZAYAV.pasp_adres + '">' +
+						'<tr><td><td><span class="l">Кем выдан:</span><input type="text" id="pasp_ovd" maxlength="100" value="' + ZAYAV.pasp_ovd + '">' +
+						'<tr><td><td><span class="l">Когда выдан:</span><input type="text" id="pasp_data" maxlength="100" value="' + ZAYAV.pasp_data + '">' +
+						'<tr><td colspan="2">' +
+								'<div class="i">' +
+									'<b>Внимание!</b>' +
+									'Все поля обязательны для заполнения. ' +
+									'Внимательно проверьте правильность всех введённых данных. ' +
+									'После нажатия кнопки "Заключить договор" операцию отменить будет невозможно.' +
+								'</div>' +
+						'<tr><td colspan="2">' +
+							'<a id="preview">Предварительный просмотр</a>' +
+							'<form action="' + AJAX_MAIN + '" method="post" id="preview-form" target="_blank"></form>' +
+						'</table>',
+					dialog = _dialog({
+						width:416,
+						top:10,
+						head:'Заключение договора',
+						content:html,
+						butSubmit:'Заключить договор',
+						submit:submit
+					});
+				$('#preview').click(function() {
+					var send = valuesTest();
+					if(send) {
+						send.op = 'dogovor_preview';
+						var form = '';
+						for(var i in send)
+							form += '<input type="hidden" name="' + i + '" value="' + send[i] + '">';
+						$('#preview-form').html(form).submit();
+
+						/*
+						$.post(AJAX_MAIN, send, function(res) {
+							if(res.success)
+								location.href = URL + '&p=zayav&d=dogovor_print&id=' + send.zayav_id;
+						}, 'json');
+						*/
+					}
+
+				});
+				function valuesTest() {
+					var msg,
+						send = {
+							zayav_id:ZAYAV.id,
+							fio:$('#fio').val(),
+							adres:$('#adres').val(),
+							pasp_seria:$('#pasp_seria').val(),
+							pasp_nomer:$('#pasp_nomer').val(),
+							pasp_adres:$('#pasp_adres').val(),
+							pasp_ovd:$('#pasp_ovd').val(),
+							pasp_data:$('#pasp_data').val()
+						};
+					if(!send.fio) { msg = 'Не указано Фио клиента'; $('#fio').focus(); }
+					else if(!send.adres) { msg = 'Не указан адрес'; $('#adres').focus(); }
+					else if(!send.pasp_seria) { msg = 'Не указана серия паспорта'; $('#pasp_seria').focus(); }
+					else if(!send.pasp_nomer) { msg = 'Не указан номер паспорта'; $('#pasp_nomer').focus(); }
+					else if(!send.pasp_adres) { msg = 'Не указана прописка'; $('#pasp_adres').focus(); }
+					else if(!send.pasp_ovd) { msg = 'Не указана организация, выдавшая паспорт'; $('#pasp_ovd').focus(); }
+					else if(!send.pasp_data) { msg = 'Не указана дата выдачи паспорта'; $('#pasp_data').focus(); }
+					else return send;
+
+					dialog.bottom.vkHint({
+						msg:'<span class="red">' + msg + '</span>',
+						top:-47,
+						left:100,
+						indent:50,
+						show:1,
+						remove:1
+					});
+					return false;
+				}
+				function submit() {
+					var send = valuesTest();
+					if(send) {
+						send.op = 'dogovor_create';
+						dialog.process();
+						$.post(AJAX_MAIN, send, function(res) {
+							if(res.success) {
+								dialog.close();
+								_msg('Договор заключен.');
+								document.location.reload();
+							} else
+								dialog.abort();
+						}, 'json');
+					}
+				}
 			});
 /*			$('.zedit').click(function() {
 				var html = '<table class="zayav-info-edit">' +
@@ -1579,5 +1673,26 @@ $(document)
 			$('#rules_worker')._check(setupRulesSet);
 			$('#rules_product')._check(setupRulesSet);
 			$('#rules_prihodtype')._check(setupRulesSet);
+		}
+		if($('#setup_rekvisit').length > 0) {
+			$('.vkButton').click(function() {
+				var t = $(this),
+					send = {
+						op:'setup_rekvisit',
+						org_name:$('#org_name').val(),
+						ogrn:$('#ogrn').val(),
+						inn:$('#inn').val(),
+						kpp:$('#kpp').val(),
+						yur_adres:$('#yur_adres').val(),
+						telefon:$('#telefon').val(),
+						ofice_adres:$('#ofice_adres').val()
+					};
+				t.addClass('busy');
+				$.post(AJAX_MAIN, send, function(res) {
+					t.removeClass('busy');
+					if(res.success)
+						_msg('Информация сохранена.');
+				}, 'json');
+			});
 		}
 	});

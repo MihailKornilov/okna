@@ -15,6 +15,7 @@ define('SITE', 'http://'.DOMAIN);
 define('URL', SITE.'/index.php?'.VALUES);
 
 $SA[982006] = 1; // Корнилов Михаил
+//$SA[166424274] = 1; // Тестовая запись
 define('SA', isset($SA[VIEWER_ID]));
 if(SA) { ini_set('display_errors',1); error_reporting(E_ALL); }
 

@@ -1,0 +1,34 @@
+.head-name{
+	text-align:center;
+	font-weight:bold;
+	font-family:arial;
+	font-size:10pt;
+	margin-top:68pt;
+	margin-bottom:13pt;
+}
+.city_data{
+	width:100%;
+	font-weight:bold;
+	font-family:arial;
+	font-size:10pt;
+	margin-bottom:10pt;
+}
+.city_data th{text-align:right}
+.p-head{
+	font-family:arial;
+	font-weight:bold;
+	font-size:10pt;
+	margin-bottom:5pt;
+	margin-left:30pt;
+}
+.paragraph{
+	text-align:justify;
+	font-family:arial;
+	font-size:10pt;
+	margin-bottom:12pt;
+}
+.paragraph p{text-indent:30pt;margin:0}
+.rekvisit,.podpis{width:100%;font-family:arial;font-size:10pt}
+.rekvisit td{width:50%;vertical-align:top}
+.podpis-head,.mp{font-family:arial;font-size:10pt;margin-top:35pt;margin-bottom:15pt}
+.podpis td{width:50%;font-family:arial;font-size:10pt}

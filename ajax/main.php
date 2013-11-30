@@ -728,6 +728,118 @@ switch(@$_POST['op']) {
 		$send['html'] = utf8(zayav_oplata_unit($r));
 		jsonSuccess($send);
 		break;
+	case 'dogovor_preview':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0) {
+			echo 'Ошибка: неверный номер заявки.';
+			exit;
+		}
+		$zayav_id = intval($_POST['zayav_id']);
+		$values = array(
+			'id' => _getMaxSql('zayav_dogovor', 'id'),
+			'fio' => htmlspecialchars(trim($_POST['fio'])),
+			'adres' => htmlspecialchars(trim($_POST['adres'])),
+			'pasp_seria' => htmlspecialchars(trim($_POST['pasp_seria'])),
+			'pasp_nomer' => htmlspecialchars(trim($_POST['pasp_nomer'])),
+			'pasp_adres' => htmlspecialchars(trim($_POST['pasp_adres'])),
+			'pasp_ovd' => htmlspecialchars(trim($_POST['pasp_ovd'])),
+			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data'])),
+			'dtime_add' => curTime()
+		);
+		foreach($values as $v)
+			if(empty($v)) {
+				echo 'Ошибка: заполнены не все поля формы.';
+				exit;
+			}
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `id`=".$zayav_id."
+				  AND `dogovor_nomer`=0
+				  AND `zamer_status`!=1
+				  AND `zamer_status`!=3
+				LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql))) {
+			echo 'Ошибка: заявки id = '.$zayav_id.' не существует.';
+			exit;
+		}
+		dogovor_print($values);
+		break;
+	case 'dogovor_create':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
+			jsonError();
+		$zayav_id = intval($_POST['zayav_id']);
+		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
+		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+		$pasp_seria = win1251(htmlspecialchars(trim($_POST['pasp_seria'])));
+		$pasp_nomer = win1251(htmlspecialchars(trim($_POST['pasp_nomer'])));
+		$pasp_adres = win1251(htmlspecialchars(trim($_POST['pasp_adres'])));
+		$pasp_ovd = win1251(htmlspecialchars(trim($_POST['pasp_ovd'])));
+		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
+		if(empty($fio) ||
+		   empty($adres) ||
+		   empty($pasp_seria) ||
+		   empty($pasp_nomer) ||
+		   empty($pasp_adres) ||
+		   empty($pasp_ovd) ||
+		   empty($pasp_data))
+			jsonError();
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `id`=".$zayav_id."
+				  AND `dogovor_nomer`=0
+				  AND `zamer_status`!=1
+				  AND `zamer_status`!=3
+				LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "INSERT INTO `zayav_dogovor` (
+					`zayav_id`,
+					`client_id`,
+					`fio`,
+					`adres`,
+					`pasp_seria`,
+					`pasp_nomer`,
+					`pasp_adres`,
+					`pasp_ovd`,
+					`pasp_data`,
+					`viewer_id_add`
+				) VALUES (
+					".$zayav_id.",
+					".$zayav['client_id'].",
+					'".addslashes($fio)."',
+					'".addslashes($adres)."',
+					'".addslashes($pasp_seria)."',
+					'".addslashes($pasp_nomer)."',
+					'".addslashes($pasp_adres)."',
+					'".addslashes($pasp_ovd)."',
+					'".addslashes($pasp_data)."',
+					".VIEWER_ID."
+				)";
+		query($sql);
+
+		// Перевод заявки в режим "Установка"
+		$sql = "UPDATE `zayav`
+		        SET `dogovor_nomer`=".mysql_insert_id().",
+		        	`set_nomer`="._getMaxSql('zayav', 'set_nomer').",
+					`set_status`=1
+		        WHERE `id`=".$zayav_id;
+		query($sql);
+
+		// Нобновление паспортных данных клиента
+		$sql = "UPDATE `client`
+		        SET `fio`='".$fio."',
+					`pasp_seria`='".$pasp_seria."',
+					`pasp_nomer`='".$pasp_nomer."',
+					`pasp_adres`='".$pasp_adres."',
+					`pasp_ovd`='".$pasp_ovd."',
+					`pasp_data`='".$pasp_data."'
+		        WHERE `id`=".$zayav['client_id'];
+		query($sql);
+
+		jsonSuccess();
+		break;
 
 	case 'remind_day':
 		if(!preg_match(REGEXP_DATE, $_POST['day']))
@@ -828,6 +940,26 @@ switch(@$_POST['op']) {
 		$sql = "UPDATE `vk_user` SET `rules`='".implode(',', array_keys($rules))."' WHERE `viewer_id`=".$viewer_id;
 		query($sql);
 		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+		jsonSuccess();
+		break;
+	case 'setup_rekvisit':
+		$org_name = win1251(htmlspecialchars(trim($_POST['org_name'])));
+		$ogrn = win1251(htmlspecialchars(trim($_POST['ogrn'])));
+		$inn = win1251(htmlspecialchars(trim($_POST['inn'])));
+		$kpp = win1251(htmlspecialchars(trim($_POST['kpp'])));
+		$yur_adres = win1251(htmlspecialchars(trim($_POST['yur_adres'])));
+		$telefon = win1251(htmlspecialchars(trim($_POST['telefon'])));
+		$ofice_adres = win1251(htmlspecialchars(trim($_POST['ofice_adres'])));
+
+		$sql = "UPDATE `setup_global`
+				SET `org_name`='".addslashes($org_name)."',
+					`ogrn`='".addslashes($ogrn)."',
+					`inn`='".addslashes($inn)."',
+					`kpp`='".addslashes($kpp)."',
+					`yur_adres`='".addslashes($yur_adres)."',
+					`telefon`='".addslashes($telefon)."',
+					`ofice_adres`='".addslashes($ofice_adres)."'";
+		query($sql);
 		jsonSuccess();
 		break;
 	case 'setup_product_add':

@@ -5,7 +5,7 @@
 
 /* Внесение и редактирование клиента */
 .client-add{border-spacing:10px}
-.client-add td.label{width:70px;text-align:right}
+.client-add td.label{width:75px;text-align:right}
 .client-add #fio,
 .client-add #telefon,
 .client-add #adres,
@@ -61,7 +61,7 @@
 ._product-list .add{display:inline-block;text-align:center;padding:4px 0 8px}
 
 /* Внесение новой заявки */
-.zayav-add{border-spacing:12px}
+.zayav-add{border-spacing:12px;margin-bottom:30px}
 .zayav-add .label{width:140px;text-align:right}
 .zayav-add .product_edit{margin:0 4px -4px 0}
 .zayav-add #adres{width:240px}
@@ -124,8 +124,30 @@
 .zayav-info .status:hover{border-color:#BBD; color:#444}
 .zayav-info .dogovor_create{margin-left:200px}
 .zayav-info .dogovor_create button{width:200px}
+.zayav-info .dogovor_print{margin-left:20px}
 .zayav-info .histories{min-height:210px;margin:15px 20px}
 /*.zayav-info .status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}*/
+
+
+.zayav-dogovor{border-spacing:8px}
+.zayav-dogovor .label{width:100px;text-align:right}
+.zayav-dogovor #fio,.zayav-dogovor #adres{width:258px}
+.zayav-dogovor #pasp_seria{width:55px;margin:0 15px 0 3px}
+.zayav-dogovor #pasp_nomer{width:100px;margin-left:3px}
+.zayav-dogovor .l{display:inline-block;width:74px}
+.zayav-dogovor #pasp_adres,
+.zayav-dogovor #pasp_ovd,
+.zayav-dogovor #pasp_data{width:184px}
+.zayav-dogovor .i{
+	margin-top:10px;
+	border:#ddd solid 1px;
+	background-color:#ffd;
+	padding:6px 10px;
+	color:#444;
+	text-align:justify;
+}
+.zayav-dogovor .i b{display:block;text-align:center;margin-bottom:3px;color:#444}
+.zayav-dogovor #preview{display:block;text-align:center;margin-top:10px}
 
 
 .zayav-info-edit{border-spacing:8px}
@@ -231,6 +253,10 @@
 #setup_rules .lab{width:170px}
 #setup_rules .setup-div{margin-top:-5px}
 #setup_rules .setup-div div{display:block;margin-top:5px;color:#555}
+
+#setup_rekvisit .t{border-spacing:10px;margin-left:10px}
+#setup_rekvisit input{width:240px}
+
 
 #setup_product .sub{text-align:center;font-weight:700}
 #setup_product .zayav,#setup_product .dog{text-align:center}
