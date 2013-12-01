@@ -146,10 +146,7 @@ function _footer() {
 		if(isset($getArr[$k]) || empty($_GET[$k])) continue;
 		$gValues[] = '"'.$k.'":"'.$val.'"';
 	}
-	$html .= '<script type="text/javascript">'.
-		'hashSet({'.implode(',', $gValues).'});'.
-		(SA ? '$("#admin EM").html(((new Date().getTime())-TIME)/1000);' : '').
-		'</script>'.
+	$html .= '<script type="text/javascript">hashSet({'.implode(',', $gValues).'})</script>'.
 		'</div></body></html>';
 }//_footer()
 function _noauth($msg='Недостаточно прав.') {
@@ -325,11 +322,12 @@ function _mainLinks() {
 
 function rulesList($v=false) {
 	$rules = array(
-		'RULES_APPENTER' => 1,   // Разрешать вход в приложение
-		'RULES_SETUP' => 1,	  // Управление установками
-		'RULES_WORKER' => 1,	 // Сотрудники
+		'RULES_APPENTER' => 1,  // Разрешать вход в приложение
+		'RULES_SETUP' => 1,     // Управление установками
+		'RULES_WORKER' => 1,	// Сотрудники
+		'RULES_REKVISIT' => 1,	// Реквизиты организации
 		'RULES_PRODUCT' => 1,	// Виды изделий
-		'RULES_PRIHODTYPE' => 1  // Виды платежей
+		'RULES_PRIHODTYPE' => 1 // Виды платежей
 	);
 	return $v ? isset($rules[$v]) : $rules;
 }//rulesList()
@@ -350,6 +348,86 @@ function _norules($txt=false) {
 function _getMaxSql($table, $pole) {
 	return query_value("SELECT IFNULL(MAX(`".$pole."`)+1,1) FROM `".$table."`");
 }//getMaxSql()
+function numberToWord($num) {
+	$one = array(
+		0 => 'ноль',
+		1 => 'один',
+		2 => 'два',
+		3 => 'три',
+		4 => 'четыре',
+		5 => 'пять',
+		6 => 'шесть',
+		7 => 'семь',
+		8 => 'восемь',
+		9 => 'девять',
+		10 => 'деcять',
+		11 => 'одиннадцать',
+		12 => 'двенадцать',
+		13 => 'тринадцать',
+		14 => 'четырнадцать',
+		15 => 'пятнадцать',
+		16 => 'шестнадцать',
+		17 => 'семнадцать',
+		18 => 'восемнадцать',
+		19 => 'девятнадцать'
+	);
+	$ten = array(
+		2 => 'двадцать',
+		3 => 'тридцать',
+		4 => 'сорок',
+		5 => 'пятьдесят',
+		6 => 'шестьдесят',
+		7 => 'семьдесят',
+		8 => 'восемьдесят',
+		9 => 'девяносто'
+	);
+	$hundred = array(
+		1 => 'сто',
+		2 => 'двести',
+		3 => 'триста',
+		4 => 'четыреста',
+		5 => 'пятьсот',
+		6 => 'шестьсот',
+		7 => 'семьсот',
+		8 => 'восемьсот',
+		9 => 'девятьсот'
+	);
+
+	if($num < 20)
+		return $one[$num];
+
+	$word = '';
+	if($num % 100 > 0)
+		if($num % 100 < 20)
+			$word = $one[$num % 100];
+		else
+			$word = $ten[floor($num / 10) % 10].' '.$one[$num % 10];
+
+	if($num % 1000 >= 100)
+		$word = $hundred[floor($num / 100) % 10].' '.$word;
+
+	if($num >= 1000) {
+		$t = floor($num / 1000) % 1000;
+		$word = ' тысяч'._end($t, 'а', 'и', '').' '.$word;
+		if($t % 100 > 2 && $t % 100 < 20)
+			$word = $one[$t % 100].$word;
+		else {
+			if($t % 10 == 1)
+				$word = 'одна'.$word;
+			elseif($t % 10 == 2)
+				$word = 'две'.$word;
+			elseif($t % 10 != 0)
+				$word = $one[$t % 10].' '.$word;
+			if($t % 100 >= 20)
+				$word = $ten[floor($t / 10) % 10].' '.$word;
+		}
+		if($t >= 100)
+			$word = $hundred[floor($t / 100) % 10].' '.$word;
+	}
+	return $num.' = '.$word.'<br>';
+}//numberToWord()
+
+
 
 // ---===! client !===--- Секция клиентов
 
@@ -1645,6 +1723,8 @@ function history_types($v) {
 		case 502: return 'В установках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
 		case 503: return 'В установках: удаление наименования изделия "'.$v['value'].'".';
 
+		case 510: return 'В установках: изменение реквизитов организации:<div class="changes">'.$v['value'].'</div>';
+
 		case 504: return 'В установках: внесение нового подвида для изделия "'.$v['value'].'": '.$v['value1'].'.';
 		case 505: return 'В установках: изменение подвида у изделия "'.$v['value'].'":<div class="changes">'.$v['value1'].'</div>';
 		case 506: return 'В установках: удаление подвида у изделия "'.$v['value'].'": '.$v['value1'].'.';
@@ -1732,6 +1812,8 @@ function setup() {
 
 	if(!RULES_WORKER)
 		unset($pages['worker']);
+	if(!RULES_REKVISIT)
+		unset($pages['rekvisit']);
 	if(!RULES_PRODUCT)
 		unset($pages['product']);
 	if(!RULES_PRIHODTYPE)
@@ -1832,6 +1914,7 @@ function setup_worker_rules($viewer_id) {
 				'<tr><td class="lab"><td>'.
 					'<div class="setup-div'.($rule['RULES_SETUP'] ? '' : ' dn').'">'.
 						_check('rules_worker', 'Сотрудники', $rule['RULES_WORKER']).
+						_check('rules_rekvisit', 'Реквизиты организации', $rule['RULES_REKVISIT']).
 						_check('rules_product', 'Виды изделий', $rule['RULES_PRODUCT']).
 						_check('rules_prihodtype', 'Виды платежей', $rule['RULES_PRIHODTYPE']).
 					'</div>'.
@@ -1841,19 +1924,21 @@ function setup_worker_rules($viewer_id) {
 }//setup_worker_rules()
 
 function setup_rekvisit() {
+	if(!RULES_REKVISIT)
+		return _norules('Реквизиты организации');
 	$sql = "SELECT * FROM `setup_global`";
-	$r = mysql_fetch_assoc(query($sql));
+	$g = mysql_fetch_assoc(query($sql));
 	return
 	'<div id="setup_rekvisit">'.
 		'<div class="headName">Реквизиты организации</div>'.
 		'<table class="t">'.
-			'<tr><td class="label">Название организации:<td><input type="text" id="org_name" maxlength="100" value="'.$r['org_name'].'">'.
-			'<tr><td class="label">ОГРН:<td><input type="text" id="ogrn" maxlength="100" value="'.$r['ogrn'].'">'.
-			'<tr><td class="label">ИНН:<td><input type="text" id="inn" maxlength="100" value="'.$r['inn'].'">'.
-			'<tr><td class="label">КПП:<td><input type="text" id="kpp" maxlength="100" value="'.$r['kpp'].'">'.
-			'<tr><td class="label">Юридический адрес:<td><input type="text" maxlength="100" id="yur_adres" value="'.$r['yur_adres'].'">'.
-			'<tr><td class="label">Телефоны:<td><input type="text" id="telefon" maxlength="100" value="'.$r['telefon'].'">'.
-			'<tr><td class="label">Адрес офиса:<td><input type="text" maxlength="100" id="ofice_adres" value="'.$r['ofice_adres'].'">'.
+			'<tr><td class="label">Название организации:<td><input type="text" id="org_name" maxlength="100" value="'.$g['org_name'].'">'.
+			'<tr><td class="label">ОГРН:<td><input type="text" id="ogrn" maxlength="100" value="'.$g['ogrn'].'">'.
+			'<tr><td class="label">ИНН:<td><input type="text" id="inn" maxlength="100" value="'.$g['inn'].'">'.
+			'<tr><td class="label">КПП:<td><input type="text" id="kpp" maxlength="100" value="'.$g['kpp'].'">'.
+			'<tr><td class="label">Юридический адрес:<td><input type="text" maxlength="100" id="yur_adres" value="'.$g['yur_adres'].'">'.
+			'<tr><td class="label">Телефоны:<td><input type="text" id="telefon" maxlength="100" value="'.$g['telefon'].'">'.
+			'<tr><td class="label">Адрес офиса:<td><input type="text" maxlength="100" id="ofice_adres" value="'.$g['ofice_adres'].'">'.
 			'<tr><td><td><div class="vkButton"><button>Сохранить</button></div>'.
 		'</table>'.
 	'</div>';

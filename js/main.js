@@ -1055,7 +1055,6 @@ $(document)
 		}
 	})
 
-
 	.on('click', '#setup_prihodtype .add', function() {
 		var t = $(this),
 			html = '<table style="border-spacing:10px">' +
@@ -1671,6 +1670,7 @@ $(document)
 				$('#rules_prihodtype')._check(0);
 			});
 			$('#rules_worker')._check(setupRulesSet);
+			$('#rules_rekvisit')._check(setupRulesSet);
 			$('#rules_product')._check(setupRulesSet);
 			$('#rules_prihodtype')._check(setupRulesSet);
 		}

@@ -943,6 +943,8 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'setup_rekvisit':
+		if(!RULES_REKVISIT)
+			jsonError();
 		$org_name = win1251(htmlspecialchars(trim($_POST['org_name'])));
 		$ogrn = win1251(htmlspecialchars(trim($_POST['ogrn'])));
 		$inn = win1251(htmlspecialchars(trim($_POST['inn'])));
@@ -950,6 +952,9 @@ switch(@$_POST['op']) {
 		$yur_adres = win1251(htmlspecialchars(trim($_POST['yur_adres'])));
 		$telefon = win1251(htmlspecialchars(trim($_POST['telefon'])));
 		$ofice_adres = win1251(htmlspecialchars(trim($_POST['ofice_adres'])));
+
+		$sql = "SELECT * FROM `setup_global`";
+		$g = mysql_fetch_assoc(query($sql));
 
 		$sql = "UPDATE `setup_global`
 				SET `org_name`='".addslashes($org_name)."',
@@ -960,6 +965,28 @@ switch(@$_POST['op']) {
 					`telefon`='".addslashes($telefon)."',
 					`ofice_adres`='".addslashes($ofice_adres)."'";
 		query($sql);
+
+		$changes = '';
+		if($g['org_name'] != $org_name)
+			$changes .= '<tr><th>Название организации:<td>'.$g['org_name'].'<td>»<td>'.$org_name;
+		if($g['ogrn'] != $ogrn)
+			$changes .= '<tr><th>ОГРН:<td>'.$g['ogrn'].'<td>»<td>'.$ogrn;
+		if($g['inn'] != $inn)
+			$changes .= '<tr><th>ИНН:<td>'.$g['inn'].'<td>»<td>'.$inn;
+		if($g['kpp'] != $kpp)
+			$changes .= '<tr><th>КПП:<td>'.$g['kpp'].'<td>»<td>'.$kpp;
+		if($g['yur_adres'] != $yur_adres)
+			$changes .= '<tr><th>Юридический адрес:<td>'.$g['yur_adres'].'<td>»<td>'.$yur_adres;
+		if($g['telefon'] != $telefon)
+			$changes .= '<tr><th>Телефоны:<td>'.$g['telefon'].'<td>»<td>'.$telefon;
+		if($g['ofice_adres'] != $ofice_adres)
+			$changes .= '<tr><th>Адрес офиса:<td>'.$g['ofice_adres'].'<td>»<td>'.$ofice_adres;
+		if($changes)
+			history_insert(array(
+				'type' => 510,
+				'value' => '<table>'.$changes.'</table>'
+			));
+
 		jsonSuccess();
 		break;
 	case 'setup_product_add':
