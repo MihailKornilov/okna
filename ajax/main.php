@@ -763,7 +763,7 @@ switch(@$_POST['op']) {
 			exit;
 		}
 		dogovor_print($values);
-		break;
+		exit;
 	case 'dogovor_create':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
 			jsonError();
@@ -819,9 +819,11 @@ switch(@$_POST['op']) {
 				)";
 		query($sql);
 
+		$dog_id = mysql_insert_id();
+
 		// Перевод заявки в режим "Установка"
 		$sql = "UPDATE `zayav`
-		        SET `dogovor_nomer`=".mysql_insert_id().",
+		        SET `dogovor_nomer`=".$dog_id.",
 		        	`set_nomer`="._getMaxSql('zayav', 'set_nomer').",
 					`set_status`=1
 		        WHERE `id`=".$zayav_id;
@@ -837,6 +839,8 @@ switch(@$_POST['op']) {
 					`pasp_data`='".$pasp_data."'
 		        WHERE `id`=".$zayav['client_id'];
 		query($sql);
+
+		dogovor_print($dog_id);
 
 		jsonSuccess();
 		break;

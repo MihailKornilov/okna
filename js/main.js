@@ -146,7 +146,7 @@ var hashLoc,
 			'<td><INPUT TYPE="hidden" id="zamer_min" value="' + v.min + '" />' +
 		'</table>';
 		$('.zayav-zamer-dtime').html(html);
-		$('#zamer_day').vkCalendar();
+		$('#zamer_day')._calendar();
 		$('#zamer_hour').vkSel({
 			width:40,
 			display:'inline-block',
