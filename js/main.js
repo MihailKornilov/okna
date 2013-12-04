@@ -1391,15 +1391,7 @@ $(document)
 						for(var i in send)
 							form += '<input type="hidden" name="' + i + '" value="' + send[i] + '">';
 						$('#preview-form').html(form).submit();
-
-						/*
-						$.post(AJAX_MAIN, send, function(res) {
-							if(res.success)
-								location.href = URL + '&p=zayav&d=dogovor_print&id=' + send.zayav_id;
-						}, 'json');
-						*/
 					}
-
 				});
 				function valuesTest() {
 					var msg,

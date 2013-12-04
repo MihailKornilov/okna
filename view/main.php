@@ -69,7 +69,7 @@ function _header() {
 
 		'<head>'.
 		'<meta http-equiv="content-type" content="text/html; charset=windows-1251" />'.
-		'<title>Пластиковые окна - Приложение 3978722</title>'.
+		'<title>Пластиковые окна - Приложение '.API_ID.'</title>'.
 
 		//Отслеживание ошибок в скриптах
 		(SA ? '<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/js/errors.js?'.VERSION.'"></script>' : '').
@@ -148,9 +148,6 @@ function _footer() {
 	$html .= '<script type="text/javascript">hashSet({'.implode(',', $gValues).'})</script>'.
 		'</div></body></html>';
 }//_footer()
-function _noauth($msg='Недостаточно прав.') {
-	return '<div class="noauth"><div>'.$msg.'</div></div>';
-}//_noauth()
 
 function GvaluesCreate() {//Составление файла G_values.js
 	$save = //'function _toSpisok(s){var a=[];for(k in s)a.push({uid:k,title:s[k]});return a}'.
@@ -313,7 +310,7 @@ function _mainLinks() {
 	$send = '<div id="mainLinks">';
 	foreach($links as $l)
 		if($l['show'])
-			$send .= '<a href="'.URL.'&p='.$l['page'].'"'.($l['page'] == $_GET['p'] ? 'class="sel"' : '').'>'.$l['name'].'</a>';
+			$send .= '<a href="'.URL.'&p='.$l['page'].'"'.($l['page'] == $_GET['p'] ? ' class="sel"' : '').'>'.$l['name'].'</a>';
 	$send .= pageHelpIcon().'</div>';
 
 	$html .= $send;

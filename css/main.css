@@ -1,8 +1,3 @@
-.noauth{background-color:#F7F7F7;padding:25px}
-.noauth div{border:#ddd solid 1px;padding:70px 10px;background-color:#FFF;color:#888;text-align:center;font-size:12px}
-.norules{margin:10px;padding:15px;border:#ddd solid 1px;color:#900}
-
-
 /* Внесение и редактирование клиента */
 .client-add{border-spacing:10px}
 .client-add td.label{width:75px;text-align:right}
