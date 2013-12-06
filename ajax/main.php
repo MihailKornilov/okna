@@ -183,7 +183,7 @@ switch(@$_POST['op']) {
 			jsonError();
 		query("UPDATE `client` SET `status`=0 WHERE `id`=".$client_id);
 		query("UPDATE `zayav` SET `status`=0 WHERE `client_id`=".$client_id);
-		query("UPDATE `money` SET `status`=0 WHERE `client_id`=".$client_id);
+		query("UPDATE `money` SET `deleted`=1 WHERE `client_id`=".$client_id);
 		history_insert(array(
 			'type' => 3,
 			'client_id' => $client_id
@@ -225,7 +225,7 @@ switch(@$_POST['op']) {
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
 		$comm = win1251(htmlspecialchars(trim($_POST['comm'])));
 
-		$nomer = _getMaxSql('zayav', 'zamer_nomer');
+		$nomer = _maxSql('zayav', 'zamer_nomer');
 		$sql = "INSERT INTO `zayav` (
 					`client_id`,
 					`zamer_nomer`,
@@ -319,21 +319,59 @@ switch(@$_POST['op']) {
 					jsonError();
 				if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_duration']) || $_POST['zamer_duration'] == 0)
 					jsonError();
-				$zamer_dtime = $_POST['zamer_day'].' '.$_POST['zamer_hour'].':'.$_POST['zamer_min'].':00';
+				$zamer_dtime = $_POST['zamer_day'].' '.
+							  ($_POST['zamer_hour'] < 10 ? '0' : '').$_POST['zamer_hour'].':'.
+							  ($_POST['zamer_min'] < 10 ? '0' : '').$_POST['zamer_min'].':00';
 				$zamer_duration = intval($_POST['zamer_duration']);
-				$sql = "UPDATE `zayav`
-				        SET `zamer_dtime`='".$zamer_dtime."',
-				            `zamer_duration`=".$zamer_duration."
-				        WHERE `id`=".$zayav_id;
-				query($sql);
+					$sql = "UPDATE `zayav`
+					        SET `zamer_status`=1,
+					            `zamer_dtime`='".$zamer_dtime."',
+					            `zamer_duration`=".$zamer_duration."
+					        WHERE `id`=".$zayav_id;
+					query($sql);
+				if($zayav['zamer_status'] == 3)
+					history_insert(array(
+						'type' => 18,
+						'client_id' => $zayav['client_id'],
+						'zayav_id' => $zayav_id,
+						'value' => $zayav['zamer_nomer'],
+					));
+				if($zayav['zamer_dtime'] != $zamer_dtime || $zayav['zamer_duration'] != $zamer_duration)
+					history_insert(array(
+						'type' => 15,
+						'client_id' => $zayav['client_id'],
+						'zayav_id' => $zayav_id,
+						'value' => $zayav['zamer_nomer'],
+						'value1' => '<table>'.
+										'<tr><td>'.FullDataTime($zayav['zamer_dtime']).', '._zamerDuration($zayav['zamer_duration']).
+											'<td>»'.
+											'<td>'.FullDataTime($zamer_dtime).', '._zamerDuration($zamer_duration).
+									'</table>'
+					));
 				break;
 			case 2:
-				$sql = "UPDATE `zayav` SET `zamer_status`=2 WHERE `id`=".$zayav_id;
-				query($sql);
+				if($zayav['zamer_status'] != 2) {
+					$sql = "UPDATE `zayav` SET `zamer_status`=2 WHERE `id`=".$zayav_id;
+					query($sql);
+					history_insert(array(
+						'type' => 16,
+						'client_id' => $zayav['client_id'],
+						'zayav_id' => $zayav_id,
+						'value' => $zayav['zamer_nomer']
+					));
+				}
 				break;
 			case 3:
-				$sql = "UPDATE `zayav` SET `zamer_status`=3 WHERE `id`=".$zayav_id;
-				query($sql);
+				if($zayav['zamer_status'] != 3) {
+					$sql = "UPDATE `zayav` SET `zamer_status`=3 WHERE `id`=".$zayav_id;
+					query($sql);
+					history_insert(array(
+						'type' => 17,
+						'client_id' => $zayav['client_id'],
+						'zayav_id' => $zayav_id,
+						'value' => $zayav['zamer_nomer']
+					));
+				}
 				break;
 			default:
 				jsonError();
@@ -462,7 +500,7 @@ switch(@$_POST['op']) {
 
 		$sql = "SELECT IFNULL(SUM(`sum`),0) AS `opl`
 				FROM `money`
-				WHERE `status`=1
+				WHERE `deleted`=0
 				  AND `sum`>0
 				  AND `zayav_id`=".$zayav_id."
 				LIMIT 1";
@@ -492,7 +530,7 @@ switch(@$_POST['op']) {
 		$send = mysql_fetch_assoc(query($sql));
 		$sql = "SELECT IFNULL(SUM(`sum`),0) AS `opl`
 				FROM `money`
-				WHERE `status`=1
+				WHERE `deleted`=0
 				  AND `sum`>0
 				  AND `zayav_id`=".$id;
 		$r = mysql_fetch_assoc(query($sql));
@@ -673,13 +711,13 @@ switch(@$_POST['op']) {
 
 		$sql = "SELECT *
 				FROM `money`
-				WHERE `status`>0
+				WHERE `deleted`=0
 				  AND `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
 		$sql = "UPDATE `money` SET
-					`status`=0,
+					`deleted`=1,
 					`viewer_id_del`=".VIEWER_ID.",
 					`dtime_del`=CURRENT_TIMESTAMP
 				WHERE `id`=".$id;
@@ -703,13 +741,13 @@ switch(@$_POST['op']) {
 		$id = intval($_POST['id']);
 		$sql = "SELECT *
 				FROM `money`
-				WHERE `status`=0
+				WHERE `deleted`=1
 				  AND `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
 		$sql = "UPDATE `money` SET
-					`status`=1,
+					`deleted`=0,
 					`viewer_id_del`=0,
 					`dtime_del`='0000-00-00 00:00:00'
 				WHERE `id`=".$id;
@@ -733,9 +771,17 @@ switch(@$_POST['op']) {
 			echo 'Ошибка: неверный номер заявки.';
 			exit;
 		}
+		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) && $_POST['sum'] == 0) {
+			echo 'Ошибка: некорректно указана сумма по договору.';
+			exit;
+		}
+		if(!empty($_POST['avans']) && !preg_match(REGEXP_NUMERIC, $_POST['avans'])) {
+			echo 'Ошибка: некорректно указан авансовый платёж.';
+			exit;
+		}
 		$zayav_id = intval($_POST['zayav_id']);
 		$values = array(
-			'id' => _getMaxSql('zayav_dogovor', 'id'),
+			'id' => _maxSql('zayav_dogovor', 'id'),
 			'fio' => htmlspecialchars(trim($_POST['fio'])),
 			'adres' => htmlspecialchars(trim($_POST['adres'])),
 			'pasp_seria' => htmlspecialchars(trim($_POST['pasp_seria'])),
@@ -743,13 +789,19 @@ switch(@$_POST['op']) {
 			'pasp_adres' => htmlspecialchars(trim($_POST['pasp_adres'])),
 			'pasp_ovd' => htmlspecialchars(trim($_POST['pasp_ovd'])),
 			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data'])),
+			'sum' => intval($_POST['sum']),
+			'avans' => intval($_POST['avans']),
 			'dtime_add' => curTime()
 		);
-		foreach($values as $v)
-			if(empty($v)) {
+		foreach($values as $k => $v)
+			if(empty($v) && $k != 'avans') {
 				echo 'Ошибка: заполнены не все поля формы.';
 				exit;
 			}
+		if($values['sum'] < $values['avans']) {
+			echo 'Ошибка: авансовый платёж не может быть больше суммы договора.';
+			exit;
+		}
 
 		$sql = "SELECT *
 				FROM `zayav`
@@ -767,6 +819,11 @@ switch(@$_POST['op']) {
 	case 'dogovor_create':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
 			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) && $_POST['sum'] == 0)
+			jsonError();
+		if(!empty($_POST['avans']) && !preg_match(REGEXP_NUMERIC, $_POST['avans']))
+			jsonError();
+
 		$zayav_id = intval($_POST['zayav_id']);
 		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
@@ -775,6 +832,8 @@ switch(@$_POST['op']) {
 		$pasp_adres = win1251(htmlspecialchars(trim($_POST['pasp_adres'])));
 		$pasp_ovd = win1251(htmlspecialchars(trim($_POST['pasp_ovd'])));
 		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
+		$sum = intval($_POST['sum']);
+		$avans = intval($_POST['avans']);
 		if(empty($fio) ||
 		   empty($adres) ||
 		   empty($pasp_seria) ||
@@ -782,6 +841,9 @@ switch(@$_POST['op']) {
 		   empty($pasp_adres) ||
 		   empty($pasp_ovd) ||
 		   empty($pasp_data))
+			jsonError();
+
+		if($sum < $avans)
 			jsonError();
 
 		$sql = "SELECT *
@@ -804,6 +866,8 @@ switch(@$_POST['op']) {
 					`pasp_adres`,
 					`pasp_ovd`,
 					`pasp_data`,
+					`sum`,
+					`avans`,
 					`viewer_id_add`
 				) VALUES (
 					".$zayav_id.",
@@ -815,6 +879,8 @@ switch(@$_POST['op']) {
 					'".addslashes($pasp_adres)."',
 					'".addslashes($pasp_ovd)."',
 					'".addslashes($pasp_data)."',
+					".$sum.",
+					".$avans.",
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -824,12 +890,12 @@ switch(@$_POST['op']) {
 		// Перевод заявки в режим "Установка"
 		$sql = "UPDATE `zayav`
 		        SET `dogovor_nomer`=".$dog_id.",
-		        	`set_nomer`="._getMaxSql('zayav', 'set_nomer').",
+		        	`set_nomer`="._maxSql('zayav', 'set_nomer').",
 					`set_status`=1
 		        WHERE `id`=".$zayav_id;
 		query($sql);
 
-		// Нобновление паспортных данных клиента
+		// Обновление паспортных данных клиента
 		$sql = "UPDATE `client`
 		        SET `fio`='".$fio."',
 					`pasp_seria`='".$pasp_seria."',
@@ -841,6 +907,48 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		dogovor_print($dog_id);
+
+		history_insert(array(
+			'type' => 19,
+			'client_id' => $zayav['client_id'],
+			'zayav_id' => $zayav_id,
+			'value' => $zayav['zamer_nomer'],
+			'value1' => $dog_id,
+			'value2' => strftime('%d/%m/%Y', time()),
+			'value3' => $sum
+		));
+
+		// Внесение авансового платежа, если есть
+		if($avans) {
+			$sql = "INSERT INTO `money` (
+						`zayav_id`,
+						`client_id`,
+						`dogovor_nomer`,
+						`sum`,
+						`prihod_type`,
+						`kassa`,
+						`viewer_id_add`
+					) VALUES (
+						".$zayav_id.",
+						".$zayav['client_id'].",
+						".$dog_id.",
+						".$avans.",
+						1,
+						1,
+						".VIEWER_ID."
+					)";
+			query($sql);
+			history_insert(array(
+				'type' => 20,
+				'client_id' => $zayav['client_id'],
+				'zayav_id' => $zayav_id,
+				'value' => $zayav['zamer_nomer'],
+				'value1' => $dog_id,
+				'value2' => $avans
+			));
+		}
+
+		clientBalansUpdate($zayav['client_id']);
 
 		jsonSuccess();
 		break;
@@ -861,6 +969,15 @@ switch(@$_POST['op']) {
 			$_POST['action'] = 0;*/
 		$page = intval($_POST['page']);
 		$send['html'] = utf8(report_history_spisok($page));
+		jsonSuccess($send);
+		break;
+
+	case 'money_next':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+			jsonError();
+		$page = intval($_POST['page']);
+		$data = money_spisok($page, $_POST);
+		$send['html'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
 
@@ -1271,6 +1388,10 @@ switch(@$_POST['op']) {
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
 		$id = intval($_POST['id']);
+
+		// Нельзя удалить наличный платёж
+		if($id == 1)
+			jsonError();
 
 		$sql = "SELECT * FROM `setup_prihodtype` WHERE `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))

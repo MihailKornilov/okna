@@ -1,3 +1,7 @@
+/* Итоговая сумма для списка платежей */
+._moneysum{margin-bottom:7px}
+
+
 /* Внесение и редактирование клиента */
 .client-add{border-spacing:10px}
 .client-add td.label{width:75px;text-align:right}
@@ -120,12 +124,13 @@
 .zayav-info .dogovor_create{margin-left:200px}
 .zayav-info .dogovor_create button{width:200px}
 .zayav-info .dogovor_print{margin-left:20px}
+.zayav-info .vkComment{margin-bottom:15px}
 .zayav-info .histories{min-height:210px;margin:15px 20px}
 /*.zayav-info .status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}*/
 
 
 .zayav-dogovor{border-spacing:8px}
-.zayav-dogovor .label{width:100px;text-align:right}
+.zayav-dogovor .label{width:110px;text-align:right}
 .zayav-dogovor #fio,.zayav-dogovor #adres{width:258px}
 .zayav-dogovor #pasp_seria{width:55px;margin:0 15px 0 3px}
 .zayav-dogovor #pasp_nomer{width:100px;margin-left:3px}
@@ -133,6 +138,7 @@
 .zayav-dogovor #pasp_adres,
 .zayav-dogovor #pasp_ovd,
 .zayav-dogovor #pasp_data{width:184px}
+.zayav-dogovor .prim{font-size:10px;color:#999}
 .zayav-dogovor .i{
 	margin-top:10px;
 	border:#ddd solid 1px;
@@ -141,7 +147,7 @@
 	color:#444;
 	text-align:justify;
 }
-.zayav-dogovor .i b{display:block;text-align:center;margin-bottom:3px;color:#444}
+.zayav-dogovor h1{display:block;font-weight:bold;text-align:center;margin-bottom:3px;color:#444}
 .zayav-dogovor #preview{display:block;text-align:center;margin-top:10px}
 
 
@@ -213,6 +219,7 @@
 
 
 #report .left{padding:10px}
+#report .headName{margin:0 0 15px 0}
 .history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
 .history_unit .head{font-size:10px;color:#777}
 .history_unit .head a{font-size:10px;margin-left:10px}

@@ -379,6 +379,7 @@ $(document)
 				next.removeClass('busy');
 		}, 'json');
 	})
+/*
 	.on('click', '#clientInfo .ajaxNext', function() {
 		if($(this).hasClass('busy'))
 			return;
@@ -394,7 +395,7 @@ $(document)
 				next.removeClass('busy');
 		}, 'json');
 	})
-
+*/
 	.on('click', '#zayav #filter_break', function() {
 		zFind.clear();
 		//$('#sort')._radio(1);
@@ -699,6 +700,26 @@ $(document)
 				page:$(this).attr('val')
 //				worker:$('#report_history_worker').val(),
 //				action:$('#report_history_action').val(),
+			};
+		next.addClass('busy');
+		$.post(AJAX_MAIN, send, function (res) {
+			if(res.success)
+				next.after(res.html).remove();
+			else
+				next.removeClass('busy');
+		}, 'json');
+	})
+
+	.on('click', '#money_next', function() {
+		if($(this).hasClass('busy'))
+			return;
+		var next = $(this),
+			send = {
+				op:'money_next',
+				page:$(this).attr('val'),
+				limit:$('#money_limit').val(),
+				client_id:$('#money_client_id').val(),
+				zayav_id:$('#money_zayav_id').val()
 			};
 		next.addClass('busy');
 		$.post(AJAX_MAIN, send, function (res) {
@@ -1356,27 +1377,31 @@ $(document)
 			});
 			$('.dogovor_create').click(function() {
 				var html = '<table class="zayav-dogovor">' +
-						'<tr><td class="label">Фио клиента:<td><INPUT type="text" id="fio" value="' + ZAYAV.fio + '">' +
-						'<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres" value="' + ZAYAV.adres + '">' +
+						'<tr><td class="label">Фио клиента:<td><input type="text" id="fio" value="' + ZAYAV.fio + '" />' +
+						'<tr><td class="label">Адрес установки:<td><input type="text" id="adres" value="' + ZAYAV.adres + '" />' +
 						'<tr><td class="label">Паспорт:' +
-							'<td>Серия:<input type="text" id="pasp_seria" maxlength="8" value="' + ZAYAV.pasp_seria + '">' +
-								'Номер:<input type="text" id="pasp_nomer" maxlength="10" value="' + ZAYAV.pasp_nomer + '">' +
-						'<tr><td><td><span class="l">Прописка:</span><input type="text" id="pasp_adres" maxlength="100" value="' + ZAYAV.pasp_adres + '">' +
-						'<tr><td><td><span class="l">Кем выдан:</span><input type="text" id="pasp_ovd" maxlength="100" value="' + ZAYAV.pasp_ovd + '">' +
-						'<tr><td><td><span class="l">Когда выдан:</span><input type="text" id="pasp_data" maxlength="100" value="' + ZAYAV.pasp_data + '">' +
+							'<td>Серия:<input type="text" id="pasp_seria" maxlength="8" value="' + ZAYAV.pasp_seria + '" />' +
+								'Номер:<input type="text" id="pasp_nomer" maxlength="10" value="' + ZAYAV.pasp_nomer + '" />' +
+						'<tr><td><td><span class="l">Прописка:</span><input type="text" id="pasp_adres" maxlength="100" value="' + ZAYAV.pasp_adres + '" />' +
+						'<tr><td><td><span class="l">Кем выдан:</span><input type="text" id="pasp_ovd" maxlength="100" value="' + ZAYAV.pasp_ovd + '" />' +
+						'<tr><td><td><span class="l">Когда выдан:</span><input type="text" id="pasp_data" maxlength="100" value="' + ZAYAV.pasp_data + '" />' +
+						'<tr><td class="label">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="6" /> руб.' +
+						'<tr><td class="label">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="6" /> руб. <span class="prim">(не обязательно)</span>' +
 						'<tr><td colspan="2">' +
 								'<div class="i">' +
-									'<b>Внимание!</b>' +
+									'<h1>Внимание!</h1>' +
 									'Все поля обязательны для заполнения. ' +
 									'Внимательно проверьте правильность всех введённых данных. ' +
-									'После нажатия кнопки "Заключить договор" операцию отменить будет невозможно.' +
+									'После нажатия кнопки "Заключить договор" операцию отменить будет невозможно.<br />' +
+									'<b>Сумма по договору</b> является окончательной суммой и при заключении договора на эту сумму будет изменён баланс клиента в минус.<br />' +
+									'<b>Авансовый платёж</b> указывать не обязательно. При указании авансового платёжа автоматически будет внесён платёж на данную заявку.' +
 								'</div>' +
 						'<tr><td colspan="2">' +
 							'<a id="preview">Предварительный просмотр</a>' +
 							'<form action="' + AJAX_MAIN + '" method="post" id="preview-form" target="_blank"></form>' +
 						'</table>',
 					dialog = _dialog({
-						width:416,
+						width:426,
 						top:10,
 						head:'Заключение договора',
 						content:html,
@@ -1384,7 +1409,7 @@ $(document)
 						submit:submit
 					});
 				$('#preview').click(function() {
-					var send = valuesTest();
+					var send = valuesTest('preview');
 					if(send) {
 						send.op = 'dogovor_preview';
 						var form = '';
@@ -1393,36 +1418,41 @@ $(document)
 						$('#preview-form').html(form).submit();
 					}
 				});
-				function valuesTest() {
-					var msg,
-						send = {
-							zayav_id:ZAYAV.id,
-							fio:$('#fio').val(),
-							adres:$('#adres').val(),
-							pasp_seria:$('#pasp_seria').val(),
-							pasp_nomer:$('#pasp_nomer').val(),
-							pasp_adres:$('#pasp_adres').val(),
-							pasp_ovd:$('#pasp_ovd').val(),
-							pasp_data:$('#pasp_data').val()
-						};
-					if(!send.fio) { msg = 'Не указано Фио клиента'; $('#fio').focus(); }
-					else if(!send.adres) { msg = 'Не указан адрес'; $('#adres').focus(); }
-					else if(!send.pasp_seria) { msg = 'Не указана серия паспорта'; $('#pasp_seria').focus(); }
-					else if(!send.pasp_nomer) { msg = 'Не указан номер паспорта'; $('#pasp_nomer').focus(); }
-					else if(!send.pasp_adres) { msg = 'Не указана прописка'; $('#pasp_adres').focus(); }
-					else if(!send.pasp_ovd) { msg = 'Не указана организация, выдавшая паспорт'; $('#pasp_ovd').focus(); }
-					else if(!send.pasp_data) { msg = 'Не указана дата выдачи паспорта'; $('#pasp_data').focus(); }
+				function valuesTest(type) {
+					var send = {
+						zayav_id:ZAYAV.id,
+						fio:$('#fio').val(),
+						adres:$('#adres').val(),
+						pasp_seria:$('#pasp_seria').val(),
+						pasp_nomer:$('#pasp_nomer').val(),
+						pasp_adres:$('#pasp_adres').val(),
+						pasp_ovd:$('#pasp_ovd').val(),
+						pasp_data:$('#pasp_data').val(),
+						sum:$('#sum').val(),
+						avans:$('#avans').val()
+					};
+					if(!send.fio) err('Не указано Фио клиента', 'fio', type);
+					else if(!send.adres) err('Не указан адрес', 'adres', type);
+					else if(!send.pasp_seria) err('Не указана серия паспорта', 'pasp_seria', type);
+					else if(!send.pasp_nomer) err('Не указан номер паспорта', 'pasp_nomer', type);
+					else if(!send.pasp_adres) err('Не указана прописка', 'pasp_adres', type);
+					else if(!send.pasp_ovd) err('Не указана организация, выдавшая паспорт', 'pasp_ovd', type);
+					else if(!send.pasp_data) err('Не указана дата выдачи паспорта', 'pasp_data', type);
+					else if(!REGEXP_NUMERIC.test(send.sum) || send.sum == 0) err('Некорректно указана сумма по договору', 'sum', type);
+					else if(send.avans && !REGEXP_NUMERIC.test(send.avans)) err('Некорректно указан авансовый платёж', 'avans', type);
 					else return send;
-
+					return false;
+				}
+				function err(msg, id, type) {
 					dialog.bottom.vkHint({
 						msg:'<span class="red">' + msg + '</span>',
-						top:-47,
-						left:100,
+						top:type ? -86 : -47,
+						left:type ? 141 : 110,
 						indent:50,
 						show:1,
 						remove:1
 					});
-					return false;
+					$('#' + id).focus();
 				}
 				function submit() {
 					var send = valuesTest();
