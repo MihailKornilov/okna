@@ -589,7 +589,10 @@ function clientInfoGet($client) {
 			'<tr><td class="label">Прописка:<td>'.$client['pasp_adres'].
 			'<tr><td class="label">Выдан:<td>'.$client['pasp_ovd'].', '.$client['pasp_data'].
 		'</table>' : '').
-		'<div class="dtime_add">Клиента внёс '._viewer($client['viewer_id_add'], 'name').' '.FullData($client['dtime_add'], 1).'</div>';
+		'<div class="dtime_add">Клиента внёс'.(_viewer($client['viewer_id_add'], 'sex') == 1 ? 'а' : '').' '
+			._viewer($client['viewer_id_add'], 'name').' '.
+			FullData($client['dtime_add'], 1).
+		'</div>';
 
 }
 function client_info($client_id) {
@@ -1068,7 +1071,7 @@ function set_info($z) {
 			'<a class="link sel zinfo">Информация</a>'.
 			'<a class="link zedit">Редактирование</a>'.
 			'<a class="link">Начислить</a>'.
-			'<a class="link">Принять платёж</a>'.
+			'<a class="link opl_add">Принять платёж</a>'.
 			'<a class="link hist">История</a>'.
 		'</div>'.
 		'<div class="headName">Установка №'.$z['set_nomer'].'</div>'.
@@ -1131,7 +1134,7 @@ function dogovor_print($dog_id) {
 	'<div class="paragraph">'.
 		'<p>Общество с ограниченной ответственностью «Территория Комфорта», '.
 		'в лице менеджера по продажам, Билоченко Юлия Александровна, действующей на основании доверенности, '.
-		'с одной стороны, и ООО, именуемый в дальнейшем «Заказчик», с другой стороны, '.
+		'с одной стороны, и '.$v['fio'].', '.($v['pasp_empty'] ? $v['adres'] : $v['pasp_adres']).', именуемый в дальнейшем «Заказчик», с другой стороны, '.
 		'заключили настоящий договор, далее «Договор», о нижеследующем:'.
 	'</div>'.
 	'<div class="p-head">1. Предмет договора</div>'.
@@ -1200,9 +1203,10 @@ function dogovor_print($dog_id) {
 				'Адрес офиса: '.$g['ofice_adres'].
 			'<td><b>Заказчик:</b><br />'.
 				$v['fio'].'<br />'.
+	($v['pasp_empty'] ? '<br />'.$v['adres'] :
 				'Паспорт серии '.$v['pasp_seria'].' '.$v['pasp_nomer'].'<br />'.
 				'выдан '.$v['pasp_ovd'].' '.$v['pasp_data'].'<br /><br />'.
-				$v['pasp_adres'].
+				$v['pasp_adres']).
 	'</table>'.
 	'<div class="podpis-head">Подписи сторон:</div>'.
 	'<table class="podpis">'.
@@ -1790,7 +1794,7 @@ function history_types($v) {
 		case 20: return
 			'Внесение авансового платежа на  на сумму <b>'.$v['value2'].'</b> руб.'.
 			' для замера '._zamerLink($v['zayav_id'], $v['value']).
-			' при заключении '._dogLink($v['value1'], 'договора №'.$v['value1']);
+			' при заключении '._dogLink($v['value1'], 'договора №'.$v['value1']).'.';
 
 		case 501: return 'В установках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В установках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';

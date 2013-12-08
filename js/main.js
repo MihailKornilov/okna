@@ -1390,7 +1390,6 @@ $(document)
 						'<tr><td colspan="2">' +
 								'<div class="i">' +
 									'<h1>Внимание!</h1>' +
-									'Все поля обязательны для заполнения. ' +
 									'Внимательно проверьте правильность всех введённых данных. ' +
 									'После нажатия кнопки "Заключить договор" операцию отменить будет невозможно.<br />' +
 									'<b>Сумма по договору</b> является окончательной суммой и при заключении договора на эту сумму будет изменён баланс клиента в минус.<br />' +
@@ -1433,11 +1432,6 @@ $(document)
 					};
 					if(!send.fio) err('Не указано Фио клиента', 'fio', type);
 					else if(!send.adres) err('Не указан адрес', 'adres', type);
-					else if(!send.pasp_seria) err('Не указана серия паспорта', 'pasp_seria', type);
-					else if(!send.pasp_nomer) err('Не указан номер паспорта', 'pasp_nomer', type);
-					else if(!send.pasp_adres) err('Не указана прописка', 'pasp_adres', type);
-					else if(!send.pasp_ovd) err('Не указана организация, выдавшая паспорт', 'pasp_ovd', type);
-					else if(!send.pasp_data) err('Не указана дата выдачи паспорта', 'pasp_data', type);
 					else if(!REGEXP_NUMERIC.test(send.sum) || send.sum == 0) err('Некорректно указана сумма по договору', 'sum', type);
 					else if(send.avans && !REGEXP_NUMERIC.test(send.avans)) err('Некорректно указан авансовый платёж', 'avans', type);
 					else return send;
@@ -1537,7 +1531,8 @@ $(document)
 						});
 				}
 			});
-			$('.op_add').click(function() {
+			*/
+			$('.opl_add').click(function() {
 				var html =
 					'<TABLE class="zayav_oplata_add">' +
 						'<TR><TD class="label">Вид платежа:<TD><input type="hidden" id="prihod_type" value="0">' +
@@ -1596,8 +1591,9 @@ $(document)
 							if(res.success) {
 								dialog.close();
 								_msg('Платёж успешно внесён!');
-								$('._spisok._money').append(res.html);
-								zayavInfoMoneyUpdate();
+								location.reload();
+								//$('._spisok._money').append(res.html);
+								//zayavInfoMoneyUpdate();
 							} else
 								dialog.abort();
 						}, 'json');
@@ -1614,6 +1610,7 @@ $(document)
 						});
 				}
 			});
+			/*
 			$('.acc_add').click(function() {
 				var html = '<TABLE class="zayav_accrual_add">' +
 					'<tr><td class="label">Сумма: <TD><input type="text" id="sum" class="money" maxlength="6" /> руб.' +

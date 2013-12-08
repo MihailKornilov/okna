@@ -665,7 +665,7 @@ switch(@$_POST['op']) {
 
 		$sql = "SELECT *
 				FROM `zayav`
-				WHERE `status`>0
+				WHERE `deleted`=0
 				  AND `id`=".$zayav_id;
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
 			jsonError();
@@ -688,12 +688,14 @@ switch(@$_POST['op']) {
 					".VIEWER_ID."
 				)";
 		query($sql);
+		/*
 		$send['html'] = utf8(zayav_oplata_unit(array(
 			'id' => mysql_insert_id(),
 			'prihod_type' => $type,
 			'sum' => $sum,
 			'prim' => $prim
 		)));
+		*/
 		clientBalansUpdate($zayav['client_id']);
 		history_insert(array(
 			'type' => 10,
@@ -702,7 +704,7 @@ switch(@$_POST['op']) {
 			'value1' => $prim,
 			'value2' => $type
 		));
-		jsonSuccess($send);
+		jsonSuccess();
 		break;
 	case 'zayav_oplata_del':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
@@ -780,25 +782,37 @@ switch(@$_POST['op']) {
 			exit;
 		}
 		$zayav_id = intval($_POST['zayav_id']);
-		$values = array(
+		$v = array(
 			'id' => _maxSql('zayav_dogovor', 'id'),
 			'fio' => htmlspecialchars(trim($_POST['fio'])),
 			'adres' => htmlspecialchars(trim($_POST['adres'])),
+			'sum' => intval($_POST['sum']),
+			'avans' => intval($_POST['avans']),
+			'dtime_add' => curTime()
+		);
+		$pasp = array(
 			'pasp_seria' => htmlspecialchars(trim($_POST['pasp_seria'])),
 			'pasp_nomer' => htmlspecialchars(trim($_POST['pasp_nomer'])),
 			'pasp_adres' => htmlspecialchars(trim($_POST['pasp_adres'])),
 			'pasp_ovd' => htmlspecialchars(trim($_POST['pasp_ovd'])),
 			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data'])),
-			'sum' => intval($_POST['sum']),
-			'avans' => intval($_POST['avans']),
-			'dtime_add' => curTime()
+			'pasp_empty' => 0
 		);
-		foreach($values as $k => $v)
-			if(empty($v) && $k != 'avans') {
-				echo 'Ошибка: заполнены не все поля формы.';
-				exit;
+		foreach($pasp as $p)
+			if(empty($p)) {
+				$pasp['pasp_empty'] = 1;
+				break;
 			}
-		if($values['sum'] < $values['avans']) {
+		$v += $pasp;
+		if(empty($v['fio'])) {
+			echo 'Ошибка: не указано Фио клиента.';
+			exit;
+		}
+		if(empty($v['adres'])) {
+			echo 'Ошибка: не указан адрес.';
+			exit;
+		}
+		if($v['sum'] < $v['avans']) {
 			echo 'Ошибка: авансовый платёж не может быть больше суммы договора.';
 			exit;
 		}
@@ -814,7 +828,7 @@ switch(@$_POST['op']) {
 			echo 'Ошибка: заявки id = '.$zayav_id.' не существует.';
 			exit;
 		}
-		dogovor_print($values);
+		dogovor_print($v);
 		exit;
 	case 'dogovor_create':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
@@ -827,21 +841,24 @@ switch(@$_POST['op']) {
 		$zayav_id = intval($_POST['zayav_id']);
 		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
-		$pasp_seria = win1251(htmlspecialchars(trim($_POST['pasp_seria'])));
-		$pasp_nomer = win1251(htmlspecialchars(trim($_POST['pasp_nomer'])));
-		$pasp_adres = win1251(htmlspecialchars(trim($_POST['pasp_adres'])));
-		$pasp_ovd = win1251(htmlspecialchars(trim($_POST['pasp_ovd'])));
-		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
+		$pasp = array(
+			'pasp_seria' => htmlspecialchars(trim($_POST['pasp_seria'])),
+			'pasp_nomer' => htmlspecialchars(trim($_POST['pasp_nomer'])),
+			'pasp_adres' => htmlspecialchars(trim($_POST['pasp_adres'])),
+			'pasp_ovd' => htmlspecialchars(trim($_POST['pasp_ovd'])),
+			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data'])),
+			'pasp_empty' => 0
+		);
 		$sum = intval($_POST['sum']);
 		$avans = intval($_POST['avans']);
-		if(empty($fio) ||
-		   empty($adres) ||
-		   empty($pasp_seria) ||
-		   empty($pasp_nomer) ||
-		   empty($pasp_adres) ||
-		   empty($pasp_ovd) ||
-		   empty($pasp_data))
+		if(empty($fio) || empty($adres))
 			jsonError();
+
+		foreach($pasp as $p)
+			if(empty($p)) {
+				$pasp['pasp_empty'] = 1;
+				break;
+			}
 
 		if($sum < $avans)
 			jsonError();
@@ -861,6 +878,7 @@ switch(@$_POST['op']) {
 					`client_id`,
 					`fio`,
 					`adres`,
+					`pasp_empty`,
 					`pasp_seria`,
 					`pasp_nomer`,
 					`pasp_adres`,
@@ -874,11 +892,12 @@ switch(@$_POST['op']) {
 					".$zayav['client_id'].",
 					'".addslashes($fio)."',
 					'".addslashes($adres)."',
-					'".addslashes($pasp_seria)."',
-					'".addslashes($pasp_nomer)."',
-					'".addslashes($pasp_adres)."',
-					'".addslashes($pasp_ovd)."',
-					'".addslashes($pasp_data)."',
+					".$pasp['pasp_empty'].",
+					'".addslashes($pasp['pasp_seria'])."',
+					'".addslashes($pasp['pasp_nomer'])."',
+					'".addslashes($pasp['pasp_adres'])."',
+					'".addslashes($pasp['pasp_ovd'])."',
+					'".addslashes($pasp['pasp_data'])."',
 					".$sum.",
 					".$avans.",
 					".VIEWER_ID."
@@ -897,12 +916,13 @@ switch(@$_POST['op']) {
 
 		// Обновление паспортных данных клиента
 		$sql = "UPDATE `client`
-		        SET `fio`='".$fio."',
-					`pasp_seria`='".$pasp_seria."',
-					`pasp_nomer`='".$pasp_nomer."',
-					`pasp_adres`='".$pasp_adres."',
-					`pasp_ovd`='".$pasp_ovd."',
-					`pasp_data`='".$pasp_data."'
+		        SET ".($pasp['pasp_empty'] ? '' : "
+		            `pasp_seria`='".addslashes($pasp['pasp_seria'])."',
+					`pasp_nomer`='".addslashes($pasp['pasp_nomer'])."',
+					`pasp_adres`='".addslashes($pasp['pasp_adres'])."',
+					`pasp_ovd`='".addslashes($pasp['pasp_ovd'])."',
+					`pasp_data`='".addslashes($pasp['pasp_data'])."',")."
+					`fio`='".$fio."'
 		        WHERE `id`=".$zayav['client_id'];
 		query($sql);
 
