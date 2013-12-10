@@ -78,7 +78,7 @@ function _header() {
 		//Стороние скрипты
 		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/js/jquery-2.0.3.min.js"></script>'.
 //		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/js/highstock.js"></script>'.
-		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/'.(DEBUG ? '' : 'min/').'xd_connection.js"></script>'.
+		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/xd_connection'.(DEBUG ? '' : '.min').'.js"></script>'.
 
 		//Установка начального значения таймера.
 		(SA ? '<script type="text/javascript">var TIME=(new Date()).getTime();</script>' : '').
@@ -91,17 +91,17 @@ function _header() {
 		'</script>'.
 
 		//Подключение api VK. Стили VK должны стоять до основных стилей сайта
-		'<link href="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/'.(DEBUG ? '' : 'min/').'vk.css?'.VERSION.'" rel="stylesheet" type="text/css" />'.
-		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/'.(DEBUG ? '' : 'min/').'vk.js?'.VERSION.'"></script>'.
+		'<link href="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/vk'.(DEBUG ? '' : '.min').'.css?'.VERSION.'" rel="stylesheet" type="text/css" />'.
+		'<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/vk/vk'.(DEBUG ? '' : '.min').'.js?'.VERSION.'"></script>'.
 
 		'<link href="'.SITE.'/css/main.css?'.VERSION.'" rel="stylesheet" type="text/css" />'.
-		'<script type="text/javascript" src="'.SITE.'/js/main.js?'.VERSION.'"></script>'.
+		'<script type="text/javascript" src="'.SITE.'/js/main'.(DEBUG ? '' : '.min').'.js?'.VERSION.'"></script>'.
 		'<script type="text/javascript" src="'.SITE.'/js/G_values.js?'.G_VALUES_VERSION.'"></script>'.
 
 		'</head>'.
 		'<body>'.
-		'<div id="frameBody">'.
-		'<iframe id="frameHidden" name="frameHidden"></iframe>';
+			'<div id="frameBody">'.
+				'<iframe id="frameHidden" name="frameHidden"></iframe>';
 }//_header()
 function _footer() {
 	global $html, $sqlQuery, $sqlCount, $sqlTime;
@@ -242,7 +242,7 @@ function _productSub($product_id=false) {//Список изделий для заявок
 	}
 	return $product_id !== false ? constant('PRODUCT_SUB_'.$product_id) : $arr;
 }//_product()
-function _prihodType($type_id=false) {//Список изделий для заявок
+function _prihodType($type_id=false, $i='name') {//Список изделий для заявок
 	if(!defined('PRIHODTYPE_LOADED') || $type_id === false) {
 		$key = CACHE_PREFIX.'prihodtype';
 		$arr = xcache_get($key);
@@ -257,13 +257,20 @@ function _prihodType($type_id=false) {//Список изделий для заявок
 			xcache_set($key, $arr, 86400);
 		}
 		if(!defined('PRIHODTYPE_LOADED')) {
-			foreach($arr as $id => $r)
+			foreach($arr as $id => $r) {
 				define('PRIHODTYPE_'.$id, $r['name']);
+				define('PRIHODTYPE_KASSA_'.$id, $r['kassa']);
+			}
 			define('PRIHODTYPE_0', '');
+			define('PRIHODTYPE_KASSA_0', '');
 			define('PRIHODTYPE_LOADED', true);
 		}
 	}
-	return $type_id !== false ? constant('PRIHODTYPE_'.$type_id) : $arr;
+	if($type_id === false)
+		return $arr;
+	if($i == 'kassa')
+		return constant('PRIHODTYPE_KASSA_'.$type_id);
+	return constant('PRIHODTYPE_'.$type_id);
 }//_prihodType()
 function _zamerDuration($v=false) {
 	$arr = array(
@@ -277,7 +284,7 @@ function _zamerDuration($v=false) {
 	return $v ? $arr[$v] : $arr;
 }//_zamerDuration()
 function _dogLink($nomer, $text, $class='') {
-	return '<a'.($class ? ' class="'.$class.'"' : '').' href="'.SITE.'/files/dogovor/dogovor_'.$nomer.'.doc">'.$text.'</a>';
+	return '<a'.($class ? ' class="'.$class.'"' : '').' href="'.SITE.'/files/dogovor/dogovor_'.$nomer.'.doc" title="Распечатать">'.$text.'</a>';
 }
 
 function _mainLinks() {
@@ -345,7 +352,7 @@ function _norules($txt=false) {
 	return '<div class="norules">'.($txt ? '<b>'.$txt.'</b>: н' : 'Н').'едостаточно прав.</div>';
 }//_norules()
 
-function numberToWord($num) {
+function numberToWord($num, $firstSymbolUp=false) {
 	$one = array(
 		0 => 'ноль',
 		1 => 'один',
@@ -421,8 +428,11 @@ function numberToWord($num) {
 		if($t >= 100)
 			$word = $hundred[floor($t / 100) % 10].' '.$word;
 	}
+	if($firstSymbolUp)
+		$word[0] = strtoupper($word[0]);
 	return $word;
 }//numberToWord()
+
 
 
 
@@ -589,7 +599,7 @@ function clientInfoGet($client) {
 			'<tr><td class="label">Прописка:<td>'.$client['pasp_adres'].
 			'<tr><td class="label">Выдан:<td>'.$client['pasp_ovd'].', '.$client['pasp_data'].
 		'</table>' : '').
-		'<div class="dtime_add">Клиента внёс'.(_viewer($client['viewer_id_add'], 'sex') == 1 ? 'а' : '').' '
+		'<div class="dtime_add">Клиента вн'.(_viewer($client['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '
 			._viewer($client['viewer_id_add'], 'name').' '.
 			FullData($client['dtime_add'], 1).
 		'</div>';
@@ -608,11 +618,21 @@ function client_info($client_id) {
 								AND `table_name`='client'
 								AND `table_id`=".$client_id);
 
-	$money = money_spisok(1, array('client_id'=>$client_id,'limit'=>10));
+	$money = money_spisok(1, array('client_id'=>$client_id,'limit'=>15));
 
    // $remindData = remind_data(1, array('client'=>$client_id));
 
 	$histCount = query_value("SELECT COUNT(`id`) FROM `history` WHERE `client_id`=".$client_id);
+
+	$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `client_id`=".$client_id;
+	$q = query($sql);
+	$zopl = array();
+	while($r = mysql_fetch_assoc($q))
+		$zopl[$r['id']] = array(
+			'title' => 'Заявка №'.$r['id'],
+			'content' => 'Заявка №'.$r['id'].
+						($r['dogovor_nomer'] ? '<div class="pole2">Договор №'.$r['dogovor_nomer'].'</div>' : '')
+		);
 
 	return
 	'<script type="text/javascript">'.
@@ -626,6 +646,12 @@ function client_info($client_id) {
 			'pasp_adres:"'.$client['pasp_adres'].'",'.
 			'pasp_ovd:"'.$client['pasp_ovd'].'",'.
 			'pasp_data:"'.$client['pasp_data'].'"'.
+		'},'.
+		'OPL={'.
+			'from:"client",'.
+			'client_id:'.$client_id.','.
+			'client_fio:"'.$client['fio'].'",'.
+			'zayav_spisok:'._selJson($zopl).
 		'};'.
 	'</script>'.
 	'<div id="clientInfo">'.
@@ -635,6 +661,7 @@ function client_info($client_id) {
 					'<div class="rightLink">'.
 						'<a class="sel">Информация</a>'.
 						'<a class="cedit">Редактировать</a>'.
+						'<a class="oplata-add">Внести платёж</a>'.
 						'<a class="zamer_add"><b>Новый замер</b></a>'.
 						'<a class="cdel">Удалить клиента</a>'.
 					'</div>'.
@@ -1063,6 +1090,13 @@ function set_info($z) {
 	'<script type="text/javascript">'.
 		'var ZAYAV={'.
 			'id:'.$z['id'].
+		'},'.
+		'OPL={'.
+			'from:"zayav",'.
+			'client_id:'.$z['client_id'].','.
+			'client_fio:"'.addslashes(_clientLink($z['client_id'])).'",'.
+			'zayav_id:'.$z['id'].','.
+			'zayav_name:"<b>№'.$z['id'].'</b>"'.
 		'};'.
 	'</script>'.
 	'<div class="zayav-info">'.
@@ -1071,7 +1105,7 @@ function set_info($z) {
 			'<a class="link sel zinfo">Информация</a>'.
 			'<a class="link zedit">Редактирование</a>'.
 			'<a class="link">Начислить</a>'.
-			'<a class="link opl_add">Принять платёж</a>'.
+			'<a class="link oplata-add">Внести платёж</a>'.
 			'<a class="link hist">История</a>'.
 		'</div>'.
 		'<div class="headName">Установка №'.$z['set_nomer'].'</div>'.
@@ -1081,17 +1115,17 @@ function set_info($z) {
 //				'<tr><td class="label">Дата приёма:'.
 //					'<td class="dtime_add" title="Заявку внёс '._viewer($z['viewer_id_add'], 'name').'">'.FullDataTime($z['dtime_add']).
 				'<tr><td class="label">Договор:'.
-					'<td><b>№'.$z['dogovor_nomer'].'</b> '.
-							'от '.$d[2].'/'.$d[1].'/'.$d[0].' г. '.
-							'на сумму '.$dog['sum'].' руб. '.
-							_dogLink($z['dogovor_nomer'], 'распечатать', 'dogovor_print').
+					'<td><b class="dogn" title="от '.$d[2].'/'.$d[1].'/'.$d[0].' г. на сумму '.$dog['sum'].' руб. ">№'.$z['dogovor_nomer'].'</b> '.
+						 _dogLink($z['dogovor_nomer'], '', 'img_word').
+						'<a class="reneg">Перезаключить</a>'.
 				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).
 				'<tr><td class="label">Адрес установки:<td>'.$z['adres'].
 				'<tr><td class="label">Статус:'.
 					'<td><div style="background-color:#'._zayavStatusColor($z['set_status']).'" class="status">'._zayavStatusName($z['set_status']).'</div>'.
 			'</table>'.
+			'<div class="headBlue'.($money['all'] ? '' : ' dn').'">Платежи<a class="add oplata-add">Внести платёж</a></div>'.
+			'<div id="money_spisok">'.($money['all'] ? $money['spisok'] : '').'</div>'.
 			_vkComment('zayav', $z['id']).
-			($money['all'] ? '<div class="headBlue">Платежи</div>'.$money['spisok'] : '').
 		'</div>'.
 		'<div class="histories">'.report_history_spisok(1, array('zayav_id'=>$z['id'])).'</div>'.
 	'</div>';
@@ -1198,7 +1232,7 @@ function dogovor_print($dog_id) {
 				'ОГРН '.$g['ogrn'].'<br />'.
 				'ИНН '.$g['inn'].'<br />'.
 				'КПП '.$g['kpp'].'<br />'.
-				''.$g['yur_adres'].'<br />'.
+				str_replace("\n", '<br />', $g['yur_adres']).'<br />'.
 				'Тел. '.$g['telefon'].'<br /><br />'.
 				'Адрес офиса: '.$g['ofice_adres'].
 			'<td><b>Заказчик:</b><br />'.
@@ -1281,12 +1315,14 @@ function zayav_product_spisok($arr, $type='html') {
 	$send = '<table class="product">';
 	$json = array();
 	$array = array();
+	$cash = array();
 	foreach($arr as $r) {
 		$send .= '<tr><td>'._product($r['product_id']).
 			($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '').':'.
 			'<td>'.$r['count'].' шт.';
 		$json[] = '['.$r['product_id'].','.$r['product_sub_id'].','.$r['count'].']';
 		$array[] = array($r['product_id'], $r['product_sub_id'], $r['count']);
+		$cash[] = _product($r['product_id']).($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '');
 	}
 	$send .= '</table>';
 	switch($type) {
@@ -1294,6 +1330,7 @@ function zayav_product_spisok($arr, $type='html') {
 		case 'html': return $send;
 		case 'json': return implode(',', $json);
 		case 'array': return $array;
+		case 'cash': return implode('<br />', $cash);
 	}
 }//zayav_product_spisok()
 
@@ -1764,20 +1801,20 @@ function history_types($v) {
 		case 9: return 'Восстановление начисления на сумму <b>'.$v['value'].'</b> руб.'.($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').' у заявки '.$v['zayav'].'.';
 
 		case 10: return
-			'Платёж "<span class="oplata">'._prihodType($v['value2']).'</span>" '.
+			'Платёж <span class="oplata">'._prihodType($v['value2']).'</span> '.
 			'на сумму <b>'.$v['value'].'</b> руб.'.
 			($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
-			' по заявке '.$v['zayav'].'.';
+			' по заявке '._zamerLink($v['zayav_id'], $v['zayav_id']).'.';
 		case 11: return
-			'Удаление платежа "<span class="oplata">'._prihodType($v['value2']).'</span>" '.
+			'Удаление платежа <span class="oplata">'._prihodType($v['value2']).'</span> '.
 			'на сумму <b>'.$v['value'].'</b> руб.'.
 			($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
-			' у заявки '.$v['zayav'].'.';
+			' у заявки '._zamerLink($v['zayav_id'], $v['zayav_id']).'.';
 		case 12: return
-			'Восстановление платежа "<span class="oplata">'._prihodType($v['value2']).'</span>" '.
+			'Восстановление платежа <span class="oplata">'._prihodType($v['value2']).'</span> '.
 			'на сумму <b>'.$v['value'].'</b> руб.'.
 			($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
-			' у заявки '.$v['zayav'].'.';
+			' у заявки '._zamerLink($v['zayav_id'], $v['zayav_id']).'.';
 
 		case 13: return 'Добавление нового сотрудника '._viewer($v['value'], 'link').'.';
 		case 14: return 'Удаление сотрудника '._viewer($v['value'], 'link').'.';
@@ -1894,6 +1931,65 @@ function _zamerNomer($arr) {//Добавление к списку 'zamer_nomer', получаемого по 
 	return $arr;
 }//_zamerNomer()
 
+function money_insert($v) {//Внесение платежа
+	if(empty($v['from']))
+		$v['from'] = '';
+	if($v['zayav_id'] > 0) {
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `deleted`=0
+				  AND `id`=".$v['zayav_id'];
+		if(!$z = mysql_fetch_assoc(query($sql)))
+			return false;
+		if(!empty($v['client_id']) && $v['client_id'] != $z['client_id'])
+			return false;
+		$v['client_id'] = $z['client_id'];
+	}
+	if(empty($v['client_id']))
+		$v['client_id'] = 0;
+
+	if(empty($v['kassa']))
+		$v['kassa'] = 0;
+	$v['kassa'] = _prihodType($v['type'], 'kassa') ? $v['kassa'] : 0;
+	if($v['kassa'] > 1)
+		return false;
+
+	$sql = "INSERT INTO `money` (
+				`zayav_id`,
+				`client_id`,
+				`prihod_type`,
+				`sum`,
+				`kassa`,
+				`prim`,
+				`viewer_id_add`
+			) VALUES (
+				".$v['zayav_id'].",
+				".$v['client_id'].",
+				".$v['type'].",
+				".$v['sum'].",
+				".$v['kassa'].",
+				'".addslashes($v['prim'])."',
+				".VIEWER_ID."
+			)";
+	query($sql);
+	$insert_id = mysql_insert_id();
+
+	clientBalansUpdate($v['client_id']);
+	history_insert(array(
+		'type' => 10,
+		'zayav_id' => $v['zayav_id'],
+		'client_id' => $v['client_id'],
+		'value' => $v['sum'],
+		'value1' => $v['prim'],
+		'value2' => $v['type']
+	));
+
+	switch($v['from']) {
+		case 'client': return money_spisok(1, array('client_id'=>$v['client_id'],'limit'=>15));
+		case 'zayav': return money_spisok(1, array('zayav_id'=>$v['zayav_id'],'limit'=>10));
+		default: return $insert_id;
+	}
+}//money_insert()
 function moneyFilter($v) {
 	$send = array(
 		'limit' => 30,
@@ -1959,7 +2055,9 @@ function money_spisok($page=1, $filter=array()) {
 		(!$filter['zayav_id'] ?
 				'<tr><th class="sum">Сумма'.
 					'<th>Описание'.
-					'<th class="data">Дата' : '');
+					'<th class="data">Дата'.
+					'<th>'
+		: '');
 	foreach($money as $r) {
 		$about = '<span class="type">'._prihodType($r['prihod_type']).':</span> ';
 		if($r['dogovor_nomer'] > 0)
@@ -1972,21 +2070,95 @@ function money_spisok($page=1, $filter=array()) {
 
 		$about .= ' '.$r['prim'];
 		$send['spisok'] .=
-			'<tr><td class="sum"><b>'.$r['sum'].'</b>'.
+			'<tr val="'.$r['id'].'"><td class="sum"><b>'.$r['sum'].'</b>'.
 				'<td>'.$about.
-				'<td class="dtime" title="Внёс: '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']);
+				'<td class="dtime" title="Вн'.(_viewer($r['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']).
+				'<td class="ed"><a href="'.URL.'&p=cashmemo&id='.$r['id'].'" class="img_doc" target="_blank"></a>'.
+					(!$r['dogovor_nomer'] ? '<div class="img_del"></div>' : '');
 	}
 	if($start + $filter['limit'] < $send['all']) {
 		$c = $send['all'] - $start - $filter['limit'];
 		$c = $c > $filter['limit'] ? $filter['limit'] : $c;
 		$send['spisok'] .=
-			'<tr class="ajaxNext" val="'.($page + 1).'" id="money_next"><td colspan="3">'.
+			'<tr class="ajaxNext" val="'.($page + 1).'" id="money_next"><td colspan="4">'.
 				'<span>Показать ещё '.$c.' платеж'._end($c, '', 'а', 'ей').'</span>';
 	}
 	$send['spisok'] .= '</table>';
 	return $send;
-}
+}//money_spisok()
+function cash_memo() {
+	if(!preg_match(REGEXP_NUMERIC, @$_GET['id'])) {
+		echo 'Некорректный id.';
+		exit;
+	}
+	$id = intval($_GET['id']);
+	$sql = "SELECT *
+			FROM `money`
+			WHERE `deleted`=0
+			  AND `id`=".$id;
+	if(!$r = mysql_fetch_assoc(query($sql))) {
+		echo 'Платежа id = '.$id.' не существует.';
+		exit;
+	}
 
+	setlocale(LC_ALL, "ru_RU.CP1251");
+
+	$sql = "SELECT * FROM `setup_global`";
+	$g = mysql_fetch_assoc(query($sql));
+
+	$zayav = array();
+	if($r['zayav_id']) {
+		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$r['zayav_id'];
+		$zayav = mysql_fetch_assoc(query($sql));
+	}
+
+	require_once(VKPATH.'clsMsDocGenerator.php');
+	$doc = new clsMsDocGenerator(
+		$pageOrientation = 'PORTRAIT',
+		$pageType = 'A4',
+		$cssFile = DOCUMENT_ROOT.'/css/cashmemo.css',
+		$topMargin = 1.0,
+		$rightMargin = 1.5,
+		$bottomMargin = 1.0,
+		$leftMargin = 3.0
+	);
+	$doc->addParagraph(
+	'<div class="org-name">Общество с ограниченной ответственностью <b>«'.$g['org_name'].'»</b></div>'.
+	'<div class="rekvisit">'.
+		'ИНН '.$g['inn'].'<br />'.
+		'ОГРН '.$g['ogrn'].'<br />'.
+		'КПП '.$g['kpp'].'<br />'.
+		str_replace("\n", '<br />', $g['yur_adres']).'<br />'.
+		'Тел.: '.$g['telefon'].
+	'</div>'.
+	'<div class="head">Товарный чек №'.$r['id'].'</div>'.
+	'<div class="shop">Магазин</div>'.
+	'<div class="shop-about">(наименование магазина, структурного подразделения, транспортного средства, и т.д.)</div>'.
+	'<table class="tab">'.
+		'<tr><th>№<br />п.п.'.
+			'<th>Наименование товара'.
+			'<th>Количество'.
+			'<th>Цена'.
+			'<th>Сумма'.
+		'<tr><td class="nomer">1'.
+			'<td class="about">'.
+				'Оплата'.
+				($zayav['dogovor_nomer'] ? ' по договору №'.$zayav['dogovor_nomer'] : '').
+				' за '.zayav_product_spisok($r['zayav_id'], 'cash').
+			'<td class="count">1.00'.
+			'<td class="sum">'.$r['sum'].'.00'.
+			'<td class="summa">'.$r['sum'].'.00'.
+	'</table>'.
+	'<div class="summa-propis">'.numberToWord($r['sum'], 1).' рубл'._end($r['sum'], 'ь', 'я', 'ей').'</div>'.
+	'<div class="shop-about">(сумма прописью)</div>'.
+	'<table class="podpis">'.
+		'<tr><td>Продавец ______________________<div class="prod-bot">(подпись)</div>'.
+			'<td><u>/Билоченко Ю.А./</u><div class="r-bot">(расшифровка подписи)</div>'.
+	'</table>'
+	);
+	$doc->output('cash-memo_'.$id.'.doc');
+	exit;
+}//cash_memo()
 
 
 // ---===! setup !===--- Секция настроек
@@ -2126,7 +2298,7 @@ function setup_rekvisit() {
 			'<tr><td class="label">ОГРН:<td><input type="text" id="ogrn" maxlength="100" value="'.$g['ogrn'].'">'.
 			'<tr><td class="label">ИНН:<td><input type="text" id="inn" maxlength="100" value="'.$g['inn'].'">'.
 			'<tr><td class="label">КПП:<td><input type="text" id="kpp" maxlength="100" value="'.$g['kpp'].'">'.
-			'<tr><td class="label">Юридический адрес:<td><input type="text" maxlength="100" id="yur_adres" value="'.$g['yur_adres'].'">'.
+			'<tr><td class="label top">Юридический адрес:<td><textarea id="yur_adres">'.$g['yur_adres'].'</textarea>'.
 			'<tr><td class="label">Телефоны:<td><input type="text" id="telefon" maxlength="100" value="'.$g['telefon'].'">'.
 			'<tr><td class="label">Адрес офиса:<td><input type="text" maxlength="100" id="ofice_adres" value="'.$g['ofice_adres'].'">'.
 			'<tr><td><td><div class="vkButton"><button>Сохранить</button></div>'.

@@ -17,6 +17,96 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
+	case 'oplata_add':
+		$v = array(
+			'from' => trim($_POST['from']),
+			'prim' => win1251(htmlspecialchars(trim($_POST['prim'])))
+		);
+		if(!preg_match(REGEXP_NUMERIC, $_POST['type']) || $_POST['type'] == 0)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['kassa']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) || $_POST['sum'] == 0)
+			jsonError();
+		if(preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
+			$v['zayav_id'] = intval($_POST['zayav_id']);
+		if(preg_match(REGEXP_NUMERIC, $_POST['client_id']))
+			$v['client_id'] = intval($_POST['client_id']);
+
+		$v['type'] = intval($_POST['type']);
+		$v['kassa'] = intval($_POST['kassa']);
+		$v['sum'] = intval($_POST['sum']);
+
+		$send = money_insert($v);
+		if(empty($send))
+			jsonError();
+		$send['spisok'] = utf8($send['spisok']);
+		jsonSuccess($send);
+		break;
+	case 'oplata_del':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+			jsonError();
+		$id = intval($_POST['id']);
+
+		$sql = "SELECT *
+				FROM `money`
+				WHERE `deleted`=0
+				  AND `id`=".$id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+		if($r['dogovor_nomer'])
+			jsonError();
+
+		$sql = "UPDATE `money` SET
+					`deleted`=1,
+					`viewer_id_del`=".VIEWER_ID.",
+					`dtime_del`=CURRENT_TIMESTAMP
+				WHERE `id`=".$id;
+		query($sql);
+
+		clientBalansUpdate($r['client_id']);
+
+		history_insert(array(
+			'type' => 11,
+			'zayav_id' => $r['zayav_id'],
+			'value' => $r['sum'],
+			'value1' => $r['prim'],
+			'value2' => $r['prihod_type']
+		));
+
+		jsonSuccess();
+		break;
+	case 'oplata_rest':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+			jsonError();
+		$id = intval($_POST['id']);
+		$sql = "SELECT *
+				FROM `money`
+				WHERE `deleted`=1
+				  AND `id`=".$id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "UPDATE `money` SET
+					`deleted`=0,
+					`viewer_id_del`=0,
+					`dtime_del`='0000-00-00 00:00:00'
+				WHERE `id`=".$id;
+		query($sql);
+
+		clientBalansUpdate($r['client_id']);
+
+		history_insert(array(
+			'type' => 12,
+			'zayav_id' => $r['zayav_id'],
+			'value' => $r['sum'],
+			'value1' => $r['prim'],
+			'value2' => $r['prihod_type']
+		));
+
+		jsonSuccess();
+		break;
+
 	case 'client_sel':
 		if(!preg_match(REGEXP_WORDFIND, win1251($_POST['val'])))
 			$_POST['val'] = '';
@@ -645,127 +735,6 @@ switch(@$_POST['op']) {
 			'zayav_id' => $acc['zayav_id']
 		));
 		$send['html'] = utf8(zayav_accrual_unit($acc));
-		jsonSuccess($send);
-		break;
-	case 'zayav_oplata_add':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) || $_POST['zayav_id'] == 0)
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['type']) || $_POST['type'] == 0)
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) || $_POST['sum'] == 0)
-			jsonError();
-		$type = intval($_POST['type']);
-		$prihodArr = _prihodType();
-		if($prihodArr[$type]['kassa'] && !preg_match(REGEXP_BOOL, $_POST['kassa']))
-			jsonError();
-		$zayav_id = intval($_POST['zayav_id']);
-		$sum = intval($_POST['sum']);
-		$kassa = $prihodArr[$type]['kassa'] ? intval($_POST['kassa']) : 0;
-		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
-
-		$sql = "SELECT *
-				FROM `zayav`
-				WHERE `deleted`=0
-				  AND `id`=".$zayav_id;
-		if(!$zayav = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		$sql = "INSERT INTO `money` (
-					`zayav_id`,
-					`client_id`,
-					`prihod_type`,
-					`sum`,
-					`kassa`,
-					`prim`,
-					`viewer_id_add`
-				) VALUES (
-					".$zayav_id.",
-					".$zayav['client_id'].",
-					".$type.",
-					".$sum.",
-					".$kassa.",
-					'".addslashes($prim)."',
-					".VIEWER_ID."
-				)";
-		query($sql);
-		/*
-		$send['html'] = utf8(zayav_oplata_unit(array(
-			'id' => mysql_insert_id(),
-			'prihod_type' => $type,
-			'sum' => $sum,
-			'prim' => $prim
-		)));
-		*/
-		clientBalansUpdate($zayav['client_id']);
-		history_insert(array(
-			'type' => 10,
-			'zayav_id' => $zayav_id,
-			'value' => $sum,
-			'value1' => $prim,
-			'value2' => $type
-		));
-		jsonSuccess();
-		break;
-	case 'zayav_oplata_del':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
-			jsonError();
-		$id = intval($_POST['id']);
-
-		$sql = "SELECT *
-				FROM `money`
-				WHERE `deleted`=0
-				  AND `id`=".$id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		$sql = "UPDATE `money` SET
-					`deleted`=1,
-					`viewer_id_del`=".VIEWER_ID.",
-					`dtime_del`=CURRENT_TIMESTAMP
-				WHERE `id`=".$id;
-		query($sql);
-
-		clientBalansUpdate($r['client_id']);
-
-		history_insert(array(
-			'type' => 11,
-			'zayav_id' => $r['zayav_id'],
-			'value' => $r['sum'],
-			'value1' => $r['prim'],
-			'value2' => $r['prihod_type']
-		));
-
-		jsonSuccess();
-		break;
-	case 'zayav_oplata_rest':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
-			jsonError();
-		$id = intval($_POST['id']);
-		$sql = "SELECT *
-				FROM `money`
-				WHERE `deleted`=1
-				  AND `id`=".$id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		$sql = "UPDATE `money` SET
-					`deleted`=0,
-					`viewer_id_del`=0,
-					`dtime_del`='0000-00-00 00:00:00'
-				WHERE `id`=".$id;
-		query($sql);
-
-		clientBalansUpdate($r['client_id']);
-
-		history_insert(array(
-			'type' => 12,
-			'zayav_id' => $r['zayav_id'],
-			'value' => $r['sum'],
-			'value1' => $r['prim'],
-			'value2' => $r['prihod_type']
-		));
-
-		$send['html'] = utf8(zayav_oplata_unit($r));
 		jsonSuccess($send);
 		break;
 	case 'dogovor_preview':

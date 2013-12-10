@@ -363,6 +363,145 @@ $.fn.productList = function(o) {
 };
 
 $(document)
+	.on('click', '.oplata-add', function() {
+		var html =
+			'<table class="oplata-add-tab">' +
+				'<tr><td class="label">Клиент:<td>' + OPL.client_fio +
+				'<tr><td class="label">Заявка:<td><input type="hidden" id="zayav_id" value="' + (OPL.zayav_id ? OPL.zayav_id : 0) + '">' +
+						(OPL.zayav_name ? OPL.zayav_name : '') +
+				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="prihod_type" value="0">' +
+						'<a href="' + URL + '&p=setup&d=prihodtype" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
+				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="7"> руб.' +
+				'<tr class="tr_kassa dn"><td class="label">Деньги поступили в кассу?:<td><input type="hidden" id="kassa" value="2">' +
+				'<tr><td class="label">Примечание:<em>(не обязательно)</em><td><input type="text" id="prim">' +
+				'</table>';
+		var dialog = _dialog({
+			top:60,
+			width:440,
+			head:'Внесение платежа',
+			content:html,
+			submit:submit
+		});
+		$('#sum').focus();
+		$('#sum,#prim').keyEnter(submit);
+		if(OPL.zayav_spisok)
+			$('#zayav_id').vkSel({
+				display:'inline-block',
+				width:180,
+				title0:'Не указана',
+				spisok:OPL.zayav_spisok
+			});
+		$('#prihod_type').vkSel({
+			display:'inline-block',
+			width:180,
+			title0:'Не указан',
+			spisok:PRIHOD_SPISOK,
+			func:function(uid) {
+				$('#kassa')._radio(2);
+				$('.tr_kassa')[(PRIHODKASSA_ASS[uid] ? 'remove' : 'add') + 'Class']('dn');
+				$('#sum').focus();
+			}
+		});
+		$('#kassa')._radio({
+			spisok:[
+				{uid:1, title:'да'},
+				{uid:0, title:'нет'}
+			],
+			func:function() {
+				$('#prim').focus();
+			}
+		});
+		function submit() {
+			var send = {
+				op:'oplata_add',
+				from:OPL.from,
+				type:$('#prihod_type').val(),
+				sum:$('#sum').val(),
+				zayav_id:$('#zayav_id').val(),
+				client_id:OPL.client_id,
+				kassa:$('#kassa').val(),
+				prim:$.trim($('#prim').val())
+			};
+			if(send.type == 0) err('Не указан вид платежа');
+			else if(!REGEXP_NUMERIC.test(send.sum)) {
+				err('Некорректно указана сумма.');
+				$('#sum').focus();
+			} else if(PRIHODKASSA_ASS[send.type] && send.kassa == 2)
+				err('Укажите, деньги поступили в кассу или нет');
+			else if(send.zayav_id == 0 && !send.prim)
+				err('Если не выбрана заявка, необходимо указать примечание');
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function (res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Платёж успешно внесён!');
+						switch(OPL.from) {
+							case 'client':
+								$('#money_spisok').html(res.spisok);
+								break;
+							case 'zayav':
+								$('#money_spisok').html(res.spisok);
+								break;
+							default: break;
+						}
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:40,
+				show:1,
+				top:-48,
+				left:135
+			});
+		}
+	})
+	.on('click', '._money .img_del', function() {
+		var t = $(this);
+		while(t[0].tagName != 'TR')
+			t = t.parent();
+		if(t.hasClass('deleting'))
+			return;
+		t.addClass('deleting');
+		var send = {
+			op:'oplata_del',
+			id:t.attr('val')
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			t.removeClass('deleting');
+			if(res.success) {
+				t.after('<tr class="deleted" val="' + send.id + '">' +
+							'<td colspan="4"><div>Платёж удалён. <a class="rest">Восстановить</a></div>');
+				t.addClass('dn');
+			}
+		}, 'json');
+	})
+	.on('click', '._money .rest', function() {
+		var t = $(this);
+		while(t[0].tagName != 'TR')
+			t = t.parent();
+		var send = {
+				op:'oplata_rest',
+				id:t.attr('val')
+			},
+			div = t.find('div');
+		if(div.hasClass('_busy'))
+			return;
+		div.addClass('_busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			div.removeClass('busy');
+			if(res.success) {
+				t.prev().removeClass('dn');
+				t.remove();
+			}
+		}, 'json');
+	})
+
 	.on('click', '#client .ajaxNext', function() {
 		if($(this).hasClass('busy'))
 			return;
@@ -767,8 +906,8 @@ $(document)
 				if(data.response) {
 					var u = data.response[0],
 						html = '<TABLE class="res">' +
-							'<TR><TD class="photo"><IMG src=' + u.photo_50 + '>' +
-							'<TD class="name">' + u.first_name + ' ' + u.last_name +
+							'<tr><td class="photo"><IMG src=' + u.photo_50 + '>' +
+							'<td class="name">' + u.first_name + ' ' + u.last_name +
 						'</TABLE>';
 					but.after(html);
 					user_id = u.id;
@@ -1532,89 +1671,11 @@ $(document)
 				}
 			});
 			*/
-			$('.opl_add').click(function() {
-				var html =
-					'<TABLE class="zayav_oplata_add">' +
-						'<TR><TD class="label">Вид платежа:<TD><input type="hidden" id="prihod_type" value="0">' +
-							'<a href="' + URL + '&p=setup&d=prihodtype" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
-						'<TR><TD class="label">Сумма:<TD><input type="text" id="sum" class="money" maxlength="5"> руб.' +
-						'<TR class="tr_kassa dn"><TD class="label">Деньги поступили в кассу?:<TD><input type="hidden" id="kassa" value="-1">' +
-						'<TR><TD class="label">Примечание:<em>(не обязательно)</em><TD><input type="text" id="prim">' +
-					'</TABLE>';
-				var dialog = _dialog({
-					top:60,
-					width:440,
-					head:'Заявка №' + ZAYAV.id + ' - Внесение платежа',
-					content:html,
-					submit:submit
-				});
-				$('#sum').focus();
-				$('#sum,#prim').keyEnter(submit);
-				$('#prihod_type').vkSel({
-					display:'inline-block',
-					width:180,
-					title0:'Не указан',
-					spisok:PRIHOD_SPISOK,
-					func:function(uid) {
-						$('#kassa')._radio(-1);
-						$('.tr_kassa')[(PRIHODKASSA_ASS[uid] ? 'remove' : 'add') + 'Class']('dn');
-						$('#sum').focus();
-					}
-				});
-				$('#kassa')._radio({
-					spisok:[
-						{uid:1, title:'да'},
-						{uid:0, title:'нет'}
-					],
-					func:function() {
-						$('#prim').focus();
-					}
-				});
-				function submit() {
-					var msg,
-						send = {
-							op:'zayav_oplata_add',
-							zayav_id:ZAYAV.id,
-							type:$('#prihod_type').val(),
-							sum:$('#sum').val(),
-							kassa:$('#kassa').val(),
-							prim:$.trim($('#prim').val())
-						};
-					if(send.type == 0) msg = 'Не указан вид платежа.';
-					else if(!REGEXP_NUMERIC.test(send.sum)) {
-						msg = 'Некорректно указана сумма.';
-						$('#sum').focus();
-					} else if(PRIHODKASSA_ASS[send.type] && send.kassa == -1) msg = 'Укажите, деньги поступили в кассу или нет.';
-					else {
-						dialog.process();
-						$.post(AJAX_MAIN, send, function (res) {
-							if(res.success) {
-								dialog.close();
-								_msg('Платёж успешно внесён!');
-								location.reload();
-								//$('._spisok._money').append(res.html);
-								//zayavInfoMoneyUpdate();
-							} else
-								dialog.abort();
-						}, 'json');
-					}
-
-					if(msg)
-						dialog.bottom.vkHint({
-							msg:'<SPAN class="red">' + msg + '</SPAN>',
-							remove:1,
-							indent:40,
-							show:1,
-							top:-48,
-							left:135
-						});
-				}
-			});
-			/*
+/*
 			$('.acc_add').click(function() {
 				var html = '<TABLE class="zayav_accrual_add">' +
-					'<tr><td class="label">Сумма: <TD><input type="text" id="sum" class="money" maxlength="6" /> руб.' +
-					'<tr><td class="label">Примечание:<em>(не обязательно)</em><TD><input type="text" id="prim" maxlength="100" />' +
+					'<tr><td class="label">Сумма: <td><input type="text" id="sum" class="money" maxlength="6" /> руб.' +
+					'<tr><td class="label">Примечание:<em>(не обязательно)</em><td><input type="text" id="prim" maxlength="100" />' +
 					'</TABLE>';
 				var dialog = _dialog({
 					top:60,

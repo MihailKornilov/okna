@@ -1,6 +1,13 @@
 /* Итоговая сумма для списка платежей */
 ._moneysum{margin-bottom:7px}
 
+/* Таблица для внесения платежа */
+.oplata-add-tab{border-spacing:8px}
+.oplata-add-tab .label{width:150px;text-align:right}
+.oplata-add-tab .img_edit{position:relative;top:-3px;left:4px}
+.oplata-add-tab #kassa_radio div{display:inline-block;margin-right:15px}
+.oplata-add-tab #prim{width:220px}
+
 
 /* Внесение и редактирование клиента */
 .client-add{border-spacing:10px}
@@ -26,7 +33,7 @@
 #client .unit{margin:5px 10px 0 10px;border-bottom:#dae1e8 solid 1px;padding:5px}
 #client .unit table{border-spacing:1px}
 #client .label{width:70px}
-#client .balans{float:right;width:80px;color:#888}
+#client .balans{float:right;width:90px;color:#888}
 #client .balans b{float:right}
 #client .unit em{background-color:#FFC;border-bottom:#FE2 solid 1px}
 #client .ajaxNext{margin:0 10px}
@@ -123,7 +130,9 @@
 .zayav-info .status:hover{border-color:#BBD; color:#444}
 .zayav-info .dogovor_create{margin-left:200px}
 .zayav-info .dogovor_create button{width:200px}
-.zayav-info .dogovor_print{margin-left:20px}
+.zayav-info .dogn{cursor:help}
+.zayav-info .img_word{position:absolute;margin-top:-1px}
+.zayav-info .reneg{margin-left:50px;color:#888}
 .zayav-info .vkComment{margin-bottom:15px}
 .zayav-info .histories{min-height:210px;margin:15px 20px}
 /*.zayav-info .status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}*/
@@ -168,11 +177,6 @@
 .zayav_accrual_add{border-spacing:8px}
 .zayav_accrual_add .label{width:120px;text-align:right}
 .zayav_accrual_add #prim{width:200px}
-.zayav_oplata_add{border-spacing:8px}
-.zayav_oplata_add .img_edit{position:relative;top:-3px;left:4px}
-.zayav_oplata_add #kassa_radio div{display:inline-block;margin-right:15px}
-.zayav_oplata_add .label{width:130px;text-align:right}
-.zayav_oplata_add #prim{width:200px}
 #zayavInfo .deleting{text-align:center;color:#555}
 
 .zamer-status-edit{border-spacing:10px}
@@ -258,6 +262,7 @@
 
 #setup_rekvisit .t{border-spacing:10px;margin-left:10px}
 #setup_rekvisit input{width:240px}
+#setup_rekvisit #yur_adres{width:240px;height:40px}
 
 
 #setup_product .sub{text-align:center;font-weight:700}

@@ -82,6 +82,7 @@ else {
 		case 'setup':
 			$html .= RULES_SETUP ? setup() : _norules('Настройки');
 			break;
+		case 'cashmemo': cash_memo(); break;
 		default: header('Location:'.URL.'&p=zayav');
 	}
 }
