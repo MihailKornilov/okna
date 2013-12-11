@@ -767,8 +767,8 @@ switch(@$_POST['op']) {
 			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data'])),
 			'pasp_empty' => 0
 		);
-		foreach($pasp as $p)
-			if(empty($p)) {
+		foreach($pasp as $k => $p)
+			if(empty($p) && $k != 'pasp_empty') {
 				$pasp['pasp_empty'] = 1;
 				break;
 			}
@@ -789,7 +789,6 @@ switch(@$_POST['op']) {
 		$sql = "SELECT *
 				FROM `zayav`
 				WHERE `id`=".$zayav_id."
-				  AND `dogovor_nomer`=0
 				  AND `zamer_status`!=1
 				  AND `zamer_status`!=3
 				LIMIT 1";
@@ -810,12 +809,13 @@ switch(@$_POST['op']) {
 		$zayav_id = intval($_POST['zayav_id']);
 		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+		$reason = win1251(htmlspecialchars(trim($_POST['reason'])));
 		$pasp = array(
-			'pasp_seria' => htmlspecialchars(trim($_POST['pasp_seria'])),
-			'pasp_nomer' => htmlspecialchars(trim($_POST['pasp_nomer'])),
-			'pasp_adres' => htmlspecialchars(trim($_POST['pasp_adres'])),
-			'pasp_ovd' => htmlspecialchars(trim($_POST['pasp_ovd'])),
-			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data'])),
+			'pasp_seria' => win1251(htmlspecialchars(trim($_POST['pasp_seria']))),
+			'pasp_nomer' => win1251(htmlspecialchars(trim($_POST['pasp_nomer']))),
+			'pasp_adres' => win1251(htmlspecialchars(trim($_POST['pasp_adres']))),
+			'pasp_ovd' => win1251(htmlspecialchars(trim($_POST['pasp_ovd']))),
+			'pasp_data' => win1251(htmlspecialchars(trim($_POST['pasp_data']))),
 			'pasp_empty' => 0
 		);
 		$sum = intval($_POST['sum']);
@@ -823,8 +823,8 @@ switch(@$_POST['op']) {
 		if(empty($fio) || empty($adres))
 			jsonError();
 
-		foreach($pasp as $p)
-			if(empty($p)) {
+		foreach($pasp as $k => $p)
+			if(empty($p) && $k != 'pasp_empty') {
 				$pasp['pasp_empty'] = 1;
 				break;
 			}
@@ -835,12 +835,17 @@ switch(@$_POST['op']) {
 		$sql = "SELECT *
 				FROM `zayav`
 				WHERE `id`=".$zayav_id."
-				  AND `dogovor_nomer`=0
 				  AND `zamer_status`!=1
 				  AND `zamer_status`!=3
 				LIMIT 1";
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
 			jsonError();
+
+		$sql = "SELECT * FROM `zayav_dogovor` WHERE `deleted`=0 AND `zayav_id`=".$zayav_id;
+		if($dog = mysql_fetch_assoc(query($sql))) {
+			query("UPDATE `zayav_dogovor` SET `deleted`=1 WHERE `id`=".$dog['id']);
+			query("UPDATE `money` SET `deleted`=1 WHERE `dogovor_nomer`=".$dog['id']);
+		}
 
 		$sql = "INSERT INTO `zayav_dogovor` (
 					`zayav_id`,
@@ -855,6 +860,7 @@ switch(@$_POST['op']) {
 					`pasp_data`,
 					`sum`,
 					`avans`,
+					`reason`,
 					`viewer_id_add`
 				) VALUES (
 					".$zayav_id.",
@@ -869,6 +875,7 @@ switch(@$_POST['op']) {
 					'".addslashes($pasp['pasp_data'])."',
 					".$sum.",
 					".$avans.",
+					'".addslashes($reason)."',
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -878,7 +885,8 @@ switch(@$_POST['op']) {
 		// Перевод заявки в режим "Установка"
 		$sql = "UPDATE `zayav`
 		        SET `dogovor_nomer`=".$dog_id.",
-		        	`set_nomer`="._maxSql('zayav', 'set_nomer').",
+					`adres`='".addslashes($adres)."',
+		          ".(!$zayav['dogovor_nomer'] ? "`set_nomer`="._maxSql('zayav', 'set_nomer')."," : '')."
 					`set_status`=1
 		        WHERE `id`=".$zayav_id;
 		query($sql);
@@ -1102,21 +1110,14 @@ switch(@$_POST['op']) {
 	case 'setup_product_add':
 		if(!RULES_PRODUCT)
 			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['dogovor']))
-			jsonError();
 
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
-		$dogovor = intval($_POST['dogovor']);
 		if(empty($name))
 			jsonError();
 		$sql = "INSERT INTO `setup_product` (
-					`name`,
-					`dogovor`,
-					`viewer_id_add`
+					`name`
 				) VALUES (
-					'".addslashes($name)."',
-					".$dogovor.",
-					".VIEWER_ID."
+					'".addslashes($name)."'
 				)";
 		query($sql);
 
@@ -1136,12 +1137,9 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['dogovor']))
-			jsonError();
 
 		$product_id = intval($_POST['id']);
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
-		$dogovor = intval($_POST['dogovor']);
 		if(empty($name))
 			jsonError();
 
@@ -1150,8 +1148,7 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		$sql = "UPDATE `setup_product`
-		        SET `name`='".addslashes($name)."',
-		            `dogovor`=".$dogovor."
+		        SET `name`='".addslashes($name)."'
 		        WHERE `id`=".$product_id;
 		query($sql);
 
@@ -1161,8 +1158,6 @@ switch(@$_POST['op']) {
 		$changes = '';
 		if($r['name'] != $name)
 			$changes = '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
-		if($r['dogovor'] != $dogovor)
-			$changes .= '<tr><th>Требуется договор:<td>'.($r['dogovor'] ? 'да' : 'нет').'<td>»<td>'.($dogovor ? 'да' : 'нет');
 		if($changes)
 			history_insert(array(
 				'type' => 502,

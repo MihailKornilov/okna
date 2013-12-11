@@ -42,14 +42,6 @@ else {
 					}
 					$html .= zayav_info(intval($_GET['id']));
 					break;
-				case 'dogovor_print':
-					if(!preg_match(REGEXP_NUMERIC, $_GET['id'])) {
-						$html .= _noauth('Ошибка данных.');
-						break;
-					}
-					$zayav_id = intval($_GET['id']);
-					dogovor_print($zayav_id);
-					break;
 				default:
 					$html .= zayav();
 /*					$values = array();
@@ -82,7 +74,6 @@ else {
 		case 'setup':
 			$html .= RULES_SETUP ? setup() : _norules('Настройки');
 			break;
-		case 'cashmemo': cash_memo(); break;
 		default: header('Location:'.URL.'&p=zayav');
 	}
 }

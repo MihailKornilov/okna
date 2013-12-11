@@ -221,6 +221,105 @@ var hashLoc,
 			}
 		}, 'json');
 	},
+	dogovorCreate = function() {
+		var html = '<table class="zayav-dogovor">' +
+				'<tr><td colspan="2">' +
+		(DOG.nomer ? '<div class="i per">' +
+						'При <b>перезаключении договора</b> удаляются сумма старого договора и авансовый платёж. ' +
+						'Применятся данные нового договора. Также будет обновлён баланс клиента.' +
+					'</div>'
+		: '') +
+				'<tr><td class="label r">Фио клиента:<td><input type="text" id="fio" value="' + DOG.fio + '" />' +
+				'<tr><td class="label r">Адрес установки:<td><input type="text" id="adres" value="' + DOG.adres + '" />' +
+				'<tr><td class="label r">Паспорт:' +
+					'<td>Серия:<input type="text" id="pasp_seria" maxlength="8" value="' + DOG.pasp_seria + '" />' +
+						'Номер:<input type="text" id="pasp_nomer" maxlength="10" value="' + DOG.pasp_nomer + '" />' +
+				'<tr><td><td><span class="l">Прописка:</span><input type="text" id="pasp_adres" maxlength="100" value="' + DOG.pasp_adres + '" />' +
+				'<tr><td><td><span class="l">Кем выдан:</span><input type="text" id="pasp_ovd" maxlength="100" value="' + DOG.pasp_ovd + '" />' +
+				'<tr><td><td><span class="l">Когда выдан:</span><input type="text" id="pasp_data" maxlength="100" value="' + DOG.pasp_data + '" />' +
+				'<tr><td class="label r">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="6" value="' + (DOG.sum ? DOG.sum : '') + '" /> руб.' +
+				'<tr><td class="label r">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="6" value="' + (DOG.avans ? DOG.avans : '') + '" /> руб. <span class="prim">(не обязательно)</span>' +
+   (DOG.nomer ? '<tr><td class="label" colspan="2">Причина перезаключения договора:<textarea id="reason"></textarea>' : '') +
+				'<tr><td colspan="2">' +
+					'<div class="i">' +
+						'<h1>Внимание!</h1>' +
+						'Внимательно проверьте правильность всех введённых данных. ' +
+						'После нажатия кнопки "Заключить договор" операцию отменить будет невозможно.<br />' +
+						'<b>Сумма по договору</b> является окончательной суммой и при заключении договора на эту сумму будет изменён баланс клиента в минус.<br />' +
+						'<b>Авансовый платёж</b> указывать не обязательно. При указании авансового платёжа автоматически будет внесён платёж на данную заявку.' +
+					'</div>' +
+				'<tr><td colspan="2">' +
+					'<a id="preview">Предварительный просмотр</a>' +
+					'<form action="' + AJAX_MAIN + '" method="post" id="preview-form" target="_blank"></form>' +
+				'</table>',
+			dialog = _dialog({
+				width:426,
+				top:10,
+				head:(DOG.nomer ? 'Перез' : 'З') + 'аключение договора',
+				content:html,
+				butSubmit:(DOG.nomer ? 'Перез' : 'З') + 'аключить договор',
+				submit:submit
+			});
+		$('#preview').click(function() {
+			var send = valuesTest('preview');
+			if(send) {
+				send.op = 'dogovor_preview';
+				var form = '';
+				for(var i in send)
+					form += '<input type="hidden" name="' + i + '" value="' + send[i] + '">';
+				$('#preview-form').html(form).submit();
+			}
+		});
+		$('#reason').autosize();
+		function valuesTest(type) {
+			var send = {
+				zayav_id:ZAYAV.id,
+				fio:$('#fio').val(),
+				adres:$('#adres').val(),
+				pasp_seria:$('#pasp_seria').val(),
+				pasp_nomer:$('#pasp_nomer').val(),
+				pasp_adres:$('#pasp_adres').val(),
+				pasp_ovd:$('#pasp_ovd').val(),
+				pasp_data:$('#pasp_data').val(),
+				sum:$('#sum').val(),
+				avans:$('#avans').val(),
+				reason:DOG.nomer ? $('#reason').val() : ''
+			};
+			if(!send.fio) err('Не указано Фио клиента', 'fio', type);
+			else if(!send.adres) err('Не указан адрес', 'adres', type);
+			else if(!REGEXP_NUMERIC.test(send.sum) || send.sum == 0) err('Некорректно указана сумма по договору', 'sum', type);
+			else if(send.avans && !REGEXP_NUMERIC.test(send.avans)) err('Некорректно указан авансовый платёж', 'avans', type);
+			else if(DOG.nomer && !send.reason) err('Не указана причина перезаключения договора', 'reason', type);
+			else return send;
+			return false;
+		}
+		function err(msg, id, type) {
+			dialog.bottom.vkHint({
+				msg:'<span class="red">' + msg + '</span>',
+				top:type ? -86 : -47,
+				left:type ? 141 : 110,
+				indent:50,
+				show:1,
+				remove:1
+			});
+			$('#' + id).focus();
+		}
+		function submit() {
+			var send = valuesTest();
+			if(send) {
+				send.op = 'dogovor_create';
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Договор заключен.');
+						document.location.reload();
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+	},
 
 	setupRulesSet = function(action, value) {
 		var send = {
@@ -978,7 +1077,6 @@ $(document)
 		var t = $(this),
 			html = '<table style="border-spacing:10px">' +
 				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" />' +
-				'<tr><td class="label r">Требуется заключение договора:<td><input id="dogovor" type="hidden" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -988,12 +1086,10 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
-		$('#dogovor')._check();
 		function submit() {
 			var send = {
 				op:'setup_product_add',
-				name:$('#name').val(),
-				dogovor:$('#dogovor').val()
+				name:$('#name').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
@@ -1027,7 +1123,6 @@ $(document)
 			dog = t.find('.dog').html() ? 1 : 0,
 			html = '<table style="border-spacing:10px">' +
 				'<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="100" style="width:250px" value="' + name.html() + '" />' +
-				'<tr><td class="label r">Требуется заключение договора:<td><input id="dogovor" type="hidden" value="' + dog + '" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -1038,13 +1133,11 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
-		$('#dogovor')._check();
 		function submit() {
 			var send = {
 				op:'setup_product_edit',
 				id:id,
-				name:$('#name').val(),
-				dogovor:$('#dogovor').val()
+				name:$('#name').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
@@ -1514,95 +1607,8 @@ $(document)
 				$(this).addClass('sel');
 				$('.zayav-info').addClass('h');
 			});
-			$('.dogovor_create').click(function() {
-				var html = '<table class="zayav-dogovor">' +
-						'<tr><td class="label">Фио клиента:<td><input type="text" id="fio" value="' + ZAYAV.fio + '" />' +
-						'<tr><td class="label">Адрес установки:<td><input type="text" id="adres" value="' + ZAYAV.adres + '" />' +
-						'<tr><td class="label">Паспорт:' +
-							'<td>Серия:<input type="text" id="pasp_seria" maxlength="8" value="' + ZAYAV.pasp_seria + '" />' +
-								'Номер:<input type="text" id="pasp_nomer" maxlength="10" value="' + ZAYAV.pasp_nomer + '" />' +
-						'<tr><td><td><span class="l">Прописка:</span><input type="text" id="pasp_adres" maxlength="100" value="' + ZAYAV.pasp_adres + '" />' +
-						'<tr><td><td><span class="l">Кем выдан:</span><input type="text" id="pasp_ovd" maxlength="100" value="' + ZAYAV.pasp_ovd + '" />' +
-						'<tr><td><td><span class="l">Когда выдан:</span><input type="text" id="pasp_data" maxlength="100" value="' + ZAYAV.pasp_data + '" />' +
-						'<tr><td class="label">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="6" /> руб.' +
-						'<tr><td class="label">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="6" /> руб. <span class="prim">(не обязательно)</span>' +
-						'<tr><td colspan="2">' +
-								'<div class="i">' +
-									'<h1>Внимание!</h1>' +
-									'Внимательно проверьте правильность всех введённых данных. ' +
-									'После нажатия кнопки "Заключить договор" операцию отменить будет невозможно.<br />' +
-									'<b>Сумма по договору</b> является окончательной суммой и при заключении договора на эту сумму будет изменён баланс клиента в минус.<br />' +
-									'<b>Авансовый платёж</b> указывать не обязательно. При указании авансового платёжа автоматически будет внесён платёж на данную заявку.' +
-								'</div>' +
-						'<tr><td colspan="2">' +
-							'<a id="preview">Предварительный просмотр</a>' +
-							'<form action="' + AJAX_MAIN + '" method="post" id="preview-form" target="_blank"></form>' +
-						'</table>',
-					dialog = _dialog({
-						width:426,
-						top:10,
-						head:'Заключение договора',
-						content:html,
-						butSubmit:'Заключить договор',
-						submit:submit
-					});
-				$('#preview').click(function() {
-					var send = valuesTest('preview');
-					if(send) {
-						send.op = 'dogovor_preview';
-						var form = '';
-						for(var i in send)
-							form += '<input type="hidden" name="' + i + '" value="' + send[i] + '">';
-						$('#preview-form').html(form).submit();
-					}
-				});
-				function valuesTest(type) {
-					var send = {
-						zayav_id:ZAYAV.id,
-						fio:$('#fio').val(),
-						adres:$('#adres').val(),
-						pasp_seria:$('#pasp_seria').val(),
-						pasp_nomer:$('#pasp_nomer').val(),
-						pasp_adres:$('#pasp_adres').val(),
-						pasp_ovd:$('#pasp_ovd').val(),
-						pasp_data:$('#pasp_data').val(),
-						sum:$('#sum').val(),
-						avans:$('#avans').val()
-					};
-					if(!send.fio) err('Не указано Фио клиента', 'fio', type);
-					else if(!send.adres) err('Не указан адрес', 'adres', type);
-					else if(!REGEXP_NUMERIC.test(send.sum) || send.sum == 0) err('Некорректно указана сумма по договору', 'sum', type);
-					else if(send.avans && !REGEXP_NUMERIC.test(send.avans)) err('Некорректно указан авансовый платёж', 'avans', type);
-					else return send;
-					return false;
-				}
-				function err(msg, id, type) {
-					dialog.bottom.vkHint({
-						msg:'<span class="red">' + msg + '</span>',
-						top:type ? -86 : -47,
-						left:type ? 141 : 110,
-						indent:50,
-						show:1,
-						remove:1
-					});
-					$('#' + id).focus();
-				}
-				function submit() {
-					var send = valuesTest();
-					if(send) {
-						send.op = 'dogovor_create';
-						dialog.process();
-						$.post(AJAX_MAIN, send, function(res) {
-							if(res.success) {
-								dialog.close();
-								_msg('Договор заключен.');
-								document.location.reload();
-							} else
-								dialog.abort();
-						}, 'json');
-					}
-				}
-			});
+			$('.dogovor_create').click(dogovorCreate);
+			$('.reneg').click(dogovorCreate);
 /*			$('.zedit').click(function() {
 				var html = '<table class="zayav-info-edit">' +
 						'<tr><td class="label r">Клиент:		 <td><INPUT type="hidden" id="client_id" value="' + ZAYAV.client_id + '">' +

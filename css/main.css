@@ -131,15 +131,16 @@
 .zayav-info .dogovor_create{margin-left:200px}
 .zayav-info .dogovor_create button{width:200px}
 .zayav-info .dogn{cursor:help}
-.zayav-info .img_word{position:absolute;margin-top:-1px}
-.zayav-info .reneg{margin-left:50px;color:#888}
+.zayav-info .dogn.d{color:#aaa;font-weight:normal}
+.zayav-info .img_word{margin:0 15px -3px -2px}
+.zayav-info .reneg{color:#888}
 .zayav-info .vkComment{margin-bottom:15px}
 .zayav-info .histories{min-height:210px;margin:15px 20px}
 /*.zayav-info .status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}*/
 
 
 .zayav-dogovor{border-spacing:8px}
-.zayav-dogovor .label{width:110px;text-align:right}
+.zayav-dogovor .label{width:110px}
 .zayav-dogovor #fio,.zayav-dogovor #adres{width:258px}
 .zayav-dogovor #pasp_seria{width:55px;margin:0 15px 0 3px}
 .zayav-dogovor #pasp_nomer{width:100px;margin-left:3px}
@@ -156,9 +157,10 @@
 	color:#444;
 	text-align:justify;
 }
+.zayav-dogovor .per{margin:-5px 0 5px}
 .zayav-dogovor h1{display:block;font-weight:bold;text-align:center;margin-bottom:3px;color:#444}
+.zayav-dogovor #reason{width:376px;height:30px}
 .zayav-dogovor #preview{display:block;text-align:center;margin-top:10px}
-
 
 .zayav-info-edit{border-spacing:8px}
 .zayav-info-edit #nomer_dog{width:130px}
@@ -265,8 +267,9 @@
 #setup_rekvisit #yur_adres{width:240px;height:40px}
 
 
+#setup_product .name{width:170px}
 #setup_product .sub{text-align:center;font-weight:700}
-#setup_product .zayav,#setup_product .dog{text-align:center}
+#setup_product .zayav{text-align:center}
 
 #setup_product_sub .headName{margin-top:10px}
 #setup_product_sub .zayav{text-align:center}
