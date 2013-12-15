@@ -450,7 +450,7 @@ $.fn.productList = function(o) {
 		if(id == 0 || !PRODUCT_SUB_SPISOK[id])
 			return;
 		$('#' + attr_subid).vkSel({
-			width:150,
+			width:120,
 			display:'inline-block',
 			title0:'Подвид не указан',
 			spisok:PRODUCT_SUB_SPISOK[id],
@@ -459,6 +459,7 @@ $.fn.productList = function(o) {
 			}
 		});
 	}
+	return t;
 };
 
 $(document)
@@ -709,6 +710,91 @@ $(document)
 			if(send.client_id == 0) msg = 'Не выбран клиент';
 			else if(!send.product) msg = 'Не указано изделие';
 			else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+			else if(!send.adres) msg = 'Не указан адрес';
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function (res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Заявка внесена');
+						location.href = URL + '&p=zayav&d=info&id=' + res.id;
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+			if(msg)
+				dialog.bottom.vkHint({
+					msg:'<SPAN class="red">' + msg + '</SPAN>',
+					top:-48,
+					left:185,
+					indent:40,
+					show:1,
+					remove:1
+				});
+		}
+	})
+	.on('click', '.set_add', function() {
+		if(typeof CLIENT == 'undefined')
+			CLIENT = {
+				id:0,
+				fio:'',
+				adres:''
+			};
+		var HOMEADRES = CLIENT.adres,
+			html =
+				'<table class="zayav-add">' +
+					'<tr><td class="label">Клиент:' +
+						'<td><INPUT type="hidden" id="client_id" value="' + CLIENT.id + '">' +
+						'<b>' + CLIENT.fio + '</b>' +
+					'<tr><td class="label top">Изделие:<td id="product">' +
+					'<tr><td class="label">Адрес установки:' +
+						'<td><INPUT type="text" id="adres" maxlength="100" />' +
+							'<INPUT type="hidden" id="homeadres" />' +
+					'<tr><td class="label top">Заметка:	<td><textarea id="comm"></textarea>' +
+				'</table>',
+			dialog = _dialog({
+				width:550,
+				top:30,
+				head:'Внесение новой заявки на установку',
+				content:html,
+				submit:submit
+			});
+		if(CLIENT.id == 0)
+			var client = $('#client_id').clientSel({
+				add:1,
+				func:function(uid) {
+					HOMEADRES = client.item(uid).adres;
+					if($('#homeadres').val() == 1)
+						$('#adres').val(HOMEADRES);
+				}
+			}).o;
+		$('#product').productList();
+		$('#homeadres')._check({
+			func:function() {
+				$('#adres').val(HOMEADRES);
+			}
+		});
+		$('#homeadres_check').vkHint({
+			msg:'Совпадает с адресом проживания',
+			top:-74,
+			left:196,
+			indent:60,
+			delayShow:700
+		});
+		$('#comm').autosize();
+		function submit() {
+			var msg,
+				send = {
+					op:'set_add',
+					client_id:$('#client_id').val(),
+					product:$('#product').productList('get'),
+					adres:$('#adres').val(),
+					comm:$('#comm').val()
+				};
+			if(send.client_id == 0) msg = 'Не выбран клиент';
+			else if(!send.product) msg = 'Не указано изделие';
+			else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+			else if(!send.adres) msg = 'Не указан адрес';
 			else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function (res) {
@@ -1608,52 +1694,78 @@ $(document)
 				$('.zayav-info').addClass('h');
 			});
 			$('.dogovor_create').click(dogovorCreate);
+			$('.dogovor_no_require').click(function() {
+				var send = {
+					op:'dogovor_no_require',
+					zayav_id:ZAYAV.id
+				};
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success)
+						document.location.reload();
+				}, 'json');
+			});
+			$('#dogovor_action').linkMenu({
+				head:'Не заключен',
+				spisok:[
+					{uid:1, title:'Заключить договор'},
+					{uid:2, title:'Перевести заявку в категорию "Требуется договор"'}
+				],
+				func:function(v) {
+					if(v == 1)
+						dogovorCreate();
+					if(v == 2) {
+						var send = {
+							op:'dogovor_require',
+							zayav_id:ZAYAV.id
+						};
+						$.post(AJAX_MAIN, send, function(res) {
+							if(res.success)
+								document.location.reload();
+						}, 'json');
+					}
+				},
+				nosel:1
+			});
 			$('.reneg').click(dogovorCreate);
-/*			$('.zedit').click(function() {
+			$('.zamer_edit').click(function() {
 				var html = '<table class="zayav-info-edit">' +
-						'<tr><td class="label r">Клиент:		 <td><INPUT type="hidden" id="client_id" value="' + ZAYAV.client_id + '">' +
-						'<tr><td class="label r top">Изделие:	<td id="product">' +
-						'<tr><td class="label r">Адрес установки:<td><INPUT type="text" id="adres_set" maxlength="100" value="' + ZAYAV.adres_set + '" />' +
-						'<tr><td class="label r">Номер ВГ:	   <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
-					'</table>',
+						'<tr><td class="label">Клиент:        <td>' + ZAYAV.client_fio +
+						'<tr><td class="label top">Изделие:	<td id="product">' +
+						'<tr><td class="label">Адрес замера:  <td><INPUT type="text" id="adres" maxlength="100" value="' + ZAYAV.adres + '" />' +
+						'<tr><td class="label">Дата и время замера:<td class="zayav-zamer-dtime">' +
+						'<tr><td class="label">Длительность замера:<td><INPUT TYPE="hidden" id="zamer_duration" value="' + ZAYAV.dur + '" />' +
+						'</table>',
 					dialog = _dialog({
 						width:500,
 						top:30,
-						head:'Заявка №' + ZAYAV.id + ' - Редактирование',
+						head:'Замер №' + ZAYAV.zamer_nomer + ' - Редактирование',
 						content:html,
 						butSubmit:'Сохранить',
 						submit:submit
 					});
-				$('#client_id').clientSel();
 				$('#product').productList(ZAYAV.product);
-				$('#vkSel_client_id').vkHint({
-					msg:'Если изменяется клиент, то начисления и платежи заявки применяются на нового клиента.',
-					width:200,
-					top:-83,
-					left:-2,
-					delayShow:1500
-				});
 				$('#product_id').vkSel({
 					width:142,
 					display:'inline-block',
 					title0:'Изделие не указано',
 					spisok:PRODUCT_SPISOK
 				});
-
+				zayavZamerDtime(ZAYAV);
 				function submit() {
 					var msg,
 						send = {
-							op:'zayav_edit',
+							op:'zamer_edit',
 							zayav_id:ZAYAV.id,
-							client_id:$('#client_id').val(),
-							//nomer_dog:$('#nomer_dog').val(),
-							nomer_vg:$('#nomer_vg').val(),
 							product:$('#product').productList('get'),
-							adres_set:$('#adres_set').val()
+							adres:$('#adres').val(),
+							zamer_day:$('#zamer_day').val(),
+							zamer_hour:$('#zamer_hour').val(),
+							zamer_min:$('#zamer_min').val(),
+							zamer_duration:$('#zamer_duration').val()
 						};
-					if(send.client_id == 0) msg = 'Не выбран клиент';
-					else if(!send.product) msg = 'Не указано изделие';
+					if(!send.product) msg = 'Не указано изделие';
 					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+					else if(!send.adres) msg = 'Не указан адрес';
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function (res) {
@@ -1669,14 +1781,123 @@ $(document)
 						dialog.bottom.vkHint({
 							msg:'<SPAN class="red">' + msg + '</SPAN>',
 							top:-47,
-							left:141,
-							indent:50,
+							left:161,
+							indent:40,
 							show:1,
 							remove:1
 						});
 				}
 			});
-			*/
+			$('.dog_edit').click(function() {
+				var html = '<table class="zayav-info-edit">' +
+						'<tr><td class="label">Клиент:      <td>' + ZAYAV.client_fio +
+						'<tr><td class="label top">Изделие:	<td id="product">' +
+						'<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres" maxlength="100" value="' + ZAYAV.adres + '" />' +
+						'</table>',
+					dialog = _dialog({
+						width:500,
+						top:30,
+						head:'Редактирование',
+						content:html,
+						butSubmit:'Сохранить',
+						submit:submit
+					});
+				$('#product').productList(ZAYAV.product);
+				$('#product_id').vkSel({
+					width:142,
+					display:'inline-block',
+					title0:'Изделие не указано',
+					spisok:PRODUCT_SPISOK
+				});
+				function submit() {
+					var msg,
+						send = {
+							op:'dog_edit',
+							zayav_id:ZAYAV.id,
+							product:$('#product').productList('get'),
+							adres:$('#adres').val()
+						};
+					if(!send.product) msg = 'Не указано изделие';
+					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+					else if(!send.adres) msg = 'Не указан адрес';
+					else {
+						dialog.process();
+						$.post(AJAX_MAIN, send, function (res) {
+							if(res.success) {
+								dialog.close();
+								_msg('Данные изменены!');
+								document.location.reload();
+							} else
+								dialog.abort();
+						}, 'json');
+					}
+					if(msg)
+						dialog.bottom.vkHint({
+							msg:'<SPAN class="red">' + msg + '</SPAN>',
+							top:-47,
+							left:161,
+							indent:40,
+							show:1,
+							remove:1
+						});
+				}
+			});
+			$('.set_edit').click(function() {
+				var html = '<table class="zayav-info-edit">' +
+						'<tr><td class="label">Клиент:      <td>' + ZAYAV.client_fio +
+						'<tr><td class="label top">Изделие:	<td id="product">' +
+						'<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres" maxlength="100" value="' + ZAYAV.adres + '" />' +
+						'<tr><td class="label">Номер ВГ:	   <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
+						'</table>',
+					dialog = _dialog({
+						width:500,
+						top:30,
+						head:'Установка №' + ZAYAV.set_nomer + ' - Редактирование',
+						content:html,
+						butSubmit:'Сохранить',
+						submit:submit
+					});
+				$('#product').productList(ZAYAV.product);
+				$('#product_id').vkSel({
+					width:142,
+					display:'inline-block',
+					title0:'Изделие не указано',
+					spisok:PRODUCT_SPISOK
+				});
+				function submit() {
+					var msg,
+						send = {
+							op:'set_edit',
+							zayav_id:ZAYAV.id,
+							product:$('#product').productList('get'),
+							adres:$('#adres').val(),
+							nomer_vg:$('#nomer_vg').val()
+						};
+					if(!send.product) msg = 'Не указано изделие';
+					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+					else if(!send.adres) msg = 'Не указан адрес';
+					else {
+						dialog.process();
+						$.post(AJAX_MAIN, send, function (res) {
+							if(res.success) {
+								dialog.close();
+								_msg('Данные изменены!');
+								document.location.reload();
+							} else
+								dialog.abort();
+						}, 'json');
+					}
+					if(msg)
+						dialog.bottom.vkHint({
+							msg:'<SPAN class="red">' + msg + '</SPAN>',
+							top:-47,
+							left:161,
+							indent:40,
+							show:1,
+							remove:1
+						});
+				}
+			});
 /*
 			$('.acc_add').click(function() {
 				var html = '<TABLE class="zayav_accrual_add">' +

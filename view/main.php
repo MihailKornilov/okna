@@ -438,25 +438,40 @@ function numberToWord($num, $firstSymbolUp=false) {
 
 // ---===! client !===--- Секция клиентов
 
-function _clientLink($arr) {
-	if(empty($arr))
-		return array();
-	$id = false;
-	if(!is_array($arr)) {
-		$id = $arr;
-		$arr = array($arr);
+function _clientLink($arr, $fio=0) {//Добавление имени и ссылки клиента в массив или возврат по id
+	$clientArr = array(is_array($arr) ? 0 : $arr);
+	if(is_array($arr)) {
+		$ass = array();
+		foreach($arr as $r) {
+			$clientArr[$r['client_id']] = $r['client_id'];
+			if($r['client_id'])
+				$ass[$r['client_id']][] = $r['id'];
+		}
+		unset($clientArr[0]);
 	}
-	$sql = "SELECT `id`,`fio`,`status` FROM `client` WHERE `id` IN (".implode(',', $arr).")";
-	$q = query($sql);
-	$send = array();
-	while($r = mysql_fetch_assoc($q))
-		$send[$r['id']] = '<a '.($r['status'] ? '' : 'class="deleted"').' href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
-	if($id)
-		return $send[$id];
-	return $send;
-}//_clientsLink()
+	if(!empty($clientArr)) {
+		$sql = "SELECT
+					`id`,
+					`fio`,
+					`deleted`
+		        FROM `client`
+				WHERE `id` IN (".implode(',', $clientArr).")";
+		$q = query($sql);
+		if(!is_array($arr)) {
+			if($r = mysql_fetch_assoc($q))
+				return $fio ? $r['fio'] : '<a'.($r['deleted'] ? ' class="deleted"' : '').' href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
+			return '';
+		}
+		while($r = mysql_fetch_assoc($q))
+			foreach($ass[$r['id']] as $id) {
+				$arr[$id]['client_link'] = '<a'.($r['deleted'] ? ' class="deleted"' : '').' href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
+				$arr[$id]['client_fio'] = $r['fio'];
+			}
+	}
+	return $arr;
+}//_clientLink()
 function clientBalansUpdate($client_id) {//Обновление баланса клиента
-	$prihod = query_value("SELECT SUM(`sum`) FROM `money` WHERE `deleted`=0 AND `client_id`=".$client_id." AND `sum`>0");
+	$prihod = query_value("SELECT SUM(`sum`) FROM `money` WHERE `deleted`=0 AND `zayav_id`>0 AND `client_id`=".$client_id." AND `sum`>0");
 	$acc = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE `status`=1 AND `client_id`=".$client_id);
 	$dog = query_value("SELECT SUM(`sum`) FROM `zayav_dogovor` WHERE `deleted`=0 AND `client_id`=".$client_id);
 	$balans = $prihod - $acc - $dog;
@@ -476,7 +491,7 @@ function clientFilter($v) {
 	return $filter;
 }//clientFilter()
 function client_data($page=1, $filter=array()) {
-	$cond = "`status`=1";
+	$cond = "`deleted`=0";
 	$reg = '';
 	$regEngRus = '';
 	if(!empty($filter['fast'])) {
@@ -541,9 +556,20 @@ function client_data($page=1, $filter=array()) {
 	while($r = mysql_fetch_assoc($q))
 		$spisok[$r['id']]['zayav_count'] = $r['count'];
 
+	$sql = "SELECT
+				`table_id` AS `id`
+			FROM `vk_comment`
+			WHERE `status`=1
+			  AND `table_name`='client'
+			  AND `table_id` IN (".implode(',', array_keys($spisok)).")
+			GROUP BY `table_id`";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$spisok[$r['id']]['comm'] = 1;
+
 	$send['spisok'] = '';
 	foreach($spisok as $r)
-		$send['spisok'] .= '<div class="unit">'.
+		$send['spisok'] .= '<div class="unit'.(isset($r['comm']) ? ' i' : '').'">'.
 			($r['balans'] ? '<div class="balans">Баланс: <b style=color:#'.($r['balans'] < 0 ? 'A00' : '090').'>'.$r['balans'].'</b></div>' : '').
 			'<table>'.
 				'<tr><td class="label">Имя:<td><a href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>'.
@@ -576,7 +602,7 @@ function client_list($data) {
 }//client_list()
 function client_count($count, $dolg=0) {
 	if($dolg)
-		$dolg = abs(query_value("SELECT SUM(`balans`) FROM `client` WHERE `status`!=0 AND `balans`<0 LIMIT 1"));
+		$dolg = abs(query_value("SELECT SUM(`balans`) FROM `client` WHERE `deleted`>0 AND `balans`<0 LIMIT 1"));
 	return ($count > 0 ?
 		'Найден'._end($count, ' ', 'о ').$count.' клиент'._end($count, '', 'а', 'ов').
 		($dolg ? '<em>(Общая сумма долга = '.$dolg.' руб.)</em>' : '')
@@ -606,7 +632,7 @@ function clientInfoGet($client) {
 
 }
 function client_info($client_id) {
-	$sql = "SELECT * FROM `client` WHERE `status`=1 AND `id`=".$client_id;
+	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$client_id;
 	if(!$client = mysql_fetch_assoc(query($sql)))
 		return _noauth('Клиента не существует');
 
@@ -635,9 +661,9 @@ function client_info($client_id) {
 		);
 		if($r['zamer_status'] == 1 || $r['zamer_status'] == 3)
 			$zayavSpisok .= zamer_unit($r, 1);
-		elseif($r['dogovor_nomer'] == 0)
+		elseif(!$r['dogovor_nomer'] && $r['dogovor_require'] && ($r['zamer_status'] == 2 || $r['set_status']))
 			$zayavSpisok .= dogovor_unit($r, 1);
-		elseif($r['dogovor_nomer'] > 0 && $r['set_status'] > 0)
+		elseif(($r['dogovor_nomer'] || !$r['dogovor_require']) && $r['set_status'])
 			$zayavSpisok .= set_unit($r, 1);
 	}
 
@@ -706,6 +732,9 @@ function client_info($client_id) {
 function _zamerLink($zayav_id, $zamer_nomer) {
 	return '<a href="'.URL.'&p=zayav&d=info&id='.$zayav_id.'">№'.$zamer_nomer.'</a>';
 }//_zamerLink()
+function _zamerSet($zayav_id, $set_nomer) {
+	return '<a href="'.URL.'&p=zayav&d=info&id='.$zayav_id.'">№'.$set_nomer.'</a>';
+}//_zamerSet()
 function _zayavStatus($id=false) {
 	$arr = array(
 		'0' => array(
@@ -784,15 +813,30 @@ function zayav() {
 			$spisok = $data['spisok'];
 			break;
 		case 'set':
-			$right = '<div id="buttonCreate"><a>Новая заявка<br />на установку</a></div>';
+			$right = '<div id="buttonCreate" class="set_add"><a>Новая заявка<br />на установку</a></div>';
 			$data = set_spisok();
 			$result = $data['result'];
 			$spisok = $data['spisok'];
 			break;
 	}
-	$zamerCount = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE `deleted`=0 AND `zamer_status`=1 LIMIT 1");
-	$dogovorCount = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE `deleted`=0 AND `zamer_status`=2 AND `dogovor_nomer`=0 LIMIT 1");
-	$setCount = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE `deleted`=0 AND `set_status`=1 LIMIT 1");
+	$zamerCount = query_value("SELECT COUNT(`id`) AS `all`
+							   FROM `zayav`
+							   WHERE `deleted`=0
+							     AND (`zamer_status`=1 OR `zamer_status`=3)
+							   LIMIT 1");
+	$dogovorCount = query_value("SELECT COUNT(`id`) AS `all`
+								 FROM `zayav`
+								 WHERE `deleted`=0
+								   AND `dogovor_nomer`=0
+								   AND `dogovor_require`=1
+								   AND (`zamer_status`=2 OR `set_status`>0)
+								 LIMIT 1");
+	$setCount = query_value("SELECT COUNT(`id`) AS `all`
+	                         FROM `zayav`
+	                         WHERE `deleted`=0
+	                           AND (`dogovor_nomer`>0 OR `dogovor_require`=0)
+	                           AND `set_status`=1
+							 LIMIT 1");
 	return
 	'<div id="zayav">'.
 		'<div id="dopLinks">'.
@@ -809,7 +853,7 @@ function zayav() {
 	'</div>';
 }//zayav()
 function zamer_spisok($page=1, $filter=array()) {
-	$cond = "(`zamer_status`=1 OR `zamer_status`=3)";
+	$cond = "`deleted`=0 AND (`zamer_status`=1 OR `zamer_status`=3)";
 
 	if(empty($filter['desc']))
 		$filter['desc'] = 'DESC';
@@ -836,22 +880,17 @@ function zamer_spisok($page=1, $filter=array()) {
 			LIMIT ".$start.",".$limit;
 	$q = query($sql);
 	$zayav = array();
-	$client = array();
 	while($r = mysql_fetch_assoc($q)) {
 		if(isset($zayav_id) && $zayav_id == $r['id'])
 			continue;
 		$zayav[$r['id']] = $r;
-		$client[$r['client_id']] = $r['client_id'];
 	}
 
-	if(empty($filter['client']))
-		$client = _clientLink($client);
+	$zayav = _clientLink($zayav);
 
 	$send['spisok'] = '';
-	foreach($zayav as $r) {
-		$r['client'] = $client[$r['client_id']];
+	foreach($zayav as $r)
 		$send['spisok'] .= zamer_unit($r);
-	}
 	if($start + $limit < $send['all']) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
@@ -868,13 +907,16 @@ function zamer_unit($r, $no_client=0) {
 		'<div class="dtime">'.FullData($r['dtime_add'], 1).'</div>'.
 		'<a class="name">Замер №'.$r['zamer_nomer'].'</a>'.
 		'<table class="ztab">'.
-			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client']).
+			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
 			'<tr><td class="label top">Адрес:<td>'.$r['adres'].
 		'</table>'.
 	'</div>';
 }//zamer_unit()
 function dogovor_spisok($page=1, $filter=array()) {
-	$cond = "`zamer_status`=2 AND `dogovor_nomer`=0";
+	$cond = "`deleted`=0
+		 AND `dogovor_nomer`=0
+		 AND `dogovor_require`=1
+		 AND (`zamer_status`=2 OR `set_status`>0)";
 
 	if(empty($filter['desc']))
 		$filter['desc'] = 'DESC';
@@ -901,22 +943,17 @@ function dogovor_spisok($page=1, $filter=array()) {
 			LIMIT ".$start.",".$limit;
 	$q = query($sql);
 	$zayav = array();
-	$client = array();
 	while($r = mysql_fetch_assoc($q)) {
 		if(isset($zayav_id) && $zayav_id == $r['id'])
 			continue;
 		$zayav[$r['id']] = $r;
-		$client[$r['client_id']] = $r['client_id'];
 	}
 
-	if(empty($filter['client']))
-		$client = _clientLink($client);
+	$zayav = _clientLink($zayav);
 
 	$send['spisok'] = '';
-	foreach($zayav as $r) {
-		$r['client'] = $client[$r['client_id']];
+	foreach($zayav as $r)
 		$send['spisok'] .= dogovor_unit($r);
-	}
 	if($start + $limit < $send['all']) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
@@ -931,15 +968,19 @@ function dogovor_unit($r, $no_client=0) {
 	return
 	'<div class="zayav_unit" val="'.$r['id'].'">'.
 		'<div class="dtime">'.FullData($r['dtime_add'], 1).'</div>'.
-		'<a class="name">Договор не заключен <span>(замер №'.$r['zamer_nomer'].')</span></a>'.
+		'<a class="name">'.
+			'Договор не заключен '.
+			'<span>('.($r['zamer_nomer'] ? 'Замер №'.$r['zamer_nomer'] : 'Установка №'.$r['set_nomer']).')</span></a>'.
 		'<table class="ztab">'.
-			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client']).
+			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
 			'<tr><td class="label top">Адрес:<td>'.$r['adres'].
 		'</table>'.
 	'</div>';
 }//zamer_unit()
 function set_spisok($page=1, $filter=array()) {
-	$cond = "`zamer_status`!=1 && `zamer_status`!=3 AND `dogovor_nomer`>0";
+	$cond = "`deleted`=0
+	     AND (`dogovor_nomer`>0 OR `dogovor_require`=0)
+	     AND `set_status`=1";
 
 	if(empty($filter['desc']))
 		$filter['desc'] = 'DESC';
@@ -966,22 +1007,17 @@ function set_spisok($page=1, $filter=array()) {
 			LIMIT ".$start.",".$limit;
 	$q = query($sql);
 	$zayav = array();
-	$client = array();
 	while($r = mysql_fetch_assoc($q)) {
 		if(isset($zayav_id) && $zayav_id == $r['id'])
 			continue;
 		$zayav[$r['id']] = $r;
-		$client[$r['client_id']] = $r['client_id'];
 	}
 
-	if(empty($filter['client']))
-		$client = _clientLink($client);
+	$zayav = _clientLink($zayav);
 
 	$send['spisok'] = '';
-	foreach($zayav as $r) {
-		$r['client'] = $client[$r['client_id']];
+	foreach($zayav as $r)
 		$send['spisok'] .= set_unit($r);
-	}
 	if($start + $limit < $send['all']) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
@@ -996,14 +1032,24 @@ function set_unit($r, $no_client=0) {
 	return
 	'<div class="zayav_unit" style="background-color:#'._zayavStatusColor($r['set_status']).'" val="'.$r['id'].'">'.
 		'<div class="dtime">'.FullData($r['dtime_add'], 1).'</div>'.
-		'<a class="name">Установка №'.$r['set_nomer'].'</a>'.
+		'<a class="name">'.
+			'Установка №'.$r['set_nomer'].
+			($r['zamer_nomer'] ? ' <span>(Замер №'.$r['zamer_nomer'].')</span>' : '').
+		'</a>'.
 		'<table class="ztab">'.
-			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client']).
+			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
 			'<tr><td class="label top">Адрес:<td>'.$r['adres'].
 		'</table>'.
 	'</div>';
 }//zamer_unit()
 
+function zayav_dtime($z) {
+	return
+	'<div class="dtime_add">Заявку вн'.(_viewer($z['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '.
+		_viewer($z['viewer_id_add'], 'name').' '.
+		FullDataTime($z['dtime_add']).
+	'</div>';
+}//zayav_dtime()
 function zayav_info($zayav_id) {
 	$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id." LIMIT 1";
 	if(!$r = mysql_fetch_assoc(query($sql)))
@@ -1011,9 +1057,9 @@ function zayav_info($zayav_id) {
 
 	if($r['zamer_status'] == 1 || $r['zamer_status'] == 3)
 		return zamer_info($r);
-	if($r['dogovor_nomer'] == 0)
+	if(!$r['dogovor_nomer'] && $r['dogovor_require'] && ($r['zamer_status'] == 2 || $r['set_status']))
 		return dogovor_info($r);
-	if($r['dogovor_nomer'] > 0 && $r['set_status'] > 0)
+	if(($r['dogovor_nomer'] || !$r['dogovor_require']) && $r['set_status'])
 		return set_info($r);
 	return _noauth('Неизвестная заявка');
 }//zayav_info()
@@ -1025,7 +1071,8 @@ function zamer_info($z) {
 		'<script type="text/javascript">'.
 			'var ZAYAV={'.
 				'id:'.$z['id'].','.
-				'client_id:'.$z['client_id'].','.
+				'zamer_nomer:'.$z['zamer_nomer'].','.
+				'client_fio:"'._clientLink($z['client_id'], 1).'",'.
 				'product:['.zayav_product_spisok($z['id'], 'json').'],'.
 				'adres:"'.$z['adres'].'",'.
 				'day:"'.$ex[0].'",'.
@@ -1038,17 +1085,15 @@ function zamer_info($z) {
 			'<div id="dopLinks">'.
 				'<a class="delete">Удалить замер</a>'.
 				'<a class="link sel zinfo">Информация</a>'.
-				'<a class="link zedit">Редактирование</a>'.
+				'<a class="link zamer_edit">Редактирование</a>'.
 				'<a class="link hist">История</a>'.
 			'</div>'.
 			'<div class="headName">Заявка на замер №'.$z['zamer_nomer'].'</div>'.
 			'<div class="content">'.
 				'<table class="tabInfo">'.
 					'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
-					'<tr><td class="label">Дата приёма:'.
-						'<td class="dtime_add" title="Заявку внёс '._viewer($z['viewer_id_add'], 'name').'">'.FullDataTime($z['dtime_add']).
 					'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).
-					'<tr><td class="label">Адрес замера:<td>'.$z['adres'].
+					'<tr><td class="label">Адрес замера:<td><b>'.$z['adres'].'</b>'.
 					'<tr><td class="label">Дата замера:'.
 						'<td><span class="zamer-dtime" title="'._zamerDuration($z['zamer_duration']).'">'.FullDataTime($z['zamer_dtime']).'</span>'.
 							($z['zamer_status'] == 1 ? '<span class="zamer-left">'.remindDayLeft($z['zamer_dtime']).'</span>' : '').
@@ -1057,19 +1102,23 @@ function zamer_info($z) {
 								_zayavStatusName($z['zamer_status']).
 							'</div>'.
 				'</table>'.
+				zayav_dtime($z).
 				_vkComment('zayav', $z['id']).
 			'</div>'.
 		'<div class="histories">'.report_history_spisok(1, array('zayav_id'=>$z['id'])).'</div>'.
 	'</div>';
 }//zamer_info()
 function dogovor_info($z) {
-	$sql = "SELECT * FROM `client` WHERE `id`=".$z['client_id'];
+	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$z['client_id'];
 	$client = mysql_fetch_assoc(query($sql));
 
 	return
 	'<script type="text/javascript">'.
 		'var ZAYAV={'.
-			'id:'.$z['id'].
+			'id:'.$z['id'].','.
+			'client_fio:"'.$client['fio'].'",'.
+			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
+			'adres:"'.$z['adres'].'"'.
 		'};'.
 		'DOG={'.
 			'fio:"'.$client['fio'].'",'.
@@ -1081,53 +1130,66 @@ function dogovor_info($z) {
 			'pasp_data:"'.$client['pasp_data'].'"'.
 		'};'.
 	'</script>'.
-	'<div class="zayav-info">'.
+	'<div class="zayav-info dog">'.
 		'<div id="dopLinks">'.
 			'<a class="delete">Удалить заявку</a>'.
 			'<a class="link sel zinfo">Информация</a>'.
-			'<a class="link zedit">Редактирование</a>'.
+			'<a class="link dog_edit">Редактирование</a>'.
 			'<a class="link hist">История</a>'.
 		'</div>'.
-		'<div class="headName">Замер №'.$z['zamer_nomer'].' - ожидание решения клиента</div>'.
+		'<div class="headName">'.($z['zamer_nomer'] ? 'Замер №'.$z['zamer_nomer'] : 'Установка №'.$z['set_nomer']).' - ожидание заключения договора</div>'.
 		'<div class="content">'.
 			'<table class="tabInfo">'.
 				'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
-//				'<tr><td class="label">Дата приёма:'.
-//					'<td class="dtime_add" title="Заявку внёс '._viewer($z['viewer_id_add'], 'name').'">'.FullDataTime($z['dtime_add']).
 				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).
-				'<tr><td class="label">Адрес:<td>'.$z['adres'].
+				'<tr><td class="label">Адрес установки:<td><b>'.$z['adres'].'</b>'.
+	($z['zamer_nomer'] ?
 				'<tr><td class="label">Статус замера:'.
-					'<td><div style="background-color:#'._zayavStatusColor(2).'" class="status">'._zayavStatusName(2).'</div>'.
+					'<td><div style="background-color:#'._zayavStatusColor(2).'" class="status">'._zayavStatusName(2).'</div>'
+	: '').
 			'</table>'.
 			'<div class="vkButton dogovor_create"><button>Заключить договор</button></div>'.
+			'<a class="dogovor_no_require">Договор не требуется</a>'.
 			_vkComment('zayav', $z['id']).
 		'</div>'.
 		'<div class="histories">'.report_history_spisok(1, array('zayav_id'=>$z['id'])).'</div>'.
 	'</div>';
 }//dogovor_info()
 function set_info($z) {
-	$sql = "SELECT * FROM `zayav_dogovor` WHERE `zayav_id`=".$z['id'];
-	$q = query($sql);
-	$dog = array();
+	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$z['client_id'];
+	$client = mysql_fetch_assoc(query($sql));
+
+	$dog = array(
+		'id' => 0,
+		'fio' => $client['fio'],
+		'adres' => $client['adres'],
+		'pasp_empty' => 1,
+		'sum' => '',
+		'avans' => ''
+	);
 	$dogSpisok = '';
-	while($r = mysql_fetch_assoc($q)) {
-		if(!$r['deleted'])
-			$dog = $r;
-		$ex = explode(' ', $r['dtime_add']);
-		$d = explode('-', $ex[0]);
-		$data = $d[2].'/'.$d[1].'/'.$d[0];
-		$reason = $r['reason'] ? "\n".$r['reason'] : '';
-		$title = 'от '.$data.' г. на сумму '.$r['sum'].' руб.'.$reason;
-		$del = $r['deleted'] ? ' d' : '';
-		$dogSpisok .= '<b class="dogn'.$del.'" title="'.$title.'">№'.$r['id'].'</b> '._dogLink($r['id'], '', 'img_word');
+	if($z['dogovor_nomer']) {
+		$sql = "SELECT * FROM `zayav_dogovor` WHERE `zayav_id`=".$z['id'];
+		$q = query($sql);
+		while($r = mysql_fetch_assoc($q)) {
+			if(!$r['deleted'])
+				$dog = $r;
+			$ex = explode(' ', $r['dtime_add']);
+			$d = explode('-', $ex[0]);
+			$data = $d[2].'/'.$d[1].'/'.$d[0];
+			$reason = $r['reason'] ? "\n".$r['reason'] : '';
+			$title = 'от '.$data.' г. на сумму '.$r['sum'].' руб.'.$reason;
+			$del = $r['deleted'] ? ' d' : '';
+			$dogSpisok .= '<b class="dogn'.$del.'" title="'.$title.'">№'.$r['id'].'</b> '._dogLink($r['id'], '', 'img_word');
+		}
+		$dogSpisok .= '<a class="reneg">Перезаключить</a>';
+	} else {
+		$dogSpisok = '<input type="hidden" id="dogovor_action" />';
 	}
-	$dogSpisok .= '<a class="reneg">Перезаключить</a>';
 
 	$money = money_spisok(1, array('zayav_id'=>$z['id']));
 
 	if($dog['pasp_empty']) {
-		$sql = "SELECT * FROM `client` WHERE `id`=".$z['client_id'];
-		$client = mysql_fetch_assoc(query($sql));
 		$dog['pasp_seria'] = $client['pasp_seria'];
 		$dog['pasp_nomer'] = $client['pasp_nomer'];
 		$dog['pasp_adres'] = $client['pasp_adres'];
@@ -1139,6 +1201,11 @@ function set_info($z) {
 	'<script type="text/javascript">'.
 		'var ZAYAV={'.
 			'id:'.$z['id'].','.
+			'set_nomer:'.$z['set_nomer'].','.
+			'client_fio:"'.$client['fio'].'",'.
+			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
+			'adres:"'.$z['adres'].'",'.
+			'nomer_vg:"'.$z['nomer_vg'].'"'.
 		'},'.
 		'DOG={'.
 			'nomer:'.$dog['id'].','.
@@ -1149,8 +1216,8 @@ function set_info($z) {
 			'pasp_adres:"'.$dog['pasp_adres'].'",'.
 			'pasp_ovd:"'.$dog['pasp_ovd'].'",'.
 			'pasp_data:"'.$dog['pasp_data'].'",'.
-			'sum:'.$dog['sum'].','.
-			'avans:'.$dog['avans'].
+			'sum:"'.$dog['sum'].'",'.
+			'avans:"'.$dog['avans'].'"'.
 		'},'.
 		'OPL={'.
 			'from:"zayav",'.
@@ -1160,11 +1227,11 @@ function set_info($z) {
 			'zayav_name:"<b>№'.$z['id'].'</b>"'.
 		'};'.
 	'</script>'.
-	'<div class="zayav-info">'.
+	'<div class="zayav-info set">'.
 		'<div id="dopLinks">'.
 //			'<a class="delete">Удалить заявку</a>'.
 			'<a class="link sel zinfo">Информация</a>'.
-			'<a class="link zedit">Редактирование</a>'.
+			'<a class="link set_edit">Редактирование</a>'.
 			'<a class="link">Начислить</a>'.
 			'<a class="link oplata-add">Внести платёж</a>'.
 			'<a class="link hist">История</a>'.
@@ -1173,14 +1240,16 @@ function set_info($z) {
 		'<div class="content">'.
 			'<table class="tabInfo">'.
 				'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
-//				'<tr><td class="label">Дата приёма:'.
-//					'<td class="dtime_add" title="Заявку внёс '._viewer($z['viewer_id_add'], 'name').'">'.FullDataTime($z['dtime_add']).
-				'<tr><td class="label">Договор:<td>'.$dogSpisok.
 				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).
-				'<tr><td class="label">Адрес установки:<td>'.$z['adres'].
+				'<tr><td class="label">Адрес установки:<td><b>'.$z['adres'].'</b>'.
+				'<tr><td class="label">Договор:<td>'.$dogSpisok.
+				'<tr><td class="label">Номер ВГ:'.
+					'<td>'.($z['nomer_vg'] ? $z['nomer_vg'] : '<span class="vg_none">не указан</span>').
+						'<a class="vg_file">Прикрепить файл</a>'.
 				'<tr><td class="label">Статус:'.
 					'<td><div style="background-color:#'._zayavStatusColor($z['set_status']).'" class="status">'._zayavStatusName($z['set_status']).'</div>'.
 			'</table>'.
+			zayav_dtime($z).
 			'<div class="headBlue'.($money['all'] ? '' : ' dn').'">Платежи<a class="add oplata-add">Внести платёж</a></div>'.
 			'<div id="money_spisok">'.($money['all'] ? $money['spisok'] : '').'</div>'.
 			_vkComment('zayav', $z['id']).
@@ -1846,12 +1915,12 @@ function history_insert($arr) {
 }//history_insert()
 function history_types($v) {
 	switch($v['type']) {
-		case 1: return 'Внесение нового клиента '.$v['client'].'.';
-		case 2: return 'Изменение данных клиента '.$v['client'].':<div class="changes">'.$v['value'].'</div>';
-		case 3: return 'Удаление клиента '.$v['client'].'.';
+		case 1: return 'Внесение нового клиента '.$v['client_link'].'.';
+		case 2: return 'Изменение данных клиента '.$v['client_link'].':<div class="changes">'.$v['value'].'</div>';
+		case 3: return 'Удаление клиента '.$v['client_link'].'.';
 
-		case 4: return 'Внесение новой заявки на замер '._zamerLink($v['zayav_id'], $v['value']).' для клиента '.$v['client'].'.';
-		case 5: return 'Изменение данных заявки '.$v['zayav'].':<div class="changes">'.$v['value'].'</div>';
+		case 4: return 'Внесение новой заявки на замер '._zamerLink($v['zayav_id'], $v['value']).' для клиента '.$v['client_link'].'.';
+		case 5: return 'Изменение данных замера '._zamerLink($v['zayav_id'], $v['value']).':<div class="changes">'.$v['value1'].'</div>';
 		case 6: return 'Удаление заявки '.$v['zayav'].'.';
 
 		case 7: return 'Начисление на сумму <b>'.$v['value'].'</b> руб.'.($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').' по заявке '.$v['zayav'].'.';
@@ -1862,17 +1931,20 @@ function history_types($v) {
 			'Платёж <span class="oplata">'._prihodType($v['value2']).'</span> '.
 			'на сумму <b>'.$v['value'].'</b> руб.'.
 			($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
-			' по заявке '._zamerLink($v['zayav_id'], $v['zayav_id']).'.';
+			($v['zayav_id'] ? ' по заявке '._zamerLink($v['zayav_id'], $v['zayav_id']) : '').
+			'.';
 		case 11: return
 			'Удаление платежа <span class="oplata">'._prihodType($v['value2']).'</span> '.
 			'на сумму <b>'.$v['value'].'</b> руб.'.
 			($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
-			' у заявки '._zamerLink($v['zayav_id'], $v['zayav_id']).'.';
+			($v['zayav_id'] ? ' у заявки '._zamerLink($v['zayav_id'], $v['zayav_id']) : '').
+			'.';
 		case 12: return
 			'Восстановление платежа <span class="oplata">'._prihodType($v['value2']).'</span> '.
 			'на сумму <b>'.$v['value'].'</b> руб.'.
-			($v['value1'] ? '<span class="prim">('.$v['value1'].')</span>' : '').
-			' у заявки '._zamerLink($v['zayav_id'], $v['zayav_id']).'.';
+			($v['value1'] ? ' <span class="prim">('.$v['value1'].')</span>' : '').
+			($v['zayav_id'] ? ' у заявки '._zamerLink($v['zayav_id'], $v['zayav_id']) : '').
+			'.';
 
 		case 13: return 'Добавление нового сотрудника '._viewer($v['value'], 'link').'.';
 		case 14: return 'Удаление сотрудника '._viewer($v['value'], 'link').'.';
@@ -1890,6 +1962,9 @@ function history_types($v) {
 			'Внесение авансового платежа на  на сумму <b>'.$v['value2'].'</b> руб.'.
 			' для замера '._zamerLink($v['zayav_id'], $v['value']).
 			' при заключении '._dogLink($v['value1'], 'договора №'.$v['value1']).'.';
+
+		case 21: return 'Внесение новой заявки на установку '._zamerSet($v['zayav_id'], $v['value']).' для клиента '.$v['client_link'].'.';
+		case 22: return 'Изменение данных заявки на установку '._zamerSet($v['zayav_id'], $v['value']).':<div class="changes">'.$v['value1'].'</div>';
 
 		case 501: return 'В установках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В установках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -1929,32 +2004,27 @@ function report_history_spisok($page=1, $filter=array()) {
 	$q = query($sql);
 	$history = array();
 	$viewer = array();
-	$client = array();
 	while($r = mysql_fetch_assoc($q)) {
 		$viewer[$r['viewer_id_add']] = $r['viewer_id_add'];
-		if($r['client_id'])
-			$client[$r['client_id']] = $r['client_id'];
-		$history[] = $r;
+		$history[$r['id']] = $r;
 	}
 	$viewer = _viewer($viewer);
-	$client = _clientLink($client);
+	$history = _clientLink($history);
 	$send = '';
-	$time = strtotime($history[0]['dtime_add']);
+	$time = strtotime($history[key($history)]['dtime_add']);
 	$txt = '';
-	$viewer_id = $history[0]['viewer_id_add'];
-	$count = count($history) - 1;
-	foreach($history as $n => $r) {
+	$viewer_id = $history[key($history)]['viewer_id_add'];
+	foreach($history as $r) {
 		if(!$time) {
 			$time = strtotime($r['dtime_add']);
 			$txt = '';
 			$viewer_id = $r['viewer_id_add'];
 		}
-		if($r['client_id'])
-			$r['client'] = $client[$r['client_id']];
 		$txt .= '<div class="txt">'.history_types($r).'</div>';
-		if($count == $n
-		   || $time - strtotime($history[$n + 1]['dtime_add']) > 600
-		   || $viewer_id != $history[$n + 1]['viewer_id_add']) {
+		$key = key($history);
+		if(!$key ||
+		   $time - strtotime($history[$key]['dtime_add']) > 900 ||
+		   $viewer_id != $history[$key]['viewer_id_add']) {
 			$time = 0;
 			$send .=
 			'<div class="history_unit">'.
@@ -1962,6 +2032,7 @@ function report_history_spisok($page=1, $filter=array()) {
 				$txt.
 			'</div>';
 		}
+		next($history);
 	}
 	if($start + $limit < $all)
 		$send .= '<div class="ajaxNext" id="report_history_next" val="'.($page + 1).'"><span>Далее...</span></div>';

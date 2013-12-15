@@ -116,7 +116,7 @@ switch(@$_POST['op']) {
 		$client_id = intval($_POST['client_id']);
 		$sql = "SELECT *
 				FROM `client`
-				WHERE `status`=1".
+				WHERE `deleted`=0".
 					(!empty($val) ? " AND (`fio` LIKE '%".$val."%' OR `telefon` LIKE '%".$val."%' OR `adres` LIKE '%".$val."%')" : '').
 					($client_id > 0 ? " AND `id`<=".$client_id : '')."
 				ORDER BY `id` DESC
@@ -209,7 +209,7 @@ switch(@$_POST['op']) {
 		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
 		if(empty($fio))
 			jsonError();
-		$sql = "SELECT * FROM `client` WHERE `status`=1 AND `id`=".$client_id;
+		$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$client_id;
 		if(!$client = mysql_fetch_assoc(query($sql)))
 			jsonError();
 		query("UPDATE `client` SET
@@ -269,9 +269,9 @@ switch(@$_POST['op']) {
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
 		$client_id = intval($_POST['id']);
-		if(!query_value("SELECT COUNT(`id`) FROM `client` WHERE `status`=1 AND `id`=".$client_id))
+		if(!query_value("SELECT COUNT(`id`) FROM `client` WHERE `deleted`=0 AND `id`=".$client_id))
 			jsonError();
-		query("UPDATE `client` SET `status`=0 WHERE `id`=".$client_id);
+		query("UPDATE `client` SET `deleted`=1 WHERE `id`=".$client_id);
 		query("UPDATE `zayav` SET `status`=0 WHERE `client_id`=".$client_id);
 		query("UPDATE `money` SET `deleted`=1 WHERE `client_id`=".$client_id);
 		history_insert(array(
@@ -315,10 +315,14 @@ switch(@$_POST['op']) {
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
 		$comm = win1251(htmlspecialchars(trim($_POST['comm'])));
 
+		if(empty($adres))
+			jsonError();
+
 		$nomer = _maxSql('zayav', 'zamer_nomer');
 		$sql = "INSERT INTO `zayav` (
 					`client_id`,
 					`zamer_nomer`,
+					`zamer_status`,
 					`zamer_dtime`,
 					`zamer_duration`,
 					`adres`,
@@ -326,6 +330,7 @@ switch(@$_POST['op']) {
 				) VALUES (
 					".$client_id.",
 					".$nomer.",
+					1,
 					'".$zamer_dtime."',
 					".$zamer_duration.",
 					'".$adres."',
@@ -441,7 +446,7 @@ switch(@$_POST['op']) {
 				break;
 			case 2:
 				if($zayav['zamer_status'] != 2) {
-					$sql = "UPDATE `zayav` SET `zamer_status`=2 WHERE `id`=".$zayav_id;
+					$sql = "UPDATE `zayav` SET `zamer_status`=2,`dogovor_require`=1 WHERE `id`=".$zayav_id;
 					query($sql);
 					history_insert(array(
 						'type' => 16,
@@ -471,67 +476,42 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
-	case 'zayav_spisok_load':
-		$_POST['find'] = win1251($_POST['find']);
-		$data = zayav_data(1, zayavfilter($_POST));
-		$send['all'] = utf8(zayav_count($data['all']));
-		$send['html'] = utf8(zayav_spisok($data));
-		jsonSuccess($send);
-		break;
-	case 'zayav_next':
-		$_POST['find'] = win1251($_POST['find']);
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+	case 'zamer_edit':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
-		$send['html'] = utf8(zayav_spisok(zayav_data(intval($_POST['page']), zayavfilter($_POST))));
-		jsonSuccess($send);
-		break;
-	case 'zayav_edit':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
+		if(!preg_match(REGEXP_DATE, $_POST['zamer_day']))
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) && $_POST['client_id'] == 0)
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_hour']))
 			jsonError();
-		$zayav_id = intval($_POST['zayav_id']);
-		$client_id = intval($_POST['client_id']);
-//		$nomer_dog = win1251(htmlspecialchars(trim($_POST['nomer_dog'])));
-		$nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
-		$adres_set = win1251(htmlspecialchars(trim($_POST['adres_set'])));
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_min']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zamer_duration']) || !$_POST['zamer_duration'])
+			jsonError();
 
+		$zayav_id = intval($_POST['zayav_id']);
+		$zamer_dtime = $_POST['zamer_day'].' '.
+					   ($_POST['zamer_hour'] < 10 ? '0' : '').$_POST['zamer_hour'].':'.
+					   ($_POST['zamer_min'] < 10 ? '0' : '').$_POST['zamer_min'].':00';
+		$zamer_duration = intval($_POST['zamer_duration']);
+		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
 		$product = product_spisok_test($_POST['product']);
 		if(!$product)
 			jsonError();
+		if(empty($adres))
+			jsonError();
 
-		$sql = "SELECT * FROM `zayav` WHERE `id`=".$zayav_id." LIMIT 1";
+		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id." LIMIT 1";
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-//	 `nomer_dog`='".addslashes($nomer_dog)."',
-
-		$sql = "UPDATE `zayav` SET
-					`client_id`=".$client_id.",
-					`nomer_vg`='".addslashes($nomer_vg)."',
-					`client_id`=".$client_id.",
-					`adres_set`='".addslashes($adres_set)."'
+		$sql = "UPDATE `zayav`
+		        SET `adres`='".addslashes($adres)."',
+					`zamer_dtime`='".$zamer_dtime."',
+					`zamer_duration`=".$zamer_duration."
 				WHERE `id`=".$zayav_id;
 		query($sql);
 
-		if($zayav['client_id'] != $client_id) {
-			$sql = "UPDATE `accrual`
-					SET `client_id`=".$client_id."
-					WHERE `zayav_id`=".$zayav_id."
-					  AND `client_id`=".$zayav['client_id'];
-			query($sql);
-			$sql = "UPDATE `money`
-					SET `client_id`=".$client_id."
-					WHERE `zayav_id`=".$zayav_id."
-					  AND `client_id`=".$zayav['client_id'];
-			query($sql);
-			clientBalansUpdate($zayav['client_id']);
-			clientBalansUpdate($client_id);
-		}
-
 		$changes = '';
-		if($zayav['client_id'] != $client_id)
-			$changes .= '<tr><th>Клиент:<td>'._clientLink($zayav['client_id']).'<td>»<td>'._clientLink($client_id);
 		$productOld = zayav_product_spisok($zayav_id, 'array');
 		if($product != $productOld) {
 			$sql = "DELETE FROM `zayav_product` WHERE `zayav_id`=".$zayav_id;
@@ -558,19 +538,213 @@ switch(@$_POST['op']) {
 				$new[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
 			$changes .= '<tr><th>Изделия:<td>'.implode('<br />', $old).'<td>»<td>'.implode('<br />', $new);
 		}
-//		if($zayav['nomer_dog'] != $nomer_dog)
-//			$changes .= '<tr><th>Номер договора:<td>'.$zayav['nomer_dog'].'<td>»<td>'.$nomer_dog;
-		if($zayav['nomer_vg'] != $nomer_vg)
-			$changes .= '<tr><th>Номер ВГ:<td>'.$zayav['nomer_vg'].'<td>»<td>'.$nomer_vg;
-		if($zayav['adres_set'] != $adres_set)
-			$changes .= '<tr><th>Адрес установки:<td>'.$zayav['adres_set'].'<td>»<td>'.$adres_set;
+		if($zayav['adres'] != $adres)
+			$changes .= '<tr><th>Адрес замера:<td>'.$zayav['adres'].'<td>»<td>'.$adres;
+		if($zayav['zamer_dtime'] != $zamer_dtime || $zayav['zamer_duration'] != $zamer_duration)
+			$changes .= '<tr><th>Время замера'.
+							'<td>'.FullDataTime($zayav['zamer_dtime']).', '._zamerDuration($zayav['zamer_duration']).
+							'<td>»'.
+							'<td>'.FullDataTime($zamer_dtime).', '._zamerDuration($zamer_duration);
 		if($changes)
 			history_insert(array(
 				'type' => 5,
 				'zayav_id' => $zayav_id,
-				'value' => '<table>'.$changes.'</table>'
+				'value' => $zayav['zamer_nomer'],
+				'value1' => '<table>'.$changes.'</table>'
 			));
 		jsonSuccess();
+		break;
+	case 'dog_edit':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
+			jsonError();
+
+		$zayav_id = intval($_POST['zayav_id']);
+		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+		$product = product_spisok_test($_POST['product']);
+		if(!$product)
+			jsonError();
+		if(empty($adres))
+			jsonError();
+
+		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `dogovor_nomer`=0 AND `id`=".$zayav_id." LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "UPDATE `zayav`
+		        SET `adres`='".addslashes($adres)."'
+				WHERE `id`=".$zayav_id;
+		query($sql);
+
+		$changes = '';
+		$productOld = zayav_product_spisok($zayav_id, 'array');
+		if($product != $productOld) {
+			$sql = "DELETE FROM `zayav_product` WHERE `zayav_id`=".$zayav_id;
+			query($sql);
+			foreach($product as $r) {
+				$sql = "INSERT INTO `zayav_product` (
+						`zayav_id`,
+						`product_id`,
+						`product_sub_id`,
+						`count`
+					) VALUES (
+						".$zayav_id.",
+						".$r[0].",
+						".$r[1].",
+						".$r[2]."
+					)";
+				query($sql);
+			}
+			$old = array();
+			foreach($productOld as $r)
+				$old[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
+			$new = array();
+			foreach($product as $r)
+				$new[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
+			$changes .= '<tr><th>Изделия:<td>'.implode('<br />', $old).'<td>»<td>'.implode('<br />', $new);
+		}
+		if($zayav['adres'] != $adres)
+			$changes .= '<tr><th>Адрес установки:<td>'.$zayav['adres'].'<td>»<td>'.$adres;
+		if($changes)
+			history_insert(array(
+				'type' => 22,
+				'zayav_id' => $zayav_id,
+				'value' => $zayav['set_nomer'],
+				'value1' => '<table>'.$changes.'</table>'
+			));
+		jsonSuccess();
+		break;
+	case 'set_add':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
+			jsonError();
+		$product = product_spisok_test($_POST['product']);
+		if(!$product)
+			jsonError();
+
+		$client_id = intval($_POST['client_id']);
+		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+		$comm = win1251(htmlspecialchars(trim($_POST['comm'])));
+
+		if(empty($adres))
+			jsonError();
+
+		$nomer = _maxSql('zayav', 'set_nomer');
+		$sql = "INSERT INTO `zayav` (
+					`client_id`,
+					`set_nomer`,
+					`set_status`,
+					`adres`,
+					`viewer_id_add`
+				) VALUES (
+					".$client_id.",
+					".$nomer.",
+					1,
+					'".$adres."',
+					".VIEWER_ID."
+				)";
+		query($sql);
+		$send['id'] = mysql_insert_id();
+
+		foreach($product as $r) {
+			$sql = "INSERT INTO `zayav_product` (
+						`zayav_id`,
+						`product_id`,
+						`product_sub_id`,
+						`count`
+					) VALUES (
+						".$send['id'].",
+						".$r[0].",
+						".$r[1].",
+						".$r[2]."
+					)";
+			query($sql);
+		}
+
+		_vkCommentAdd('zayav', $send['id'], $comm);
+
+		history_insert(array(
+			'type' => 21,
+			'client_id' => $client_id,
+			'zayav_id' => $send['id'],
+			'value' => $nomer
+		));
+		jsonSuccess($send);
+		break;
+	case 'set_edit':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
+			jsonError();
+
+		$zayav_id = intval($_POST['zayav_id']);
+		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+		$nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
+		$product = product_spisok_test($_POST['product']);
+		if(!$product)
+			jsonError();
+		if(empty($adres))
+			jsonError();
+
+		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `set_nomer`>0 AND `id`=".$zayav_id." LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "UPDATE `zayav`
+		        SET `adres`='".addslashes($adres)."',
+		            `nomer_vg`='".addslashes($nomer_vg)."'
+				WHERE `id`=".$zayav_id;
+		query($sql);
+
+		$changes = '';
+		$productOld = zayav_product_spisok($zayav_id, 'array');
+		if($product != $productOld) {
+			$sql = "DELETE FROM `zayav_product` WHERE `zayav_id`=".$zayav_id;
+			query($sql);
+			foreach($product as $r) {
+				$sql = "INSERT INTO `zayav_product` (
+						`zayav_id`,
+						`product_id`,
+						`product_sub_id`,
+						`count`
+					) VALUES (
+						".$zayav_id.",
+						".$r[0].",
+						".$r[1].",
+						".$r[2]."
+					)";
+				query($sql);
+			}
+			$old = array();
+			foreach($productOld as $r)
+				$old[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
+			$new = array();
+			foreach($product as $r)
+				$new[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
+			$changes .= '<tr><th>Изделия:<td>'.implode('<br />', $old).'<td>»<td>'.implode('<br />', $new);
+		}
+		if($zayav['adres'] != $adres)
+			$changes .= '<tr><th>Адрес установки:<td>'.$zayav['adres'].'<td>»<td>'.$adres;
+		if($zayav['nomer_vg'] != $nomer_vg)
+			$changes .= '<tr><th>Номер ВГ:<td>'.$zayav['nomer_vg'].'<td>»<td>'.$nomer_vg;
+		if($changes)
+			history_insert(array(
+				'type' => 22,
+				'zayav_id' => $zayav_id,
+				'value' => $zayav['set_nomer'],
+				'value1' => '<table>'.$changes.'</table>'
+			));
+		jsonSuccess();
+		break;
+	case 'zayav_spisok_load':
+		$_POST['find'] = win1251($_POST['find']);
+		$data = zayav_data(1, zayavfilter($_POST));
+		$send['all'] = utf8(zayav_count($data['all']));
+		$send['html'] = utf8(zayav_spisok($data));
+		jsonSuccess($send);
+		break;
+	case 'zayav_next':
+		$_POST['find'] = win1251($_POST['find']);
+		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+			jsonError();
+		$send['html'] = utf8(zayav_spisok(zayav_data(intval($_POST['page']), zayavfilter($_POST))));
+		jsonSuccess($send);
 		break;
 	case 'zayav_delete':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
@@ -947,6 +1121,48 @@ switch(@$_POST['op']) {
 
 		clientBalansUpdate($zayav['client_id']);
 
+		jsonSuccess();
+		break;
+	case 'dogovor_no_require':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
+			jsonError();
+
+		$zayav_id = intval($_POST['zayav_id']);
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `deleted`=0
+				  AND `dogovor_require`=1
+				  AND `id`=".$zayav_id."
+				LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		query("UPDATE `zayav`
+			   SET
+			    ".(!$zayav['set_nomer'] ? "`set_status`=1,`set_nomer`="._maxSql('zayav', 'set_nomer')."," : '')."
+			      `dogovor_require`=0
+			   WHERE `id`=".$zayav_id);
+		jsonSuccess();
+		break;
+	case 'dogovor_require':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
+			jsonError();
+
+		$zayav_id = intval($_POST['zayav_id']);
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `deleted`=0
+				  AND `dogovor_require`=0
+				  AND `id`=".$zayav_id."
+				LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		query("UPDATE `zayav`
+			   SET `dogovor_require`=1
+			   WHERE `id`=".$zayav_id);
 		jsonSuccess();
 		break;
 

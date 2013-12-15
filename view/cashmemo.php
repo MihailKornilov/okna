@@ -61,7 +61,8 @@ $doc->addParagraph(
 			'<td class="about">'.
 				'Оплата'.
 				($zayav['dogovor_nomer'] ? ' по договору №'.$zayav['dogovor_nomer'] : '').
-				' за '.zayav_product_spisok($r['zayav_id'], 'cash').
+				' за '.
+				($r['zayav_id'] ? zayav_product_spisok($r['zayav_id'], 'cash') : '"'.$r['prim'].'"').
 			'<td class="count">1.00'.
 			'<td class="sum">'.$r['sum'].'.00'.
 			'<td class="summa">'.$r['sum'].'.00'.
