@@ -17,6 +17,72 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
+	case 'attach_upload':
+		/*
+			Прикрепление файлов
+			1 - успешно
+			2 - некорректный owner
+			3 - неверный формат
+			4 - загрузить не удалось
+		*/
+		if(!preg_match(REGEXP_WORD, $_POST['owner'])) {
+			setcookie('_attached', 2, time() + 3600, '/');
+			exit;
+		}
+		$owner = htmlspecialchars(trim($_POST['owner']));
+		$f = $_FILES['f1']['name'] ? $_FILES['f1'] : $_FILES['f2'];
+		switch($f['type']) {
+			case 'application/rtf': break;
+			case 'application/msword': break;
+			case 'application/vnd.ms-excel': break;
+			default: setcookie('_attached', 3, time() + 3600, '/'); exit;
+		}
+		$dir = PATH.'files/vg/'.$owner;
+		if(!is_dir($dir))
+			mkdir($dir, 0777, true);
+		$fname = time().'_'.translit($f["name"]);
+		if(move_uploaded_file($f['tmp_name'], $dir.'/'.$fname)) {
+			$name = htmlspecialchars(trim($f["name"]));
+			$sql = "INSERT INTO `attach` (
+						`owner`,
+						`name`,
+						`link`,
+						`viewer_id_add`
+					) VALUES (
+						'".$owner."',
+						'".$name."',
+						'".SITE."/files/vg/".$owner."/".$fname."',
+						".VIEWER_ID."
+					)";
+			query($sql);
+			setcookie('_attached', 1, time() + 3600, '/');
+			echo '--ok';
+			exit;
+		}
+		setcookie('_attached', 4, time() + 3600, '/');
+		exit;
+	case 'attach_get':
+		if(!preg_match(REGEXP_WORD, $_POST['owner']))
+			jsonError();
+		$owner = htmlspecialchars(trim($_POST['owner']));
+		$send = array(
+			'files' => utf8(_attach_files($owner)),
+			'form' => _attach_form($owner)
+		);
+		jsonSuccess($send);
+		break;
+	case 'attach_del':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']) || !$_POST['id'])
+			jsonError();
+		$id = intval($_POST['id']);
+		$sql = "SELECT * FROM `attach` WHERE `id`=".$id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+		$sql = "DELETE FROM `attach` WHERE `id`=".$id;
+		query($sql);
+		jsonSuccess();
+		break;
+
 	case 'oplata_add':
 		$v = array(
 			'from' => trim($_POST['from']),

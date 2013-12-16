@@ -107,7 +107,7 @@ var hashLoc,
 		if(result.hasClass('busy'))
 			return;
 		result.addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			result.removeClass('busy');
 			if(res.success) {
 				result.html(res.all);
@@ -125,7 +125,7 @@ var hashLoc,
 		var send = clientZayavFilter();
 		send.op = 'client_zayav_load';
 		$('#dopLinks').addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			$('#dopLinks').removeClass('busy');
 			$('#zayav_result').html(res.all);
 			$('#zayav_spisok').html(res.html);
@@ -164,7 +164,7 @@ var hashLoc,
 		});
 
 	},
-	zayavFilter = function () {
+	zayavFilter = function() {
 		var v = {
 				find:$.trim($('#find input').val()),
 //				sort:$('#sort').val(),
@@ -196,7 +196,7 @@ var hashLoc,
 		send.op = 'zayav_spisok_load';
 
 		$('#mainLinks').addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			$('#zayav .result').html(res.all);
 			$('#zayav #spisok').html(res.html);
 			$('#mainLinks').removeClass('busy');
@@ -207,7 +207,7 @@ var hashLoc,
 			op:'zayav_money_update',
 			id:ZAYAV.id
 		};
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success) {
 				$('b.acc').html(res.acc);
 				$('.acc_tr')[(res.acc == 0 ? 'add' : 'remove') + 'Class']('dn');
@@ -463,6 +463,55 @@ $.fn.productList = function(o) {
 };
 
 $(document)
+	.on('change', '._attach input', function() {
+		setCookie('_attached', 0);
+		var t = $(this), att = t;
+		while(!att.hasClass('_attach'))
+			att = att.parent();
+		var form = att.find('form'),
+			f = att.find('.form'),
+			timer = setInterval(start, 500);
+		f.addClass('_busy');
+		form.submit();
+		function start() {
+			var c = getCookie('_attached');
+			if(c > 0)
+				clearInterval(timer);
+			else return;
+			if(c == 1) {
+				var send = {
+					op:'attach_get',
+					owner:form.find('.owner').val()
+				};
+				$.post(AJAX_MAIN, send, function(res) {
+					f.removeClass('_busy');
+					if(res.success) {
+						att.find('.files').html(res.files);
+						form.html(res.form);
+					}
+				}, 'json');
+				return;
+			}
+			f.removeClass('_busy');
+			f.next('.red').remove();
+			f.after('<span class="red">Некорректный файл.</span>');
+			f.next('.red').fadeOut(4000);
+		}
+	})
+	.on('click', '._attach .img_minidel', function() {
+		var t = $(this),
+			send = {
+				op:'attach_del',
+				id:t.attr('val')
+			};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success) {
+				t.prev().remove();
+				t.remove();
+			}
+		}, 'json');
+	})
+
 	.on('click', '.oplata-add', function() {
 		var html =
 			'<table class="oplata-add-tab">' +
@@ -532,7 +581,7 @@ $(document)
 				err('Если не выбрана заявка, необходимо указать примечание');
 			else {
 				dialog.process();
-				$.post(AJAX_MAIN, send, function (res) {
+				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
 						dialog.close();
 						_msg('Платёж успешно внесён!');
@@ -610,7 +659,7 @@ $(document)
 		send.op = 'client_next';
 		send.page = next.attr('val');
 		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success) {
 				next.remove();
 				$('#client .left').append(res.spisok);
@@ -627,7 +676,7 @@ $(document)
 		send.op = 'client_zayav_next';
 		send.page = $(this).attr('val');
 		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success)
 				next.after(res.html).remove();
 			else
@@ -713,7 +762,7 @@ $(document)
 			else if(!send.adres) msg = 'Не указан адрес';
 			else {
 				dialog.process();
-				$.post(AJAX_MAIN, send, function (res) {
+				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
 						dialog.close();
 						_msg('Заявка внесена');
@@ -797,7 +846,7 @@ $(document)
 			else if(!send.adres) msg = 'Не указан адрес';
 			else {
 				dialog.process();
-				$.post(AJAX_MAIN, send, function (res) {
+				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
 						dialog.close();
 						_msg('Заявка внесена');
@@ -825,7 +874,7 @@ $(document)
 		send.op = 'zayav_next';
 		send.page = $(this).attr('val');
 		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success)
 				next.after(res.html).remove();
 			else
@@ -891,7 +940,7 @@ $(document)
 		};
 		var tr = $(this).parent().parent();
 		tr.html('<td colspan="4" class="deleting">Удаление... <img src=/img/upload.gif></td>');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success) {
 				tr.find('.deleting').html('Платёж удалён. <a class="op_rest" val="' + send.id + '">Восстановить</a>');
 				zayavInfoMoneyUpdate();
@@ -925,7 +974,7 @@ $(document)
 				submit:submit
 			});
 		if(typeof ZAYAV == 'undefined')
-			$.post(AJAX_MAIN, {op:'zamer_info_get',zayav_id:id}, function (res) {
+			$.post(AJAX_MAIN, {op:'zamer_info_get',zayav_id:id}, function(res) {
 				if(res.success)
 					info_get(res);
 				else
@@ -969,7 +1018,7 @@ $(document)
 			if(send.status == -1) msg = 'Выберите вариант.';
 			else {
 				dialog.process();
-				$.post(AJAX_MAIN, send, function (res) {
+				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
 						dialog.close();
 						_msg('Данные изменены!');
@@ -1000,7 +1049,7 @@ $(document)
 		if(cal.hasClass('busy'))
 			return;
 		cal.addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success) {
 				$('#remind .left').html(res.html);
 				$('#remind').removeClass('y');
@@ -1026,7 +1075,7 @@ $(document)
 //				action:$('#report_history_action').val(),
 			};
 		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success)
 				next.after(res.html).remove();
 			else
@@ -1046,7 +1095,7 @@ $(document)
 				zayav_id:$('#money_zayav_id').val()
 			};
 		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function (res) {
+		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success)
 				next.after(res.html).remove();
 			else
@@ -1768,7 +1817,7 @@ $(document)
 					else if(!send.adres) msg = 'Не указан адрес';
 					else {
 						dialog.process();
-						$.post(AJAX_MAIN, send, function (res) {
+						$.post(AJAX_MAIN, send, function(res) {
 							if(res.success) {
 								dialog.close();
 								_msg('Данные изменены!');
@@ -1822,7 +1871,7 @@ $(document)
 					else if(!send.adres) msg = 'Не указан адрес';
 					else {
 						dialog.process();
-						$.post(AJAX_MAIN, send, function (res) {
+						$.post(AJAX_MAIN, send, function(res) {
 							if(res.success) {
 								dialog.close();
 								_msg('Данные изменены!');
@@ -1878,7 +1927,7 @@ $(document)
 					else if(!send.adres) msg = 'Не указан адрес';
 					else {
 						dialog.process();
-						$.post(AJAX_MAIN, send, function (res) {
+						$.post(AJAX_MAIN, send, function(res) {
 							if(res.success) {
 								dialog.close();
 								_msg('Данные изменены!');

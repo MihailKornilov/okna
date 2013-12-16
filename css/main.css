@@ -1,6 +1,33 @@
 /* Итоговая сумма для списка платежей */
 ._moneysum{margin-bottom:7px}
 
+._attach,
+._attach .files,
+._attach .form,
+._attach form{display:inline-block}
+._attach .files.block span{display:block}
+._attach .form{
+	position:relative;
+	top:2px;
+	min-width:100px;
+	overflow:hidden;
+}
+._attach form{position:absolute}
+._attach input{
+	position:absolute;
+	opacity:0;
+	cursor:pointer;
+	width:60px;
+}
+._attach .inp2{left:55px}
+._attach .attach_a{color:#888}
+._attach .img_minidel{margin:0 5px -2px -1px}
+._attach .form:hover .attach_a{text-decoration:underline}
+._attach .form._busy{background-position:left 4px}
+._attach .form._busy form,._attach iframe{display:none}
+._attach .form._busy .attach_a{visibility:hidden}
+._attach .red{margin-left:10px}
+
 /* Таблица для внесения платежа */
 .oplata-add-tab{border-spacing:8px}
 .oplata-add-tab .label{width:150px;text-align:right}
@@ -136,10 +163,9 @@
 .zayav-info .dogovor_create button{width:200px}
 .zayav-info .dogn{cursor:help}
 .zayav-info .dogn.d{color:#aaa;font-weight:normal}
-.zayav-info .img_word{margin:0 15px -3px -2px}
+.zayav-info .img_word{margin:0 15px -4px -2px}
 .zayav-info .reneg{color:#888}
 .zayav-info .vg_none{color:#822;font:italic 11px arial}
-.zayav-info .vg_file{color:#888;margin-left:15px}
 .zayav-info .dtime_add{font-size:10px;color:#999;text-align:right;margin-bottom:10px}
 .zayav-info .vkComment{margin-bottom:15px}
 .zayav-info .histories{min-height:210px;margin:15px 20px}

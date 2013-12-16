@@ -433,6 +433,76 @@ function numberToWord($num, $firstSymbolUp=false) {
 	return $word;
 }//numberToWord()
 
+function translit($str) {
+	$list = array(
+		'А' => 'A',
+		'Б' => 'B',
+		'В' => 'V',
+		'Г' => 'G',
+		'Д' => 'D',
+		'Е' => 'E',
+		'Ж' => 'J',
+		'З' => 'Z',
+		'И' => 'I',
+		'Й' => 'Y',
+		'К' => 'K',
+		'Л' => 'L',
+		'М' => 'M',
+		'Н' => 'N',
+		'О' => 'O',
+		'П' => 'P',
+		'Р' => 'R',
+		'С' => 'S',
+		'Т' => 'T',
+		'У' => 'U',
+		'Ф' => 'F',
+		'Х' => 'H',
+		'Ц' => 'TS',
+		'Ч' => 'CH',
+		'Ш' => 'SH',
+		'Щ' => 'SCH',
+		'Ъ' => '',
+		'Ы' => 'YI',
+		'Ь' => '',
+		'Э' => 'E',
+		'Ю' => 'YU',
+		'Я' => 'YA',
+		'а' => 'a',
+		'б' => 'b',
+		'в' => 'v',
+		'г' => 'g',
+		'д' => 'd',
+		'е' => 'e',
+		'ж' => 'j',
+		'з' => 'z',
+		'и' => 'i',
+		'й' => 'y',
+		'к' => 'k',
+		'л' => 'l',
+		'м' => 'm',
+		'н' => 'n',
+		'о' => 'o',
+		'п' => 'p',
+		'р' => 'r',
+		'с' => 's',
+		'т' => 't',
+		'у' => 'u',
+		'ф' => 'f',
+		'х' => 'h',
+		'ц' => 'ts',
+		'ч' => 'ch',
+		'ш' => 'sh',
+		'щ' => 'sch',
+		'ъ' => 'y',
+		'ы' => 'yi',
+		'ь' => '',
+		'э' => 'e',
+		'ю' => 'yu',
+		'я' => 'ya',
+		' ' => '_'
+	);
+	return strtr($str, $list);
+}
 
 
 
@@ -1244,8 +1314,9 @@ function set_info($z) {
 				'<tr><td class="label">Адрес установки:<td><b>'.$z['adres'].'</b>'.
 				'<tr><td class="label">Договор:<td>'.$dogSpisok.
 				'<tr><td class="label">Номер ВГ:'.
-					'<td>'.($z['nomer_vg'] ? $z['nomer_vg'] : '<span class="vg_none">не указан</span>').
-						'<a class="vg_file">Прикрепить файл</a>'.
+					'<td>'.($z['nomer_vg'] ? $z['nomer_vg'] : '<span class="vg_none">не указан</span>').'&nbsp;&nbsp;&nbsp;'.
+						   _attach('vg'.$z['id'], 'Прикрепить документ').
+				'<tr><td class="label top">Файлы:<td>'._attach('files'.$z['id'], 'Загрузить', 1).
 				'<tr><td class="label">Статус:'.
 					'<td><div style="background-color:#'._zayavStatusColor($z['set_status']).'" class="status">'._zayavStatusName($z['set_status']).'</div>'.
 			'</table>'.
@@ -1257,6 +1328,39 @@ function set_info($z) {
 		'<div class="histories">'.report_history_spisok(1, array('zayav_id'=>$z['id'])).'</div>'.
 	'</div>';
 }//set_info()
+function _attach($owner, $name='Обзор...', $files_block=false) {
+	return
+	'<div class="_attach">'.
+		'<div class="files'.($files_block ? ' block' : '').'">'._attach_files($owner).'</div>'.
+		'<div class="form">'.
+			'<form method="post" action="'.SITE.'/ajax/main.php?'.VALUES.'" enctype="multipart/form-data" target="'.$owner.'_frame">'.
+				_attach_form($owner).
+			'</form>'.
+			'<a class="attach_a">'.$name.'</a>'.
+		'</form>'.
+		'<iframe name="'.$owner.'_frame"></iframe>'.
+	'</div>';
+}
+function _attach_files($owner) {
+	$sql = "SELECT * FROM `attach` WHERE `owner`='".$owner."' ORDER BY `id`";
+	$q = query($sql);
+	$send = array();
+	while($r = mysql_fetch_assoc($q))
+		$send[] =
+			'<span>'.
+				'<a href="'.$r['link'].'">'.$r['name'].'</a>'.
+				'<div class="img_minidel" val="'.$r['id'].'"></div>'.
+			'</span>';
+	return implode(' ', $send);
+}//_attach_files()
+function _attach_form($owner) {
+	return
+	'<input type="file" name="f1" class="inp2">'.
+	'<input type="file" name="f2">'.
+	'<input type="hidden" name="op" value="attach_upload">'.
+	'<input type="hidden" name="owner" class="owner" value="'.$owner.'">';
+}
+
 function dogovor_print($dog_id) {
 	require_once(VKPATH.'clsMsDocGenerator.php');
 
