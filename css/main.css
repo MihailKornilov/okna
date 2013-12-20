@@ -102,6 +102,7 @@
 .zayav-add .product_edit{margin:0 4px -4px 0}
 .zayav-add #adres{width:240px}
 .zayav-add #homeadres_check{margin:0 0 -3px 6px}
+.zayav-add #zakaz_txt{width:260px}
 .zayav-add #comm{width:260px;height:40px}
 .zayav-zamer-dtime ._calendar{margin-right:8px}
 .zayav-zamer-dtime #vkSel_zamer_hour{margin-right:2px}
@@ -143,6 +144,7 @@
 .zayav-info:not(.h) .histories,.zayav-info.h .content{display:none}
 .zayav-info .content{margin:10px 15px}
 .zayav-info .tabInfo{width:100%;margin:0 10px;border-spacing:6px}
+.zayav-info.zakaz .label{width:60px}
 .zayav-info.zamer .label{width:80px}
 .zayav-info.dog .label{width:100px}
 .zayav-info.set .label{width:100px}
@@ -166,6 +168,9 @@
 .zayav-info .img_word{margin:0 15px -4px -2px}
 .zayav-info .reneg{color:#888}
 .zayav-info .vg_none{color:#822;font:italic 11px arial}
+.zayav-info .mon em{float:right;margin:0 5px}
+.zayav-info .sum.acc{color:#07a;cursor:help}
+.zayav-info .sum.opl{color:#090;cursor:help}
 .zayav-info .dtime_add{font-size:10px;color:#999;text-align:right;margin-bottom:10px}
 .zayav-info .vkComment{margin-bottom:15px}
 .zayav-info .histories{min-height:210px;margin:15px 20px}
@@ -176,6 +181,7 @@
 .zayav-info-edit #nomer_dog{width:130px}
 .zayav-info-edit #nomer_vg{width:130px}
 .zayav-info-edit #adres{width:260px}
+.zayav-info-edit #zakaz_txt{width:260px}
 .zayav-info-edit #prim{width:220px;height:40px}
 
 .zayav-dogovor{border-spacing:8px}
@@ -201,9 +207,9 @@
 .zayav-dogovor #reason{width:376px;height:30px}
 .zayav-dogovor #preview{display:block;text-align:center;margin-top:10px}
 
-.zayav_accrual_add{border-spacing:8px}
-.zayav_accrual_add .label{width:120px;text-align:right}
-.zayav_accrual_add #prim{width:200px}
+.accrual-add{border-spacing:8px}
+.accrual-add .label{width:120px;text-align:right}
+.accrual-add #prim{width:200px}
 
 .zamer-status-edit{border-spacing:10px}
 .zamer-status-edit .label{width:100px;text-align:right}

@@ -587,10 +587,11 @@ $(document)
 						_msg('Платёж успешно внесён!');
 						switch(OPL.from) {
 							case 'client':
-								$('#money_spisok').html(res.spisok);
+								$('#money_spisok').html(res.html);
+								$('.left:first').html(res.balans);
 								break;
 							case 'zayav':
-								$('#money_spisok').html(res.spisok);
+								$('#money_spisok').html(res.html);
 								break;
 							default: break;
 						}
@@ -610,7 +611,7 @@ $(document)
 			});
 		}
 	})
-	.on('click', '._money .img_del', function() {
+	.on('click', '.oplata-del', function() {
 		var t = $(this);
 		while(t[0].tagName != 'TR')
 			t = t.parent();
@@ -625,17 +626,57 @@ $(document)
 			t.removeClass('deleting');
 			if(res.success) {
 				t.after('<tr class="deleted" val="' + send.id + '">' +
-							'<td colspan="4"><div>Платёж удалён. <a class="rest">Восстановить</a></div>');
+							'<td colspan="4"><div>Платёж удалён. <a class="oplata-rest">Восстановить</a></div>');
 				t.addClass('dn');
 			}
 		}, 'json');
 	})
-	.on('click', '._money .rest', function() {
+	.on('click', '.oplata-rest', function() {
 		var t = $(this);
 		while(t[0].tagName != 'TR')
 			t = t.parent();
 		var send = {
 				op:'oplata_rest',
+				id:t.attr('val')
+			},
+			div = t.find('div');
+		if(div.hasClass('_busy'))
+			return;
+		div.addClass('_busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			div.removeClass('busy');
+			if(res.success) {
+				t.prev().removeClass('dn');
+				t.remove();
+			}
+		}, 'json');
+	})
+	.on('click', '.accrual-del', function() {
+		var t = $(this);
+		while(t[0].tagName != 'TR')
+			t = t.parent();
+		if(t.hasClass('deleting'))
+			return;
+		t.addClass('deleting');
+		var send = {
+			op:'accrual_del',
+			id:t.attr('val')
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			t.removeClass('deleting');
+			if(res.success) {
+				t.after('<tr class="deleted" val="' + send.id + '">' +
+					'<td colspan="4"><div>Начисление удалено. <a class="accrual-rest">Восстановить</a></div>');
+				t.addClass('dn');
+			}
+		}, 'json');
+	})
+	.on('click', '.accrual-rest', function() {
+		var t = $(this);
+		while(t[0].tagName != 'TR')
+			t = t.parent();
+		var send = {
+				op:'accrual_rest',
 				id:t.attr('val')
 			},
 			div = t.find('div');
@@ -667,29 +708,82 @@ $(document)
 				next.removeClass('busy');
 		}, 'json');
 	})
-/*
-	.on('click', '#clientInfo .ajaxNext', function() {
-		if($(this).hasClass('busy'))
-			return;
-		var next = $(this),
-			send = clientZayavFilter();
-		send.op = 'client_zayav_next';
-		send.page = $(this).attr('val');
-		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				next.after(res.html).remove();
-			else
-				next.removeClass('busy');
-		}, 'json');
-	})
-*/
+
 	.on('click', '#zayav #filter_break', function() {
 		zFind.clear();
 		//$('#sort')._radio(1);
 		$('#desc')._check(0);
 		$('#status').rightLink(0);
 		zayavSpisokLoad();
+	})
+	.on('click', '.zakaz_add', function() {
+		if(typeof CLIENT == 'undefined')
+			CLIENT = {
+				id:0,
+				fio:'',
+				adres:''
+			};
+		var HOMEADRES = CLIENT.adres,
+			html =
+				'<table class="zayav-add">' +
+					'<tr><td class="label">Клиент:' +
+						'<td><INPUT type="hidden" id="client_id" value="' + CLIENT.id + '">' +
+							'<b>' + CLIENT.fio + '</b>' +
+					'<tr><td class="label top">Изделие:<td id="product">' +
+					'<tr><td><td><input type="text" id="zakaz_txt" placeholder="либо укажите содержание заказа вручную.." maxlength="300">' +
+					'<tr><td class="label top">Заметка:	<td><textarea id="comm"></textarea>' +
+					'</table>',
+			dialog = _dialog({
+				width:550,
+				top:30,
+				head:'Внесение нового заказа',
+				content:html,
+				submit:submit
+			});
+		if(CLIENT.id == 0)
+			var client = $('#client_id').clientSel({
+				add:1,
+				func:function(uid) {
+					HOMEADRES = client.item(uid).adres;
+					if($('#homeadres').val() == 1)
+						$('#adres').val(HOMEADRES);
+				}
+			}).o;
+		$('#product').productList();
+		$('#comm').autosize();
+		function submit() {
+			var msg,
+				send = {
+					op:'zakaz_add',
+					client_id:$('#client_id').val(),
+					product:$('#product').productList('get'),
+					zakaz_txt:$('#zakaz_txt').val(),
+					comm:$('#comm').val()
+				};
+			if(send.client_id == 0) msg = 'Не выбран клиент';
+			else if(!send.product && !send.zakaz_txt) msg = 'Необходимо выбрать изделие или вписать заказ вручную';
+			else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Заявка внесена');
+						location.href = URL + '&p=zayav&d=info&id=' + res.id;
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+			if(msg)
+				dialog.bottom.vkHint({
+					msg:'<SPAN class="red">' + msg + '</SPAN>',
+					top:-48,
+					left:171,
+					indent:50,
+					show:1,
+					remove:1
+				});
+		}
 	})
 	.on('click', '.zamer_add', function() {
 		if(typeof CLIENT == 'undefined')
@@ -962,6 +1056,44 @@ $(document)
 			}
 		}, 'json');
 	})
+	.on('click', '.zakaz_status', function() {
+		var t = $(this),
+			html = '<table class="zamer-status-edit">' +
+				'<tr><td class="label topi">Статус заказа:<td><INPUT type="hidden" id="edit_zakaz" value="' + ZAYAV.status + '">' +
+				'</table>',
+			dialog = _dialog({
+				width:400,
+				top:30,
+				head:'Изменение статуса заказа',
+				content:html,
+				butSubmit:'Применить',
+				submit:submit
+			});
+			$('#edit_zakaz')._radio({
+				bottom:20,
+				spisok:[
+					{uid:1,title:'Ожидает выполнения'},
+					{uid:2,title:'Выполнен'},
+					{uid:3,title:'Отменён'}
+				]
+			});
+		function submit() {
+			var	send = {
+				op:'zakaz_status',
+				zayav_id:ZAYAV.id,
+				status:$('#edit_zakaz').val()
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					dialog.close();
+					_msg('Данные изменены!');
+					document.location.reload();
+				} else
+					dialog.abort();
+			}, 'json');
+		}
+	})
 	.on('click', '.zamer_status', function() {
 		var t = $(this),
 			id = typeof ZAYAV != 'undefined' ? ZAYAV.id : t.attr('val'),
@@ -984,7 +1116,7 @@ $(document)
 			info_get(ZAYAV);
 		function info_get(res) {
 			dialog.content.html('<table class="zamer-status-edit">' +
-				'<tr><td class="label top">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
+				'<tr><td class="label topi">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
 				'<tr class="tr_data dn"><td class="label">Новое время:<td class="zayav-zamer-dtime">' +
 				'<tr class="tr_data dn"><td class="label">Длительность:<td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
 				'<tr class="tr_prim dn"><td class="label top">Комментарий:<td><textarea id="prim"></textarea>' +
@@ -1036,6 +1168,44 @@ $(document)
 					remove:1,
 					show:1
 				});
+		}
+	})
+	.on('click', '.set_status', function() {
+		var t = $(this),
+			html = '<table class="zamer-status-edit">' +
+				'<tr><td class="label topi">Статус установки:<td><INPUT type="hidden" id="edit_set" value="' + ZAYAV.status + '">' +
+				'</table>',
+			dialog = _dialog({
+				width:400,
+				top:30,
+				head:'Изменение статуса установки',
+				content:html,
+				butSubmit:'Применить',
+				submit:submit
+			});
+		$('#edit_set')._radio({
+			bottom:20,
+			spisok:[
+				{uid:1,title:'Ожидает выполнения'},
+				{uid:2,title:'Выполнена'},
+				{uid:3,title:'Отменена'}
+			]
+		});
+		function submit() {
+			var	send = {
+				op:'set_status',
+				zayav_id:ZAYAV.id,
+				status:$('#edit_set').val()
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					dialog.close();
+					_msg('Данные изменены!');
+					document.location.reload();
+				} else
+					dialog.abort();
+			}, 'json');
 		}
 	})
 
@@ -1681,7 +1851,7 @@ $(document)
 						$.post(AJAX_MAIN, send, function(res) {
 							if(res.success) {
 								CLIENT = res;
-								$('#clientInfo .left:first').html(res.html);
+								$('.left:first').html(res.html);
 								dialog.close();
 								_msg('Данные клиента изменены.');
 							} else
@@ -1776,6 +1946,60 @@ $(document)
 				nosel:1
 			});
 			$('.reneg').click(dogovorCreate);
+			$('.zakaz_edit').click(function() {
+				var html = '<table class="zayav-info-edit">' +
+						'<tr><td class="label">Клиент:      <td>' + ZAYAV.client_fio +
+						'<tr><td class="label topi">Изделие:<td id="product">' +
+						'<tr><td><td><input type="text" id="zakaz_txt" placeholder="либо укажите содержание заказа вручную.." maxlength="300" value="' + ZAYAV.zakaz_txt + '">' +
+						'</table>',
+					dialog = _dialog({
+						width:500,
+						top:30,
+						head:'Заказ №' + ZAYAV.id + ' - Редактирование',
+						content:html,
+						butSubmit:'Сохранить',
+						submit:submit
+					});
+				$('#product').productList(ZAYAV.product);
+				$('#product_id').vkSel({
+					width:142,
+					display:'inline-block',
+					title0:'Изделие не указано',
+					spisok:PRODUCT_SPISOK
+				});
+				$('#zakaz_txt').keyEnter(submit);
+				function submit() {
+					var msg,
+						send = {
+							op:'zakaz_edit',
+							zayav_id:ZAYAV.id,
+							product:$('#product').productList('get'),
+							zakaz_txt:$('#zakaz_txt').val()
+						};
+					if(!send.product && !send.zakaz_txt) msg = 'Необходимо выбрать изделие или вписать заказ вручную';
+					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
+					else {
+						dialog.process();
+						$.post(AJAX_MAIN, send, function(res) {
+							if(res.success) {
+								dialog.close();
+								_msg('Данные изменены!');
+								document.location.reload();
+							} else
+								dialog.abort();
+						}, 'json');
+					}
+					if(msg)
+						dialog.bottom.vkHint({
+							msg:'<SPAN class="red">' + msg + '</SPAN>',
+							top:-47,
+							left:161,
+							indent:40,
+							show:1,
+							remove:1
+						});
+				}
+			});
 			$('.zamer_edit').click(function() {
 				var html = '<table class="zayav-info-edit">' +
 						'<tr><td class="label">Клиент:        <td>' + ZAYAV.client_fio +
@@ -1897,6 +2121,7 @@ $(document)
 						'<tr><td class="label top">Изделие:	<td id="product">' +
 						'<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres" maxlength="100" value="' + ZAYAV.adres + '" />' +
 						'<tr><td class="label">Номер ВГ:	   <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
+						'<tr><td class="label">Номер Ж: 	   <td><INPUT type="text" id="nomer_g" maxlength="30" value="' + ZAYAV.nomer_g + '" />' +
 						'</table>',
 					dialog = _dialog({
 						width:500,
@@ -1913,6 +2138,7 @@ $(document)
 					title0:'Изделие не указано',
 					spisok:PRODUCT_SPISOK
 				});
+				$('#adres,#nomer_vg,#nomer_g').keyEnter(submit);
 				function submit() {
 					var msg,
 						send = {
@@ -1920,7 +2146,8 @@ $(document)
 							zayav_id:ZAYAV.id,
 							product:$('#product').productList('get'),
 							adres:$('#adres').val(),
-							nomer_vg:$('#nomer_vg').val()
+							nomer_vg:$('#nomer_vg').val(),
+							nomer_g:$('#nomer_g').val()
 						};
 					if(!send.product) msg = 'Не указано изделие';
 					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
@@ -1947,16 +2174,15 @@ $(document)
 						});
 				}
 			});
-/*
-			$('.acc_add').click(function() {
-				var html = '<TABLE class="zayav_accrual_add">' +
+			$('.acc-add').click(function() {
+				var html = '<TABLE class="accrual-add">' +
 					'<tr><td class="label">Сумма: <td><input type="text" id="sum" class="money" maxlength="6" /> руб.' +
 					'<tr><td class="label">Примечание:<em>(не обязательно)</em><td><input type="text" id="prim" maxlength="100" />' +
 					'</TABLE>';
 				var dialog = _dialog({
 					top:60,
 					width:420,
-					head:'Заявка №' + ZAYAV.id + ' - Начисление за выполненную работу',
+					head:'Начисление',
 					content:html,
 					submit:submit
 				});
@@ -1966,7 +2192,7 @@ $(document)
 				function submit() {
 					var msg,
 						send = {
-							op:'zayav_accrual_add',
+							op:'accrual_add',
 							zayav_id:ZAYAV.id,
 							sum:$('#sum').val(),
 							prim:$('#prim').val()
@@ -1980,9 +2206,8 @@ $(document)
 							dialog.abort();
 							if(res.success) {
 								dialog.close();
-								_msg('Начисление успешно произведено!');
-								$('._spisok._money').append(res.html);
-								zayavInfoMoneyUpdate();
+								_msg('Начисление успешно произведено.');
+								$('#money_spisok').html(res.html);
 							}
 						}, 'json');
 					}
@@ -1999,7 +2224,6 @@ $(document)
 						});
 				}
 			});
-*/
 		}
 
 		if($('#remind').length > 0) {
