@@ -344,7 +344,7 @@ switch(@$_POST['op']) {
 		if(!query_value("SELECT COUNT(`id`) FROM `client` WHERE `deleted`=0 AND `id`=".$client_id))
 			jsonError();
 		query("UPDATE `client` SET `deleted`=1 WHERE `id`=".$client_id);
-		query("UPDATE `zayav` SET `status`=0 WHERE `client_id`=".$client_id);
+		query("UPDATE `zayav` SET `deleted`=1 WHERE `client_id`=".$client_id);
 		query("UPDATE `money` SET `deleted`=1 WHERE `client_id`=".$client_id);
 		history_insert(array(
 			'type' => 3,
@@ -1006,7 +1006,7 @@ switch(@$_POST['op']) {
 
 		$sql = "SELECT IFNULL(SUM(`sum`),0) AS `acc`
 				FROM `accrual`
-				WHERE `status`=1
+				WHERE `deleted`=0
 				  AND `zayav_id`=".$zayav_id."
 				LIMIT 1";
 		if(query_value($sql) != 0)
@@ -1021,7 +1021,7 @@ switch(@$_POST['op']) {
 		if(query_value($sql) != 0)
 			jsonError();
 
-		$sql = "UPDATE `zayav` SET `status`=0 WHERE `id`=".$zayav_id;
+		$sql = "UPDATE `zayav` SET `deleted`=1 WHERE `id`=".$zayav_id;
 		query($sql);
 
 		history_insert(array(
@@ -1039,7 +1039,7 @@ switch(@$_POST['op']) {
 		$id = intval($_POST['id']);
 		$sql = "SELECT IFNULL(SUM(`sum`),0) AS `acc`
 				FROM `accrual`
-				WHERE `status`=1
+				WHERE `deleted`=1
 				  AND `zayav_id`=".$id;
 		$send = mysql_fetch_assoc(query($sql));
 		$sql = "SELECT IFNULL(SUM(`sum`),0) AS `opl`

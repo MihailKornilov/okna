@@ -104,6 +104,8 @@
 .zayav-add #homeadres_check{margin:0 0 -3px 6px}
 .zayav-add #zakaz_txt{width:260px}
 .zayav-add #comm{width:260px;height:40px}
+.zayav-add.all{text-align:center}
+.zayav-add .vkButton{margin-top:15px}
 .zayav-zamer-dtime ._calendar{margin-right:8px}
 .zayav-zamer-dtime #vkSel_zamer_hour{margin-right:2px}
 .zayav-zamer-dtime #vkSel_zamer_min{margin-left:1px}

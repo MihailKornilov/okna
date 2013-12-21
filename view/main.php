@@ -766,8 +766,8 @@ function client_info($client_id) {
 					'<div class="rightLink">'.
 						'<a class="sel">Информация</a>'.
 						'<a class="cedit">Редактировать</a>'.
+						'<a class="zayav_add"><b>Новая заявка</b></a>'.
 						'<a class="oplata-add">Внести платёж</a>'.
-						'<a class="zamer_add"><b>Новый замер</b></a>'.
 						'<a class="cdel">Удалить клиента</a>'.
 					'</div>'.
 		'</table>'.
@@ -1575,10 +1575,23 @@ function zayav_money($zayav_id) {
 	while($r = mysql_fetch_assoc($q))
 		$money[strtotime($r['dtime_add'])] =
 			'<tr val="'.$r['id'].'">'.
-			'<td class="sum acc" title="Начисление"><b>'.$r['sum'].'</b>'.
-			'<td>'.$r['prim'].
-			'<td class="dtime" title="Вн'.(_viewer($r['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']).
-			'<td class="ed" align="right"><div class="img_del accrual-del"></div>';
+				'<td class="sum acc" title="Начисление"><b>'.$r['sum'].'</b>'.
+				'<td>'.$r['prim'].
+				'<td class="dtime" title="Вн'.(_viewer($r['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']).
+				'<td class="ed" align="right"><div class="img_del accrual-del"></div>';
+
+	$sql = "SELECT *
+	        FROM `zayav_dogovor`
+	        WHERE `deleted`=0
+	          AND `zayav_id`=".$zayav_id;
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$money[strtotime($r['dtime_add'])] =
+			'<tr><td class="sum acc" title="Начисление"><b>'.$r['sum'].'</b>'.
+				'<td>При заключении договора №'.$r['id'].
+				'<td class="dtime" title="Вн'.(_viewer($r['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']).
+				'<td>';
+
 	ksort($money);
 	if(empty($money))
 		return '';

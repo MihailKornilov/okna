@@ -708,6 +708,22 @@ $(document)
 				next.removeClass('busy');
 		}, 'json');
 	})
+	.on('click', '.zayav_add', function() {
+		var html =
+			'<div class="zayav-add all">' +
+				'<div class="vkButton zakaz_add"><button>Новый заказ</button></div><br />' +
+				'<div class="vkButton zamer_add"><button>Новый замер</button></div><br />' +
+				'<div class="vkButton set_add"><button>Новая установка</button></div>' +
+			'</div>',
+			dialog = _dialog({
+				width:200,
+				top:60,
+				head:'Выбор категории заказа',
+				content:html,
+				butSubmit:''
+			});
+	})
+
 
 	.on('click', '#zayav #filter_break', function() {
 		zFind.clear();
