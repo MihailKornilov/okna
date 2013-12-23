@@ -24,12 +24,28 @@ switch(@$_POST['op']) {
 			2 - некорректный owner
 			3 - неверный формат
 			4 - загрузить не удалось
+			5 - несуществующа€ за€вка
 		*/
 		if(!preg_match(REGEXP_WORD, $_POST['owner'])) {
 			setcookie('_attached', 2, time() + 3600, '/');
 			exit;
 		}
 		$owner = htmlspecialchars(trim($_POST['owner']));
+
+		//ѕолучение id за€вки
+		$zayav_id = intval($owner);
+		if(!$zayav_id) {
+			setcookie('_attached', 2, time() + 3600, '/');
+			exit;
+		}
+
+		//ѕроверка наличи€ за€вки
+		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id;
+		if(!$r = mysql_fetch_assoc(query($sql))) {
+			setcookie('_attached', 5, time() + 3600, '/');
+			exit;
+		}
+
 		$f = $_FILES['f1']['name'] ? $_FILES['f1'] : $_FILES['f2'];
 		switch($f['type']) {
 			case 'application/rtf': break;
@@ -43,19 +59,29 @@ switch(@$_POST['op']) {
 		$fname = time().'_'.translit($f["name"]);
 		if(move_uploaded_file($f['tmp_name'], $dir.'/'.$fname)) {
 			$name = htmlspecialchars(trim($f["name"]));
+			$link = SITE."/files/vg/".$owner."/".$fname;
 			$sql = "INSERT INTO `attach` (
 						`owner`,
+						`zayav_id`,
 						`name`,
 						`link`,
 						`viewer_id_add`
 					) VALUES (
 						'".$owner."',
+						".$zayav_id.",
 						'".$name."',
-						'".SITE."/files/vg/".$owner."/".$fname."',
+						'".$link."',
 						".VIEWER_ID."
 					)";
 			query($sql);
 			setcookie('_attached', 1, time() + 3600, '/');
+
+			history_insert(array(
+				'type' => 27,
+				'zayav_id' => $zayav_id,
+				'value' => '<a href="'.$link.'">'.$name.'</a>'
+			));
+
 			echo '--ok';
 			exit;
 		}
@@ -75,11 +101,18 @@ switch(@$_POST['op']) {
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']) || !$_POST['id'])
 			jsonError();
 		$id = intval($_POST['id']);
-		$sql = "SELECT * FROM `attach` WHERE `id`=".$id;
+		$sql = "SELECT * FROM `attach` WHERE `deleted`=0 AND `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
-		$sql = "DELETE FROM `attach` WHERE `id`=".$id;
+		$sql = "UPDATE `attach` SET `deleted`=1 WHERE `id`=".$id;
 		query($sql);
+
+		history_insert(array(
+			'type' => 28,
+			'zayav_id' => $r['zayav_id'],
+			'value' => '<a href="'.$r['link'].'">'.$r['name'].'</a>'
+		));
+
 		jsonSuccess();
 		break;
 

@@ -1342,7 +1342,7 @@ function zakaz_info($z) {
 					'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
 					'<tr><td class="label top">Изделия:<td>'.$z['zakaz_txt'].zayav_product_spisok($z['id']).
 					'<tr><td class="label">Договор:<td>'.$dogSpisok.
-					'<tr><td class="label top">Файлы:<td>'._attach('files'.$z['id'], 'Загрузить', 1).
+					'<tr><td class="label top">Файлы:<td>'._attach($z['id'].'files', 'Загрузить', 1).
 					'<tr><td class="label">Статус:'.
 						'<td><div style="background-color:#'._statusColor($z['zakaz_status']).'" class="status zakaz_status">'._zakazStatus($z['zakaz_status']).'</div>'.
 				'</table>'.
@@ -1537,9 +1537,9 @@ function set_info($z) {
 				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).
 				'<tr><td class="label">Адрес установки:<td><b>'.$z['adres'].'</b>'.
 				'<tr><td class="label">Договор:<td>'.$dogSpisok.
-($z['nomer_vg'] ? '<tr><td class="label">Номер ВГ:<td>'.$z['nomer_vg'].'&nbsp;&nbsp;&nbsp;'._attach('vg'.$z['id'], 'Прикрепить документ') : '').
- ($z['nomer_g'] ? '<tr><td class="label">Номер Ж:<td>'.$z['nomer_g'].'&nbsp;&nbsp;&nbsp;'._attach('g'.$z['id'], 'Прикрепить документ') : '').
-				'<tr><td class="label top">Файлы:<td>'._attach('files'.$z['id'], 'Загрузить', 1).
+($z['nomer_vg'] ? '<tr><td class="label">Номер ВГ:<td>'.$z['nomer_vg'].'&nbsp;&nbsp;&nbsp;'._attach($z['id'].'vg', 'Прикрепить документ') : '').
+ ($z['nomer_g'] ? '<tr><td class="label">Номер Ж:<td>'.$z['nomer_g'].'&nbsp;&nbsp;&nbsp;'._attach($z['id'].'g', 'Прикрепить документ') : '').
+				'<tr><td class="label top">Файлы:<td>'._attach($z['id'].'files', 'Загрузить', 1).
 				'<tr><td class="label">Статус:'.
 					'<td><div style="background-color:#'._statusColor($z['set_status']).'" class="status set_status">'._setStatus($z['set_status']).'</div>'.
 			'</table>'.
@@ -1611,7 +1611,7 @@ function _attach($owner, $name='Обзор...', $files_block=false) {
 	'</div>';
 }
 function _attach_files($owner) {
-	$sql = "SELECT * FROM `attach` WHERE `owner`='".$owner."' ORDER BY `id`";
+	$sql = "SELECT * FROM `attach` WHERE `deleted`=0 AND `owner`='".$owner."' ORDER BY `id`";
 	$q = query($sql);
 	$send = array();
 	while($r = mysql_fetch_assoc($q))
@@ -2349,6 +2349,9 @@ function history_types($v) {
 						': <span style="background-color:#'._statusColor($v['value']).'">'._setStatus($v['value']).'</span>'.
 						' » '.
 						'<span style="background-color:#'._statusColor($v['value1']).'">'._setStatus($v['value1']).'</span>';
+
+		case 27: return 'Загрузка файла '.$v['value'].' для заявки '._zamerSet($v['zayav_id'], $v['zayav_id']).'.';
+		case 28: return 'Удаление файла '.$v['value'].' у заявки '._zamerSet($v['zayav_id'], $v['zayav_id']).'.';
 
 		case 501: return 'В установках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В установках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
