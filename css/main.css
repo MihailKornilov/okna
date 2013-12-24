@@ -36,6 +36,54 @@
 .oplata-add-tab #prim{width:220px}
 
 
+/* Таблица замеров */
+#zamer-table .mon{font-weight:bold;margin:0 10px 0 16px}
+#zamer-table .mon b{display:inline-block;width:90px}
+#zamer-table .mon a{display:inline-block;padding:3px 8px 4px;font-size:12px;margin-right:5px}
+#zamer-table .mon a:hover{background-color:#e9edf1;text-decoration:none}
+#zamer-table .mon a.vh{visibility:hidden}
+#zamer-table .mon._busy{background-position:right center}
+#zamer-table .hours{margin:10px 0 3px 21px}
+#zamer-table .hours em{display:inline-block;width:36px;color:#777}
+#zamer-table table{border-collapse:collapse;width:570px}
+#zamer-table .num{
+	width:20px;
+	text-align:right;
+	padding:3px;
+	border-top:#E5EDF4 solid 1px;
+	border-bottom:#E5EDF4 solid 1px;
+	border-right:#dae1e8 solid 1px;
+}
+#zamer-table .z{border-top:#E5EDF4 solid 1px;border-bottom:#E5EDF4 solid 1px}
+#zamer-table .ztu{
+	display:inline-block;
+	position:relative;
+	height:19px;
+	border-right:#fff solid 1px;
+	background-color:#8f8;
+	cursor:pointer;
+}
+#zamer-table .title{
+	display:none;
+	position:absolute;
+	top:-59px;
+	left:-45px;
+	background-color:#fff;
+	width:165px;
+	border:#aebdcc solid 1px;
+	padding:5px 7px;
+	z-index:999;
+}
+#zamer-table .title span{color:#777}
+#zamer-table .ugb{
+	height:7px;
+	background:transparent no-repeat 40px 0 url("data:image/gif;base64,R0lGODlhCwAIAKIEAPLy8q69zObm5v///////wAAAAAAAAAAACH5BAEAAAQALAAAAAALAAgAAAMaOLo80SyIByWYzZJLnQBEyHlgKE6fqV5lmAAAOw==");
+	z-index:1000;
+	margin:5px 0 -11px;
+}
+
+#zamer-table .ztu:hover{background-color:#6d6}
+#zamer-table .ztu:hover .title{display:block}
 /* Внесение и редактирование клиента */
 .client-add{border-spacing:10px}
 .client-add td.label{width:75px;text-align:right}
@@ -114,7 +162,7 @@
 
 .zayav_unit{
 	cursor:pointer;
-	margin:10px 5px 0 10px;
+	margin:8px 5px 2px 10px;
 	border:#ccc solid 1px;
 	border-radius:2px;
 	background-color:#fff;
@@ -126,7 +174,7 @@
 .zayav_unit .dtime{float:right;font-size:10px;color:#777;padding:4px}
 .zayav_unit .ztab{border-spacing:2px;margin:4px 0 4px 8px}
 .zayav_unit .label{width:60px}
-.zayav_unit .product{border-spacing:3px;margin-left:-3px}
+.zayav_unit .product td{padding:1px 4px 3px 0}
 .zayav_unit em{background:#FFC;border-bottom:1px solid #FE2;font-size:12px}
 .zayav_unit b em{font-weight:bold}
 
@@ -135,6 +183,7 @@
 #zayav .filter_clear{float:right}
 #zayav #spisok{padding-bottom:10px;background-color:#f7f7f7;vertical-align:top}
 #zayav .right{border:0;width:155px;padding-bottom:300px}
+#zayav .zamer_table{display:inline-block;margin-top:15px}
 #zayav .condLost.hide{display:none}
 #zayav .ajaxNext{margin:6px 5px 0 8px}
 #zayav #desc_check{margin-top:10px}
@@ -150,9 +199,10 @@
 .zayav-info.zamer .label{width:80px}
 .zayav-info.dog .label{width:100px}
 .zayav-info.set .label{width:100px}
-.zayav-info .product{border-spacing:4px;margin-left:-4px}
+.zayav-info .product td{padding:1px 4px 3px 0}
 .zayav-info .zamer-dtime{cursor:help}
 .zayav-info .zamer-left{margin-left:15px;color:#884}
+.zayav-info .zamer_table{margin-left:10px}
 .zayav-info .status {
 	display:inline-block;
 	border:#DDD solid 1px;
@@ -180,10 +230,11 @@
 
 .zayav-info-edit{border-spacing:8px}
 .zayav-info-edit .label{width:120px;text-align:right}
-.zayav-info-edit #nomer_dog{width:130px}
-.zayav-info-edit #nomer_vg{width:130px}
 .zayav-info-edit #adres{width:260px}
 .zayav-info-edit #zakaz_txt{width:260px}
+.zayav-info-edit #nomer_vg{width:100px}
+.zayav-info-edit #nomer_g{width:100px}
+.zayav-info-edit #nomer_d{width:100px}
 .zayav-info-edit #prim{width:220px;height:40px}
 
 .zayav-dogovor{border-spacing:8px}

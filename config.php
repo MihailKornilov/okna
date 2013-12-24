@@ -19,6 +19,8 @@ $SA[982006] = 1; // Корнилов Михаил
 define('SA', isset($SA[VIEWER_ID]));
 if(SA) { ini_set('display_errors',1); error_reporting(E_ALL); }
 
+setlocale(LC_ALL, "ru_RU.CP1251");
+
 require_once(DOCUMENT_ROOT.'/syncro.php');
 require_once(VKPATH.'/vk.php');
 _appAuth();

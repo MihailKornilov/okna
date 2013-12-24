@@ -481,7 +481,8 @@ $(document)
 			if(c == 1) {
 				var send = {
 					op:'attach_get',
-					owner:form.find('.owner').val()
+					type:form.find('.type').val(),
+					zayav_id:form.find('.zayav_id').val()
 				};
 				$.post(AJAX_MAIN, send, function(res) {
 					f.removeClass('_busy');
@@ -716,14 +717,13 @@ $(document)
 				'<div class="vkButton set_add"><button>Новая установка</button></div>' +
 			'</div>',
 			dialog = _dialog({
-				width:200,
+				width:220,
 				top:60,
-				head:'Выбор категории заказа',
+				head:'Выберите категорию заявки',
 				content:html,
 				butSubmit:''
 			});
 	})
-
 
 	.on('click', '#zayav #filter_break', function() {
 		zFind.clear();
@@ -800,6 +800,45 @@ $(document)
 					remove:1
 				});
 		}
+	})
+	.on('click', '.zamer_table', function() {
+		var dialog = _dialog({
+				width:600,
+				top:10,
+				head:'Таблица замеров',
+				load:1,
+				butSubmit:'',
+				butCancel:'Закрыть'
+			}),
+			send = {
+				op:'zamer_table_get'
+			};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success) {
+				dialog.content.html(res.html);
+			} else
+				dialog.loadError();
+		}, 'json');
+	})
+	.on('click', '#zamer-table .ztu', function() {
+		document.location.href = URL + '&p=zayav&d=info&id=' + $(this).attr('val');
+	})
+	.on('click', '#zamer-table .mon a', function() {
+		var t = $(this),
+			p = t.parent(),
+			send = {
+				op:'zamer_table_get',
+				mon:t.attr('val')
+			};
+		if(p.hasClass('_busy'))
+			return;
+		p.addClass('_busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				$('#zamer-table').parent().html(res.html);
+			else
+				p.removeClass('_busy');
+		}, 'json');
 	})
 	.on('click', '.zamer_add', function() {
 		if(typeof CLIENT == 'undefined')
@@ -1967,6 +2006,9 @@ $(document)
 						'<tr><td class="label">Клиент:      <td>' + ZAYAV.client_fio +
 						'<tr><td class="label topi">Изделие:<td id="product">' +
 						'<tr><td><td><input type="text" id="zakaz_txt" placeholder="либо укажите содержание заказа вручную.." maxlength="300" value="' + ZAYAV.zakaz_txt + '">' +
+						'<tr><td class="label">Номер ВГ:	   <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
+						'<tr><td class="label">Номер Ж: 	   <td><INPUT type="text" id="nomer_g" maxlength="30" value="' + ZAYAV.nomer_g + '" />' +
+						'<tr><td class="label">Номер Д: 	   <td><INPUT type="text" id="nomer_d" maxlength="30" value="' + ZAYAV.nomer_d + '" />' +
 						'</table>',
 					dialog = _dialog({
 						width:500,
@@ -1990,7 +2032,10 @@ $(document)
 							op:'zakaz_edit',
 							zayav_id:ZAYAV.id,
 							product:$('#product').productList('get'),
-							zakaz_txt:$('#zakaz_txt').val()
+							zakaz_txt:$('#zakaz_txt').val(),
+							nomer_vg:$('#nomer_vg').val(),
+							nomer_g:$('#nomer_g').val(),
+							nomer_d:$('#nomer_d').val()
 						};
 					if(!send.product && !send.zakaz_txt) msg = 'Необходимо выбрать изделие или вписать заказ вручную';
 					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
@@ -2138,6 +2183,7 @@ $(document)
 						'<tr><td class="label">Адрес установки:<td><INPUT type="text" id="adres" maxlength="100" value="' + ZAYAV.adres + '" />' +
 						'<tr><td class="label">Номер ВГ:	   <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
 						'<tr><td class="label">Номер Ж: 	   <td><INPUT type="text" id="nomer_g" maxlength="30" value="' + ZAYAV.nomer_g + '" />' +
+						'<tr><td class="label">Номер Д: 	   <td><INPUT type="text" id="nomer_d" maxlength="30" value="' + ZAYAV.nomer_d + '" />' +
 						'</table>',
 					dialog = _dialog({
 						width:500,
@@ -2154,7 +2200,7 @@ $(document)
 					title0:'Изделие не указано',
 					spisok:PRODUCT_SPISOK
 				});
-				$('#adres,#nomer_vg,#nomer_g').keyEnter(submit);
+				$('#adres,#nomer_vg,#nomer_g,#nomer_d').keyEnter(submit);
 				function submit() {
 					var msg,
 						send = {
@@ -2163,7 +2209,8 @@ $(document)
 							product:$('#product').productList('get'),
 							adres:$('#adres').val(),
 							nomer_vg:$('#nomer_vg').val(),
-							nomer_g:$('#nomer_g').val()
+							nomer_g:$('#nomer_g').val(),
+							nomer_d:$('#nomer_d').val()
 						};
 					if(!send.product) msg = 'Не указано изделие';
 					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';

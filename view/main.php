@@ -499,7 +499,8 @@ function translit($str) {
 		'э' => 'e',
 		'ю' => 'yu',
 		'я' => 'ya',
-		' ' => '_'
+		' ' => '_',
+		'№' => 'N'
 	);
 	return strtr($str, $list);
 }
@@ -888,7 +889,8 @@ function zayav() {
 			$spisok = $data['spisok'];
 			break;
 		case 'zamer':
-			$right = '<div id="buttonCreate" class="zamer_add"><a>Новый замер</a></div>';
+			$right = '<div id="buttonCreate" class="zamer_add"><a>Новый замер</a></div>'.
+					 '<a class="zamer_table">Таблица замеров</a>';
 			$data = zamer_spisok();
 			$result = $data['result'];
 			$spisok = $data['spisok'];
@@ -1016,11 +1018,135 @@ function zakaz_unit($r, $no_client=0) {
 			'<a class="name">Заказ №'.$r['id'].'</a>'.
 			'<table class="ztab">'.
 				($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
-				'<tr><td class="label top">Изделия:<td>'.$r['zakaz_txt'].zayav_product_spisok($r['id']).
+				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($r['id']).$r['zakaz_txt'].
 			'</table>'.
 		'</div>';
 }//zamer_unit()
 
+function zamer_table($mon=false) {
+	if(!$mon)
+		$mon = strftime('%Y-%m');
+
+	//Количество дней в месяце
+	$monDaysCount = date('t', strtotime($mon));
+
+	//Длина блока в пикселях на основании длительности замера
+	$zd = array(
+		'30' => 18,
+		'60' => 36,
+		'90' => 54,
+		'120' => 72,
+		'150' => 90,
+		'180' => 108
+	);
+	//Отступ для тултипа слева
+	$titleLeft = array(
+		'30' => -45,
+		'60' => -36,
+		'90' => -27,
+		'120' => -18,
+		'150' => -9,
+		'180' => 0
+	);
+	$sql = "SELECT *
+			FROM `zayav`
+			WHERE `deleted`=0
+			  AND `zamer_nomer`>0
+			  AND `zamer_status`=1
+			  AND `zamer_dtime` LIKE '".$mon."%'
+			ORDER BY `zamer_dtime` ASC";
+	$q = query($sql);
+	$zamer = array();
+	while($r = mysql_fetch_assoc($q)) {
+		$ex = explode(' ', $r['zamer_dtime']);
+		$d = explode('-', $ex[0]);
+		$h = explode(':', $ex[1]);
+		$zamer[intval($d[2])][] = array(
+			'id' => $r['id'],
+			'nomer' => $r['zamer_nomer'],
+			'dtime' => FullDataTime($r['zamer_dtime']),
+			'dur' => _zamerDuration($r['zamer_duration']),
+			'left' => ($h[0] - 10) * 36 + $h[1] / 10 * 6,
+			'width' => $zd[$r['zamer_duration']],
+			'tleft' => $titleLeft[$r['zamer_duration']]
+		);
+	}
+
+	$days = '';
+	for($n = 1; $n <= $monDaysCount; $n ++) {
+		$z = '';
+		if(isset($zamer[$n])) {
+			$left = 0;
+			foreach($zamer[$n] as $r) {
+				$z .= '<div class="ztu" val="'.$r['id'].'" style="margin-left:'.($r['left'] - $left).'px;width:'.($r['width'] - 1).'px">'.
+						'<div class="title" style="left:'.$r['tleft'].'px">'.
+							'<div><b>Замер №'.$r['nomer'].'</b></div>'.
+							'<div><span>Дата:</span> '.$r['dtime'].'</div>'.
+							'<div><span>Длительность:</span> '.$r['dur'].'</div>'.
+							'<div class="ugb"></div>'.
+						'</div>'.
+					  '</div>';
+				$left = $r['left'] + $r['width'];
+			}
+		}
+		$days .= '<tr>'.
+					'<td class="num">'.$n.
+					'<td class="z">'.$z;
+	}
+	$hours = '';
+	for($n = 10; $n <= 23; $n ++)
+		$hours .= '<em>'.$n.'</em>';
+
+	//Формирование месяцев для перелистывания
+	$ex = explode('-', $mon);
+	$m = intval($ex[1]);
+	$y = intval($ex[0]);
+
+	$back_mon = $m - 1;
+	$back_year = $y;
+	if(!$back_mon) {
+		$back_mon = 12;
+		$back_year--;
+	}
+	$back = $back_year.'-'.($back_mon < 10 ? 0 : '').$back_mon;
+
+	$next_mon = $m + 1;
+	$next_year = $y;
+	if($next_mon > 12) {
+		$next_mon = 1;
+		$next_year++;
+	}
+	$next = $next_year.'-'.($next_mon < 10 ? 0 : '').$next_mon;
+
+	$sql = "SELECT COUNT(`id`)
+			FROM `zayav`
+			WHERE `deleted`=0
+			  AND `zamer_nomer`>0
+			  AND `zamer_status`=1
+			  AND `zamer_dtime`<'".$mon."-01 00:00:00'
+			LIMIT 1";
+	$back_hide = !query_value($sql) ? ' class="vh"' : '';
+
+	$sql = "SELECT COUNT(`id`)
+			FROM `zayav`
+			WHERE `deleted`=0
+			  AND `zamer_nomer`>0
+			  AND `zamer_status`=1
+			  AND `zamer_dtime`>'".$mon."-".$monDaysCount." 23:59:59'
+			LIMIT 1";
+	$next_hide = !query_value($sql) ? ' class="vh"' : '';
+
+	return
+	'<div id="zamer-table">'.
+		'<div class="mon">'.
+			'<a val="'.$back.'"'.$back_hide.'>&laquo</a>'.
+			'<b>'._monthDef($m, 1).' '.$y.'</b>'.
+			'<a val="'.$next.'"'.$next_hide.'>&raquo</a>'.
+		'</div>'.
+		'<div class="hours">'.$hours.'</div>'.
+		'<table>'.$days.'</table>'.
+	'</div>';
+}//zamer_table()
 function _zamerStatus($id) {
 	$arr = array(
 		'0' => 'Любой статус',
@@ -1259,6 +1385,7 @@ function zayav_info($zayav_id) {
 	return _noauth('Неизвестная заявка');
 }//zayav_info()
 function zakaz_info($z) {
+	setcookie('zayav_dop', 'zakaz', time() + 846000, "/");
 	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$z['client_id'];
 	$client = mysql_fetch_assoc(query($sql));
 
@@ -1305,7 +1432,10 @@ function zakaz_info($z) {
 			'status:'.$z['zakaz_status'].','.
 			'client_fio:"'.$client['fio'].'",'.
 			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
-			'zakaz_txt:"'.$z['zakaz_txt'].'"'.
+			'zakaz_txt:"'.$z['zakaz_txt'].'",'.
+			'nomer_vg:"'.$z['nomer_vg'].'",'.
+			'nomer_g:"'.$z['nomer_g'].'",'.
+			'nomer_d:"'.$z['nomer_d'].'"'.
 		'},'.
 		'DOG={'.
 			'nomer:'.$dog['id'].','.
@@ -1340,9 +1470,12 @@ function zakaz_info($z) {
 			'<div class="content">'.
 				'<table class="tabInfo">'.
 					'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
-					'<tr><td class="label top">Изделия:<td>'.$z['zakaz_txt'].zayav_product_spisok($z['id']).
+					'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).$z['zakaz_txt'].
 					'<tr><td class="label">Договор:<td>'.$dogSpisok.
-					'<tr><td class="label top">Файлы:<td>'._attach($z['id'].'files', 'Загрузить', 1).
+  ($z['nomer_vg'] ? '<tr><td class="label">Номер ВГ:<td>'.$z['nomer_vg'].'&nbsp;&nbsp;&nbsp;'._attach('vg', $z['id'], 'Прикрепить документ') : '').
+   ($z['nomer_g'] ? '<tr><td class="label">Номер Ж:<td>'.$z['nomer_g'].'&nbsp;&nbsp;&nbsp;'._attach('g', $z['id'], 'Прикрепить документ') : '').
+   ($z['nomer_d'] ? '<tr><td class="label">Номер Д:<td>'.$z['nomer_d'].'&nbsp;&nbsp;&nbsp;'._attach('d', $z['id'], 'Прикрепить документ') : '').
+					'<tr><td class="label top">Файлы:<td>'._attach('files', $z['id'], 'Загрузить', 1).
 					'<tr><td class="label">Статус:'.
 						'<td><div style="background-color:#'._statusColor($z['zakaz_status']).'" class="status zakaz_status">'._zakazStatus($z['zakaz_status']).'</div>'.
 				'</table>'.
@@ -1357,8 +1490,9 @@ function zakaz_info($z) {
 			'</div>'.
 			'<div class="histories">'.report_history_spisok(1, array('zayav_id'=>$z['id'])).'</div>'.
 		'</div>';
-}//set_info()
+}//zakaz_info()
 function zamer_info($z) {
+	setcookie('zayav_dop', 'zamer', time() + 846000, "/");
 	$ex = explode(' ', $z['zamer_dtime']);
 	$time = explode(':', $ex[1]);
 
@@ -1392,6 +1526,7 @@ function zamer_info($z) {
 					'<tr><td class="label">Дата замера:'.
 						'<td><span class="zamer-dtime" title="'._zamerDuration($z['zamer_duration']).'">'.FullDataTime($z['zamer_dtime']).'</span>'.
 							($z['zamer_status'] == 1 ? '<span class="zamer-left">'.remindDayLeft($z['zamer_dtime']).'</span>' : '').
+							'<a class="zamer_table">Таблица замеров</a>'.
 					'<tr><td class="label">Статус:'.
 						'<td><div style="background-color:#'._statusColor($z['zamer_status']).'" class="status zamer_status">'.
 								_zamerStatus($z['zamer_status']).
@@ -1404,6 +1539,7 @@ function zamer_info($z) {
 	'</div>';
 }//zamer_info()
 function dogovor_info($z) {
+	setcookie('zayav_dop', 'dog', time() + 846000, "/");
 	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$z['client_id'];
 	$client = mysql_fetch_assoc(query($sql));
 
@@ -1451,6 +1587,7 @@ function dogovor_info($z) {
 	'</div>';
 }//dogovor_info()
 function set_info($z) {
+	setcookie('zayav_dop', 'set', time() + 846000, "/");
 	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$z['client_id'];
 	$client = mysql_fetch_assoc(query($sql));
 
@@ -1499,7 +1636,8 @@ function set_info($z) {
 			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
 			'adres:"'.$z['adres'].'",'.
 			'nomer_vg:"'.$z['nomer_vg'].'",'.
-			'nomer_g:"'.$z['nomer_g'].'"'.
+			'nomer_g:"'.$z['nomer_g'].'",'.
+			'nomer_d:"'.$z['nomer_d'].'"'.
 		'},'.
 		'DOG={'.
 			'nomer:'.$dog['id'].','.
@@ -1537,9 +1675,10 @@ function set_info($z) {
 				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).
 				'<tr><td class="label">Адрес установки:<td><b>'.$z['adres'].'</b>'.
 				'<tr><td class="label">Договор:<td>'.$dogSpisok.
-($z['nomer_vg'] ? '<tr><td class="label">Номер ВГ:<td>'.$z['nomer_vg'].'&nbsp;&nbsp;&nbsp;'._attach($z['id'].'vg', 'Прикрепить документ') : '').
- ($z['nomer_g'] ? '<tr><td class="label">Номер Ж:<td>'.$z['nomer_g'].'&nbsp;&nbsp;&nbsp;'._attach($z['id'].'g', 'Прикрепить документ') : '').
-				'<tr><td class="label top">Файлы:<td>'._attach($z['id'].'files', 'Загрузить', 1).
+($z['nomer_vg'] ? '<tr><td class="label">Номер ВГ:<td>'.$z['nomer_vg'].'&nbsp;&nbsp;&nbsp;'._attach('vg', $z['id'], 'Прикрепить документ') : '').
+ ($z['nomer_g'] ? '<tr><td class="label">Номер Ж:<td>'.$z['nomer_g'].'&nbsp;&nbsp;&nbsp;'._attach('g', $z['id'], 'Прикрепить документ') : '').
+ ($z['nomer_d'] ? '<tr><td class="label">Номер Д:<td>'.$z['nomer_d'].'&nbsp;&nbsp;&nbsp;'._attach('d', $z['id'], 'Прикрепить документ') : '').
+				'<tr><td class="label top">Файлы:<td>'._attach('files', $z['id'], 'Загрузить', 1).
 				'<tr><td class="label">Статус:'.
 					'<td><div style="background-color:#'._statusColor($z['set_status']).'" class="status set_status">'._setStatus($z['set_status']).'</div>'.
 			'</table>'.
@@ -1597,21 +1736,21 @@ function zayav_money($zayav_id) {
 		return '';
 	return '<table class="_spisok _money">'.implode('', $money).'</table>';
 }//zayav_money()
-function _attach($owner, $name='Обзор...', $files_block=false) {
+function _attach($type, $zayav_id, $name='Обзор...', $files_block=false) {
 	return
 	'<div class="_attach">'.
-		'<div class="files'.($files_block ? ' block' : '').'">'._attach_files($owner).'</div>'.
+		'<div class="files'.($files_block ? ' block' : '').'">'._attach_files($type, $zayav_id).'</div>'.
 		'<div class="form">'.
-			'<form method="post" action="'.SITE.'/ajax/main.php?'.VALUES.'" enctype="multipart/form-data" target="'.$owner.'_frame">'.
-				_attach_form($owner).
+			'<form method="post" action="'.SITE.'/ajax/main.php?'.VALUES.'" enctype="multipart/form-data" target="'.$type.$zayav_id.'_frame">'.
+				_attach_form($type, $zayav_id).
 			'</form>'.
 			'<a class="attach_a">'.$name.'</a>'.
 		'</form>'.
-		'<iframe name="'.$owner.'_frame"></iframe>'.
+		'<iframe name="'.$type.$zayav_id.'_frame"></iframe>'.
 	'</div>';
 }
-function _attach_files($owner) {
-	$sql = "SELECT * FROM `attach` WHERE `deleted`=0 AND `owner`='".$owner."' ORDER BY `id`";
+function _attach_files($type, $zayav_id) {
+	$sql = "SELECT * FROM `attach` WHERE `deleted`=0 AND `type`='".$type."' AND `zayav_id`=".$zayav_id." ORDER BY `id`";
 	$q = query($sql);
 	$send = array();
 	while($r = mysql_fetch_assoc($q))
@@ -1622,12 +1761,13 @@ function _attach_files($owner) {
 			'</span>';
 	return implode(' ', $send);
 }//_attach_files()
-function _attach_form($owner) {
+function _attach_form($type, $zayav_id) {
 	return
 	'<input type="file" name="f1" class="inp2">'.
 	'<input type="file" name="f2">'.
 	'<input type="hidden" name="op" value="attach_upload">'.
-	'<input type="hidden" name="owner" class="owner" value="'.$owner.'">';
+	'<input type="hidden" name="type" class="type" value="'.$type.'">'.
+	'<input type="hidden" name="zayav_id" class="zayav_id" value="'.$zayav_id.'">';
 }
 
 function dogovor_print($dog_id) {

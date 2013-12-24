@@ -18,8 +18,6 @@ if(!$r = mysql_fetch_assoc(query($sql))) {
 	exit;
 }
 
-setlocale(LC_ALL, "ru_RU.CP1251");
-
 $sql = "SELECT * FROM `setup_global`";
 $g = mysql_fetch_assoc(query($sql));
 

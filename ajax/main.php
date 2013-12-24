@@ -21,23 +21,21 @@ switch(@$_POST['op']) {
 		/*
 			Прикрепление файлов
 			1 - успешно
-			2 - некорректный owner
+			2 - некорректный type
 			3 - неверный формат
 			4 - загрузить не удалось
 			5 - несуществующая заявка
 		*/
-		if(!preg_match(REGEXP_WORD, $_POST['owner'])) {
+		if(!preg_match(REGEXP_WORD, $_POST['type'])) {
 			setcookie('_attached', 2, time() + 3600, '/');
 			exit;
 		}
-		$owner = htmlspecialchars(trim($_POST['owner']));
-
-		//Получение id заявки
-		$zayav_id = intval($owner);
-		if(!$zayav_id) {
-			setcookie('_attached', 2, time() + 3600, '/');
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) || !$_POST['zayav_id']) {
+			setcookie('_attached', 5, time() + 3600, '/');
 			exit;
 		}
+		$type = htmlspecialchars(trim($_POST['type']));
+		$zayav_id = intval($_POST['zayav_id']);
 
 		//Проверка наличия заявки
 		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id;
@@ -53,21 +51,21 @@ switch(@$_POST['op']) {
 			case 'application/vnd.ms-excel': break;
 			default: setcookie('_attached', 3, time() + 3600, '/'); exit;
 		}
-		$dir = PATH.'files/vg/'.$owner;
+		$dir = PATH.'files/'.$type.'/'.$type.$zayav_id;
 		if(!is_dir($dir))
 			mkdir($dir, 0777, true);
 		$fname = time().'_'.translit($f["name"]);
 		if(move_uploaded_file($f['tmp_name'], $dir.'/'.$fname)) {
 			$name = htmlspecialchars(trim($f["name"]));
-			$link = SITE."/files/vg/".$owner."/".$fname;
+			$link = SITE.'/files/'.$type.'/'.$type.$zayav_id.'/'.$fname;
 			$sql = "INSERT INTO `attach` (
-						`owner`,
+						`type`,
 						`zayav_id`,
 						`name`,
 						`link`,
 						`viewer_id_add`
 					) VALUES (
-						'".$owner."',
+						'".$type."',
 						".$zayav_id.",
 						'".$name."',
 						'".$link."',
@@ -88,12 +86,15 @@ switch(@$_POST['op']) {
 		setcookie('_attached', 4, time() + 3600, '/');
 		exit;
 	case 'attach_get':
-		if(!preg_match(REGEXP_WORD, $_POST['owner']))
+		if(!preg_match(REGEXP_WORD, $_POST['type']))
 			jsonError();
-		$owner = htmlspecialchars(trim($_POST['owner']));
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
+			jsonError();
+		$type = htmlspecialchars(trim($_POST['type']));
+		$zayav_id = intval($_POST['zayav_id']);
 		$send = array(
-			'files' => utf8(_attach_files($owner)),
-			'form' => _attach_form($owner)
+			'files' => utf8(_attach_files($type, $zayav_id)),
+			'form' => _attach_form($type, $zayav_id)
 		);
 		jsonSuccess($send);
 		break;
@@ -457,6 +458,9 @@ switch(@$_POST['op']) {
 
 		$zayav_id = intval($_POST['zayav_id']);
 		$zakaz_txt = win1251(htmlspecialchars(trim($_POST['zakaz_txt'])));
+		$nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
+		$nomer_g = win1251(htmlspecialchars(trim($_POST['nomer_g'])));
+		$nomer_d = win1251(htmlspecialchars(trim($_POST['nomer_d'])));
 		$product = product_spisok_test($_POST['product']);
 		if(!$product && empty($zakaz_txt))
 			jsonError();
@@ -466,7 +470,10 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		$sql = "UPDATE `zayav`
-		        SET `zakaz_txt`='".addslashes($zakaz_txt)."'
+		        SET `zakaz_txt`='".addslashes($zakaz_txt)."',
+		            `nomer_vg`='".addslashes($nomer_vg)."',
+		            `nomer_g`='".addslashes($nomer_g)."',
+		            `nomer_d`='".addslashes($nomer_d)."'
 				WHERE `id`=".$zayav_id;
 		query($sql);
 
@@ -500,6 +507,12 @@ switch(@$_POST['op']) {
 					$new[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
 			$changes .= '<tr><th>Изделия:<td>'.$zayav['zakaz_txt'].(!empty($old) ? '<br />' : '').implode('<br />', $old).'<td>»<td>'.$zakaz_txt.(!empty($new) ? '<br />' : '').implode('<br />', $new);
 		}
+		if($zayav['nomer_vg'] != $nomer_vg)
+			$changes .= '<tr><th>Номер ВГ:<td>'.$zayav['nomer_vg'].'<td>»<td>'.$nomer_vg;
+		if($zayav['nomer_g'] != $nomer_g)
+			$changes .= '<tr><th>Номер Ж:<td>'.$zayav['nomer_g'].'<td>»<td>'.$nomer_g;
+		if($zayav['nomer_d'] != $nomer_d)
+			$changes .= '<tr><th>Номер Д:<td>'.$zayav['nomer_d'].'<td>»<td>'.$nomer_d;
 		if($changes)
 			history_insert(array(
 				'type' => 24,
@@ -539,6 +552,13 @@ switch(@$_POST['op']) {
 		}
 
 		jsonSuccess();
+		break;
+	case 'zamer_table_get':
+		if(!empty($_POST['mon']) && preg_match(REGEXP_DATE, $_POST['mon'].'-01'))
+			$send['html'] = utf8(zamer_table($_POST['mon']));
+		else
+			$send['html'] = utf8(zamer_table());
+		jsonSuccess($send);
 		break;
 	case 'zamer_add':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
@@ -924,6 +944,7 @@ switch(@$_POST['op']) {
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
 		$nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
 		$nomer_g = win1251(htmlspecialchars(trim($_POST['nomer_g'])));
+		$nomer_d = win1251(htmlspecialchars(trim($_POST['nomer_d'])));
 		$product = product_spisok_test($_POST['product']);
 		if(!$product)
 			jsonError();
@@ -937,7 +958,8 @@ switch(@$_POST['op']) {
 		$sql = "UPDATE `zayav`
 		        SET `adres`='".addslashes($adres)."',
 		            `nomer_vg`='".addslashes($nomer_vg)."',
-		            `nomer_g`='".addslashes($nomer_g)."'
+		            `nomer_g`='".addslashes($nomer_g)."',
+		            `nomer_d`='".addslashes($nomer_d)."'
 				WHERE `id`=".$zayav_id;
 		query($sql);
 
@@ -974,6 +996,8 @@ switch(@$_POST['op']) {
 			$changes .= '<tr><th>Номер ВГ:<td>'.$zayav['nomer_vg'].'<td>»<td>'.$nomer_vg;
 		if($zayav['nomer_g'] != $nomer_g)
 			$changes .= '<tr><th>Номер Ж:<td>'.$zayav['nomer_g'].'<td>»<td>'.$nomer_g;
+		if($zayav['nomer_d'] != $nomer_d)
+			$changes .= '<tr><th>Номер Д:<td>'.$zayav['nomer_d'].'<td>»<td>'.$nomer_d;
 		if($changes)
 			history_insert(array(
 				'type' => 22,
