@@ -27,6 +27,9 @@ _appAuth();
 require_once(DOCUMENT_ROOT.'/view/main.php');
 
 define('TODAY_UNIXTIME', strtotime(strftime("%Y-%m-%d", time())));
+define('PATH_DOGOVOR', PATH.'files/dogovor/');
+define('LINK_DOGOVOR', SITE.'/files/dogovor/');
+
 
 _dbConnect();
 _getSetupGlobal();

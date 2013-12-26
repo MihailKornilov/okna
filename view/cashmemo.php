@@ -9,10 +9,7 @@ if(!preg_match(REGEXP_NUMERIC, @$_GET['id'])) {
 	exit;
 }
 $id = intval($_GET['id']);
-$sql = "SELECT *
-		FROM `money`
-		WHERE `deleted`=0
-		  AND `id`=".$id;
+$sql = "SELECT * FROM `money` WHERE `deleted`=0 AND `id`=".$id;
 if(!$r = mysql_fetch_assoc(query($sql))) {
 	echo 'Платежа id = '.$id.' не существует.';
 	exit;
@@ -21,11 +18,8 @@ if(!$r = mysql_fetch_assoc(query($sql))) {
 $sql = "SELECT * FROM `setup_global`";
 $g = mysql_fetch_assoc(query($sql));
 
-$zayav = array();
-if($r['zayav_id']) {
-	$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$r['zayav_id'];
-	$zayav = mysql_fetch_assoc(query($sql));
-}
+$zayav = query_assoc("SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$r['zayav_id']);
+$dog = query_assoc("SELECT * FROM `zayav_dogovor` WHERE `deleted`=0 AND `zayav_id`=".$r['zayav_id']);
 
 require_once(VKPATH.'clsMsDocGenerator.php');
 $doc = new clsMsDocGenerator(
@@ -58,7 +52,7 @@ $doc->addParagraph(
 		'<tr><td class="nomer">1'.
 			'<td class="about">'.
 				'Оплата'.
-				($zayav['dogovor_nomer'] ? ' по договору №'.$zayav['dogovor_nomer'] : '').
+				($zayav['dogovor_id'] ? ' по договору №'.$dog['nomer'] : '').
 				' за '.
 				($r['zayav_id'] ? zayav_product_spisok($r['zayav_id'], 'cash') : '"'.$r['prim'].'"').
 			'<td class="count">1.00'.

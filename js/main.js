@@ -224,7 +224,7 @@ var hashLoc,
 	dogovorCreate = function() {
 		var html = '<table class="zayav-dogovor">' +
 				'<tr><td colspan="2">' +
-		(DOG.nomer ? '<div class="i per">' +
+		(DOG.id ? '<div class="i per">' +
 						'При <b>перезаключении договора</b> удаляются сумма старого договора и авансовый платёж. ' +
 						'Применятся данные нового договора. Также будет обновлён баланс клиента.' +
 					'</div>'
@@ -237,9 +237,11 @@ var hashLoc,
 				'<tr><td><td><span class="l">Прописка:</span><input type="text" id="pasp_adres" maxlength="100" value="' + DOG.pasp_adres + '" />' +
 				'<tr><td><td><span class="l">Кем выдан:</span><input type="text" id="pasp_ovd" maxlength="100" value="' + DOG.pasp_ovd + '" />' +
 				'<tr><td><td><span class="l">Когда выдан:</span><input type="text" id="pasp_data" maxlength="100" value="' + DOG.pasp_data + '" />' +
+				'<tr><td class="label r">Номер договора:<td><input type="text" id="nomer" maxlength="6" value="' + DOG.nomer + '" />' +
+				'<tr><td class="label r">Дата заключения:<td><input type="hidden" id="data_create" value="' + (DOG.data_create ? DOG.data_create : '') + '" />' +
 				'<tr><td class="label r">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="6" value="' + (DOG.sum ? DOG.sum : '') + '" /> руб.' +
 				'<tr><td class="label r">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="6" value="' + (DOG.avans ? DOG.avans : '') + '" /> руб. <span class="prim">(не обязательно)</span>' +
-   (DOG.nomer ? '<tr><td class="label" colspan="2">Причина перезаключения договора:<textarea id="reason"></textarea>' : '') +
+	  (DOG.id ? '<tr><td class="label" colspan="2">Причина перезаключения договора:<textarea id="reason"></textarea>' : '') +
 				'<tr><td colspan="2">' +
 					'<div class="i">' +
 						'<h1>Внимание!</h1>' +
@@ -255,11 +257,12 @@ var hashLoc,
 			dialog = _dialog({
 				width:426,
 				top:10,
-				head:(DOG.nomer ? 'Перез' : 'З') + 'аключение договора',
+				head:(DOG.id ? 'Перез' : 'З') + 'аключение договора',
 				content:html,
-				butSubmit:(DOG.nomer ? 'Перез' : 'З') + 'аключить договор',
+				butSubmit:(DOG.id ? 'Перез' : 'З') + 'аключить договор',
 				submit:submit
 			});
+		$('#data_create')._calendar({lost:1});
 		$('#preview').click(function() {
 			var send = valuesTest('preview');
 			if(send) {
@@ -273,6 +276,7 @@ var hashLoc,
 		$('#reason').autosize();
 		function valuesTest(type) {
 			var send = {
+				id:DOG.id,
 				zayav_id:ZAYAV.id,
 				fio:$('#fio').val(),
 				adres:$('#adres').val(),
@@ -281,15 +285,18 @@ var hashLoc,
 				pasp_adres:$('#pasp_adres').val(),
 				pasp_ovd:$('#pasp_ovd').val(),
 				pasp_data:$('#pasp_data').val(),
+				nomer:$('#nomer').val(),
+				data_create:$('#data_create').val(),
 				sum:$('#sum').val(),
 				avans:$('#avans').val(),
-				reason:DOG.nomer ? $('#reason').val() : ''
+				reason:DOG.id ? $('#reason').val() : ''
 			};
 			if(!send.fio) err('Не указано Фио клиента', 'fio', type);
 			else if(!send.adres) err('Не указан адрес', 'adres', type);
+			else if(!REGEXP_NUMERIC.test(send.nomer) || send.nomer == 0) err('Некорректно указан номер договора', 'nomer', type);
 			else if(!REGEXP_NUMERIC.test(send.sum) || send.sum == 0) err('Некорректно указана сумма по договору', 'sum', type);
 			else if(send.avans && !REGEXP_NUMERIC.test(send.avans)) err('Некорректно указан авансовый платёж', 'avans', type);
-			else if(DOG.nomer && !send.reason) err('Не указана причина перезаключения договора', 'reason', type);
+			else if(DOG.id && !send.reason) err('Не указана причина перезаключения договора', 'reason', type);
 			else return send;
 			return false;
 		}
@@ -302,7 +309,8 @@ var hashLoc,
 				show:1,
 				remove:1
 			});
-			$('#' + id).focus();
+			if(id)
+				$('#' + id).focus();
 		}
 		function submit() {
 			var send = valuesTest();
@@ -314,8 +322,10 @@ var hashLoc,
 						dialog.close();
 						_msg('Договор заключен.');
 						document.location.reload();
-					} else
+					} else {
 						dialog.abort();
+						err(res.text);
+					}
 				}, 'json');
 			}
 		}
@@ -518,7 +528,7 @@ $(document)
 			'<table class="oplata-add-tab">' +
 				'<tr><td class="label">Клиент:<td>' + OPL.client_fio +
 				'<tr><td class="label">Заявка:<td><input type="hidden" id="zayav_id" value="' + (OPL.zayav_id ? OPL.zayav_id : 0) + '">' +
-						(OPL.zayav_name ? OPL.zayav_name : '') +
+						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '') +
 				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="prihod_type" value="0">' +
 						'<a href="' + URL + '&p=setup&d=prihodtype" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
 				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="7"> руб.' +
@@ -811,7 +821,8 @@ $(document)
 				butCancel:'Закрыть'
 			}),
 			send = {
-				op:'zamer_table_get'
+				op:'zamer_table_get',
+				val:$(this).attr('val') || 0
 			};
 		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success) {
@@ -893,22 +904,21 @@ $(document)
 		zayavZamerDtime({});
 		$('#comm').autosize();
 		function submit() {
-			var msg,
-				send = {
-					op:'zamer_add',
-					client_id:$('#client_id').val(),
-					product:$('#product').productList('get'),
-					adres:$('#adres').val(),
-					zamer_day:$('#zamer_day').val(),
-					zamer_hour:$('#zamer_hour').val(),
-					zamer_min:$('#zamer_min').val(),
-					zamer_duration:$('#zamer_duration').val(),
-					comm:$('#comm').val()
-				};
-			if(send.client_id == 0) msg = 'Не выбран клиент';
-			else if(!send.product) msg = 'Не указано изделие';
-			else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
-			else if(!send.adres) msg = 'Не указан адрес';
+			var send = {
+				op:'zamer_add',
+				client_id:$('#client_id').val(),
+				product:$('#product').productList('get'),
+				adres:$('#adres').val(),
+				zamer_day:$('#zamer_day').val(),
+				zamer_hour:$('#zamer_hour').val(),
+				zamer_min:$('#zamer_min').val(),
+				zamer_duration:$('#zamer_duration').val(),
+				comm:$('#comm').val()
+			};
+			if(send.client_id == 0) err('Не выбран клиент');
+			else if(!send.product) err('Не указано изделие');
+			else if(send.product == 'count_error') err('Некорректно введено количество изделий');
+			else if(!send.adres) err('Не указан адрес');
 			else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
@@ -916,19 +926,22 @@ $(document)
 						dialog.close();
 						_msg('Заявка внесена');
 						location.href = URL + '&p=zayav&d=info&id=' + res.id;
-					} else
+					} else {
 						dialog.abort();
+						err(res.text);
+					}
 				}, 'json');
 			}
-			if(msg)
-				dialog.bottom.vkHint({
-					msg:'<SPAN class="red">' + msg + '</SPAN>',
-					top:-48,
-					left:185,
-					indent:40,
-					show:1,
-					remove:1
-				});
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				top:-48,
+				left:185,
+				indent:40,
+				show:1,
+				remove:1
+			});
 		}
 	})
 	.on('click', '.set_add', function() {
@@ -1032,26 +1045,6 @@ $(document)
 	})
 	.on('click', '.zayav_unit', function() {
 		document.location.href = URL + '&p=zayav&d=info&id=' + $(this).attr('val');
-	})
-	.on('click', '#zayavInfo .delete', function() {
-		var dialog = _dialog({
-			top:110,
-			width:250,
-			head:'Удаление заявки',
-			content:'<CENTER>Подтвердите удаление заявки.</CENTER>',
-			butSubmit:'Удалить',
-			submit:function() {
-				var send = {
-					op:'zayav_delete',
-					zayav_id:ZAYAV.id
-				};
-				dialog.process();
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success)
-						location.href = URL + '&p=client&d=info&id=' + res.client_id;
-				}, 'json');
-			}
-		});
 	})
 	.on('click', '#zayavInfo .acc_del', function() {
 		var send = {
@@ -1173,7 +1166,9 @@ $(document)
 			dialog.content.html('<table class="zamer-status-edit">' +
 				'<tr><td class="label topi">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
 				'<tr class="tr_data dn"><td class="label">Новое время:<td class="zayav-zamer-dtime">' +
-				'<tr class="tr_data dn"><td class="label">Длительность:<td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
+				'<tr class="tr_data dn"><td class="label">Длительность:' +
+				'   <td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
+						'<a class="zamer_table" val="' + id + '">Таблица замеров</a>' +
 				'<tr class="tr_prim dn"><td class="label top">Комментарий:<td><textarea id="prim"></textarea>' +
 				'</table>');
 			$('#edit_zamer')._radio({
@@ -1191,18 +1186,17 @@ $(document)
 			zayavZamerDtime(res);
 		}
 		function submit() {
-			var msg,
-				send = {
-					op:'zamer_status',
-					zayav_id:id,
-					status:$('#edit_zamer').val(),
-					zamer_day:$('#zamer_day').val(),
-					zamer_hour:$('#zamer_hour').val(),
-					zamer_min:$('#zamer_min').val(),
-					zamer_duration:$('#zamer_duration').val(),
-					prim:$('#prim').val()
-				};
-			if(send.status == -1) msg = 'Выберите вариант.';
+			var send = {
+				op:'zamer_status',
+				zayav_id:id,
+				status:$('#edit_zamer').val(),
+				zamer_day:$('#zamer_day').val(),
+				zamer_hour:$('#zamer_hour').val(),
+				zamer_min:$('#zamer_min').val(),
+				zamer_duration:$('#zamer_duration').val(),
+				prim:$('#prim').val()
+			};
+			if(send.status == -1) err('Выберите вариант.');
 			else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
@@ -1210,19 +1204,22 @@ $(document)
 						dialog.close();
 						_msg('Данные изменены!');
 						document.location.reload();
-					} else
+					} else {
 						dialog.abort();
+						err(res.text);
+					}
 				}, 'json');
 			}
-			if(msg)
-				$(this).vkHint({
-					msg:'<SPAN class="red">' + msg + '</SPAN>',
-					top:-58,
-					left:-5,
-					indent:40,
-					remove:1,
-					show:1
-				});
+		}
+		function err(msg) {
+			$(this).vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				top:-58,
+				left:-5,
+				indent:40,
+				remove:1,
+				show:1
+			});
 		}
 	})
 	.on('click', '.set_status', function() {
@@ -2067,12 +2064,14 @@ $(document)
 						'<tr><td class="label top">Изделие:	<td id="product">' +
 						'<tr><td class="label">Адрес замера:  <td><INPUT type="text" id="adres" maxlength="100" value="' + ZAYAV.adres + '" />' +
 						'<tr><td class="label">Дата и время замера:<td class="zayav-zamer-dtime">' +
-						'<tr><td class="label">Длительность замера:<td><INPUT TYPE="hidden" id="zamer_duration" value="' + ZAYAV.dur + '" />' +
+						'<tr><td class="label">Длительность замера:' +
+							'<td><INPUT TYPE="hidden" id="zamer_duration" value="' + ZAYAV.dur + '" />' +
+								'<a class="zamer_table" val="' + ZAYAV.id + '">Таблица замеров</a>' +
 						'</table>',
 					dialog = _dialog({
 						width:500,
 						top:30,
-						head:'Замер №' + ZAYAV.zamer_nomer + ' - Редактирование',
+						head:'Замер №' + ZAYAV.id + ' - Редактирование',
 						content:html,
 						butSubmit:'Сохранить',
 						submit:submit
@@ -2086,20 +2085,19 @@ $(document)
 				});
 				zayavZamerDtime(ZAYAV);
 				function submit() {
-					var msg,
-						send = {
-							op:'zamer_edit',
-							zayav_id:ZAYAV.id,
-							product:$('#product').productList('get'),
-							adres:$('#adres').val(),
-							zamer_day:$('#zamer_day').val(),
-							zamer_hour:$('#zamer_hour').val(),
-							zamer_min:$('#zamer_min').val(),
-							zamer_duration:$('#zamer_duration').val()
-						};
-					if(!send.product) msg = 'Не указано изделие';
-					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
-					else if(!send.adres) msg = 'Не указан адрес';
+					var send = {
+						op:'zamer_edit',
+						zayav_id:ZAYAV.id,
+						product:$('#product').productList('get'),
+						adres:$('#adres').val(),
+						zamer_day:$('#zamer_day').val(),
+						zamer_hour:$('#zamer_hour').val(),
+						zamer_min:$('#zamer_min').val(),
+						zamer_duration:$('#zamer_duration').val()
+					};
+					if(!send.product) err('Не указано изделие');
+					else if(send.product == 'count_error') err('Некорректно введено количество изделий');
+					else if(!send.adres) err('Не указан адрес');
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function(res) {
@@ -2107,19 +2105,22 @@ $(document)
 								dialog.close();
 								_msg('Данные изменены!');
 								document.location.reload();
-							} else
+							} else {
 								dialog.abort();
+								err(res.text);
+							}
 						}, 'json');
 					}
-					if(msg)
-						dialog.bottom.vkHint({
-							msg:'<SPAN class="red">' + msg + '</SPAN>',
-							top:-47,
-							left:161,
-							indent:40,
-							show:1,
-							remove:1
-						});
+				}
+				function err(msg) {
+					dialog.bottom.vkHint({
+						msg:'<SPAN class="red">' + msg + '</SPAN>',
+						top:-47,
+						left:161,
+						indent:40,
+						show:1,
+						remove:1
+					});
 				}
 			});
 			$('.dog_edit').click(function() {
@@ -2188,7 +2189,7 @@ $(document)
 					dialog = _dialog({
 						width:500,
 						top:30,
-						head:'Установка №' + ZAYAV.set_nomer + ' - Редактирование',
+						head:'Установка №' + ZAYAV.id + ' - Редактирование',
 						content:html,
 						butSubmit:'Сохранить',
 						submit:submit
@@ -2286,6 +2287,26 @@ $(document)
 							correct:0
 						});
 				}
+			});
+			$('.delete').click(function() {
+				var dialog = _dialog({
+					top:110,
+					width:250,
+					head:'Удаление заявки',
+					content:'<CENTER>Подтвердите удаление заявки.</CENTER>',
+					butSubmit:'Удалить',
+					submit:function() {
+						var send = {
+							op:'zayav_delete',
+							zayav_id:ZAYAV.id
+						};
+						dialog.process();
+						$.post(AJAX_MAIN, send, function(res) {
+							if(res.success)
+								location.href = URL + '&p=client&d=info&id=' + res.client_id;
+						}, 'json');
+					}
+				});
 			});
 		}
 

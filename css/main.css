@@ -63,6 +63,7 @@
 	background-color:#8f8;
 	cursor:pointer;
 }
+#zamer-table .ztu.sel{background-color:#ff8}
 #zamer-table .title{
 	display:none;
 	position:absolute;
@@ -171,7 +172,7 @@
 .zayav_unit:hover{border:#bbb solid 1px;box-shadow: 0 0 5px rgba(0,0,0,0.4)}
 .zayav_unit .name{display:block;font-size:12px;font-weight:700;margin:5px 0 0 8px}
 .zayav_unit .name span{color:#777;font-weight:normal;font-size:12px}
-.zayav_unit .dtime{float:right;font-size:10px;color:#777;padding:4px}
+.zayav_unit .dtime{float:right;text-align:right;font-size:10px;color:#777;padding:4px}
 .zayav_unit .ztab{border-spacing:2px;margin:4px 0 4px 8px}
 .zayav_unit .label{width:60px}
 .zayav_unit .product td{padding:1px 4px 3px 0}
@@ -236,6 +237,7 @@
 .zayav-info-edit #nomer_g{width:100px}
 .zayav-info-edit #nomer_d{width:100px}
 .zayav-info-edit #prim{width:220px;height:40px}
+.zayav-info-edit .zamer_table{position:relative;left:10px;top:-3px}
 
 .zayav-dogovor{border-spacing:8px}
 .zayav-dogovor .label{width:110px}
@@ -246,6 +248,7 @@
 .zayav-dogovor #pasp_adres,
 .zayav-dogovor #pasp_ovd,
 .zayav-dogovor #pasp_data{width:184px}
+.zayav-dogovor #nomer{width:40px}
 .zayav-dogovor .prim{font-size:10px;color:#999}
 .zayav-dogovor .i{
 	margin-top:10px;
@@ -268,6 +271,7 @@
 .zamer-status-edit .label{width:100px;text-align:right}
 .zamer-status-edit #prim{width:220px;height:40px}
 .zamer-status-edit #edit_zamer_radio span{display:block;width:220px;color:#888;margin:2px 0 12px 18px}
+.zamer-status-edit .zamer_table{position:relative;left:10px;top:-4px}
 
 
 
