@@ -202,25 +202,6 @@ var hashLoc,
 			$('#mainLinks').removeClass('busy');
 		}, 'json');
 	},
-	zayavInfoMoneyUpdate = function() {
-		var send = {
-			op:'zayav_money_update',
-			id:ZAYAV.id
-		};
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success) {
-				$('b.acc').html(res.acc);
-				$('.acc_tr')[(res.acc == 0 ? 'add' : 'remove') + 'Class']('dn');
-				$('b.op').html(res.opl);
-				$('.op_tr')[(res.opl == 0 ? 'add' : 'remove') + 'Class']('dn');
-				$('.dopl')
-					[(res.dopl == 0 ? 'add' : 'remove') + 'Class']('dn')
-					.html((res.dopl > 0 ? '+' : '') + res.dopl);
-				var del = res.acc == 0 && res.opl == 0;
-				$('.delete')[(del ? 'remove' : 'add') + 'Class']('dn');
-			}
-		}, 'json');
-	},
 	dogovorCreate = function() {
 		var html = '<table class="zayav-dogovor">' +
 				'<tr><td colspan="2">' +
@@ -430,15 +411,16 @@ $.fn.productList = function(o) {
 			attr_id = attr + 'id',
 			attr_subid = attr + 'subid',
 			attr_count = attr + 'count',
-			html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
+			html = '<table id="ptab'+ num + '" class="ptab" val="'+ num + '"><tr>' +
 					'<td class="td"><input type="hidden" id="' + attr_id + '" value="' + (v[0] || 0) + '" />' +
 								   '<input type="hidden" id="' + attr_subid + '" value="' + (v[1] || 0) + '" />' +
 					'<td class="td"><input type="text" id="' + attr_count + '" value="' + (v[2] || '') + '" class="count" maxlength="3" /> шт.' +
-					(num > 1 ? '<div class="img_del" val="' + num + '"></div>' : '') +
+									(num > 1 ? '<div class="img_del"></div>' : '') +
 				'</table>';
 		add.before(html);
-		$('#ptab' + num).find('.img_del').click(function() {
-			$('#ptab' + $(this).attr('val')).remove();
+		var ptab = $('#ptab' + num);
+		ptab.find('.img_del').click(function() {
+			ptab.remove();
 		});
 		$('#' + attr_id).vkSel({
 			width:119,
@@ -471,8 +453,94 @@ $.fn.productList = function(o) {
 	}
 	return t;
 };
+$.fn.zayavRashod = function(o) {
+	var t = $(this),
+		id = t.attr('id'),
+		num = 1,
+		n;
 
-$(document)
+	if(typeof o == 'string') {
+		if(o == 'get') {
+			var units = t.find('.ptab'),
+				send = [];
+			for(n = 0; n < units.length; n++) {
+				var u = units.eq(n),
+					attr = id + u.attr('val'),
+					cat_id = $('#' + attr + 'cat').val(),
+					worker = $('#' + attr + 'worker').val(),
+					sum = u.find('.zrsum').val(),
+					dop = '';
+				if(cat_id == 0)
+					continue;
+				if(!REGEXP_NUMERIC.test(sum) || sum == 0)
+					return 'sum_error';
+				if(ZAYAVRASHOD_TXT_ASS[cat_id])
+					dop = u.find('.zrtxt').val();
+				else if(ZAYAVRASHOD_WORKER_ASS[cat_id])
+					dop = $('#' + attr + 'worker').val();
+				send.push(cat_id + ':' + dop + ':' + sum);
+			}
+			return send.join();
+		}
+	}
+
+	t.html('<div class="_zayav-rashod"><a class="add">Добавить поле</a></div>');
+	var add = t.find('.add');
+	add.click(itemAdd);
+	itemAdd();
+
+	function itemAdd() {
+		var attr = id + num,
+			attr_cat = attr + 'cat',
+			attr_worker = attr + 'worker',
+			html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
+						'<td><input type="hidden" id="' + attr_cat + '" />' +
+						'<td class="tddop">' +
+						'<td class="tdsum dn"><input type="text" class="zrsum" maxlength="6" />руб.' +
+						'<td>' + (num > 1 ? '<div class="img_del"></div>' : '') +
+					'</table>';
+		add.before(html);
+		var ptab = $('#ptab' + num),
+			tddop = ptab.find('.tddop'),
+			zrsum = ptab.find('.zrsum');
+		ptab.find('.img_del').click(function() {
+			ptab.remove();
+		});
+		$('#' + attr_cat).vkSel({
+			width:120,
+			display:'inline-block',
+			title0:'Категория',
+			spisok:ZAYAVRASHOD_SPISOK,
+			func:function(id) {
+				ptab.find('.tdsum')[(id ? 'remove' : 'add') + 'Class']('dn');
+				if(ZAYAVRASHOD_TXT_ASS[id]) {
+					tddop.html('<input type="text" class="zrtxt" />');
+					tddop.find('.zrtxt').focus();
+				} else if(ZAYAVRASHOD_WORKER_ASS[id]) {
+					tddop.html('<input type="hidden" id="' + attr_worker + '" />');
+					$('#' + attr_worker).vkSel({
+						width:150,
+						display:'inline-block',
+						title0:'Сотрудник',
+						spisok:WORKER_SPISOK,
+						func:function() {
+							zrsum.focus();
+						}
+					});
+					zrsum.focus();
+				} else {
+					tddop.html('');
+					zrsum.focus();
+				}
+				zrsum.val('');
+			}
+		});
+		num++;
+	}
+	return t;
+};
+
+	$(document)
 	.on('change', '._attach input', function() {
 		setCookie('_attached', 0);
 		var t = $(this), att = t;
@@ -1046,64 +1114,6 @@ $(document)
 	.on('click', '.zayav_unit', function() {
 		document.location.href = URL + '&p=zayav&d=info&id=' + $(this).attr('val');
 	})
-	.on('click', '#zayavInfo .acc_del', function() {
-		var send = {
-			op:'zayav_accrual_del',
-			id:$(this).attr('val')
-		};
-		var tr = $(this).parent().parent();
-		tr.html('<td colspan="4" class="deleting">Удаление... <img src=/img/upload.gif></td>');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success) {
-				tr.find('.deleting').html('Начисление удалено. <a class="acc_rest" val="' + send.id + '">Восстановить</a>');
-				zayavInfoMoneyUpdate();
-			}
-		}, 'json');
-	})
-	.on('click', '#zayavInfo .acc_rest', function() {
-		var send = {
-				op:'zayav_accrual_rest',
-				id:$(this).attr('val')
-			},
-			t = $(this),
-			tr = t.parent().parent();
-		t.after('<img src=/img/upload.gif>').remove();
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success) {
-				tr.after(res.html).remove();
-				zayavInfoMoneyUpdate();
-			}
-		}, 'json');
-	})
-	.on('click', '#zayavInfo .op_del', function() {
-		var send = {
-			op:'zayav_oplata_del',
-			id:$(this).attr('val')
-		};
-		var tr = $(this).parent().parent();
-		tr.html('<td colspan="4" class="deleting">Удаление... <img src=/img/upload.gif></td>');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success) {
-				tr.find('.deleting').html('Платёж удалён. <a class="op_rest" val="' + send.id + '">Восстановить</a>');
-				zayavInfoMoneyUpdate();
-			}
-		}, 'json');
-	})
-	.on('click', '#zayavInfo .op_rest', function() {
-		var send = {
-				op:'zayav_oplata_rest',
-				id:$(this).attr('val')
-			},
-			t = $(this),
-			tr = t.parent().parent();
-		t.after('<img src=/img/upload.gif>').remove();
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success) {
-				tr.after(res.html).remove();
-				zayavInfoMoneyUpdate();
-			}
-		}, 'json');
-	})
 	.on('click', '.zakaz_status', function() {
 		var t = $(this),
 			html = '<table class="zamer-status-edit">' +
@@ -1286,12 +1296,12 @@ $(document)
 		$('#remind').removeClass('y');
 	})
 
-	.on('click', '#report_history_next', function() {
+	.on('click', '#history_next', function() {
 		if($(this).hasClass('busy'))
 			return;
 		var next = $(this),
 			send = {
-				op:'report_history_next',
+				op:'history_next',
 				page:$(this).attr('val')
 //				worker:$('#report_history_worker').val(),
 //				action:$('#report_history_action').val(),
@@ -1791,6 +1801,154 @@ $(document)
 				t = t.parent();
 			var send = {
 				op:'setup_prihodtype_del',
+				id:t.attr('val')
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					$('.spisok').html(res.html);
+					dialog.close();
+					_msg('Удалено!');
+					sortable();
+				} else
+					dialog.abort();
+			}, 'json');
+		}
+	})
+
+	.on('click', '#setup_zayavrashod .add', function() {
+		var t = $(this),
+			html = '<table style="border-spacing:10px">' +
+				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="50" style="width:210px" />' +
+				'<tr><td class="label r">Текстовое поле:<td><input id="show_txt" type="hidden" />' +
+				'<tr><td class="label r">Список сотрудников:<td><input id="show_worker" type="hidden" />' +
+				'</table>',
+			dialog = _dialog({
+				top:60,
+				width:440,
+				head:'Добавление новой категории расхода заявки',
+				content:html,
+				submit:submit
+			});
+		$('#name').focus().keyEnter(submit);
+		$('#show_txt')._check({func:checktest});
+		$('#show_worker')._check({func:checktest});
+		function submit() {
+			var send = {
+				op:'setup_zayavrashod_add',
+				name:$('#name').val(),
+				show_txt:$('#show_txt').val(),
+				show_worker:$('#show_worker').val()
+			};
+			if(!send.name) {
+				dialog.bottom.vkHint({
+					msg:'<SPAN class=red>Не указано наименование</SPAN>',
+					top:-47,
+					left:131,
+					indent:50,
+					show:1,
+					remove:1
+				});
+				$('#name').focus();
+			} else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						$('.spisok').html(res.html);
+						dialog.close();
+						_msg('Внесено!');
+						sortable();
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function checktest(id, attr) {
+			if(id == 1)
+				if(attr == 'show_txt')
+					$('#show_worker')._check(0);
+				else
+					$('#show_txt')._check(0);
+		}
+	})
+	.on('click', '#setup_zayavrashod .img_edit', function() {
+		var t = $(this);
+		while(t[0].tagName != 'DD')
+			t = t.parent();
+		var id = t.attr('val'),
+			name = t.find('.name').html(),
+			txt = t.find('.txt').html() ? 1 : 0,
+			worker = t.find('.worker').html() ? 1 : 0,
+			html = '<table style="border-spacing:10px">' +
+				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="50" style="width:210px" value="' + name + '" />' +
+				'<tr><td class="label r">Текстовое поле:<td><input id="show_txt" type="hidden" value="' + txt + '" />' +
+				'<tr><td class="label r">Список сотрудников:<td><input id="show_worker" type="hidden" value="' + worker + '" />' +
+				'</table>',
+			dialog = _dialog({
+				top:60,
+				width:440,
+				head:'Редактирование категории расхода заявки',
+				content:html,
+				butSubmit:'Сохранить',
+				submit:submit
+			});
+		$('#name').focus().keyEnter(submit);
+		$('#show_txt')._check({func:checktest});
+		$('#show_worker')._check({func:checktest});
+		function submit() {
+			var send = {
+				op:'setup_zayavrashod_edit',
+				id:id,
+				name:$('#name').val(),
+				show_txt:$('#show_txt').val(),
+				show_worker:$('#show_worker').val()
+			};
+			if(!send.name) {
+				dialog.bottom.vkHint({
+					msg:'<SPAN class=red>Не указано наименование</SPAN>',
+					top:-47,
+					left:131,
+					indent:50,
+					show:1,
+					remove:1
+				});
+				$('#name').focus();
+			} else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						$('.spisok').html(res.html);
+						dialog.close();
+						_msg('Сохранено!');
+						sortable();
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function checktest(id, attr) {
+			if(id == 1)
+				if(attr == 'show_txt')
+					$('#show_worker')._check(0);
+				else
+					$('#show_txt')._check(0);
+		}
+	})
+	.on('click', '#setup_zayavrashod .img_del', function() {
+		var t = $(this),
+			dialog = _dialog({
+				top:90,
+				width:300,
+				head:'Удаление категории расхода заявки',
+				content:'<center><b>Подтвердите удаление<br />категории расхода заявки.</b></center>',
+				butSubmit:'Удалить',
+				submit:submit
+			});
+		function submit() {
+			while(t[0].tagName != 'DD')
+				t = t.parent();
+			var send = {
+				op:'setup_zayavrashod_del',
 				id:t.attr('val')
 			};
 			dialog.process();
@@ -2308,6 +2466,50 @@ $(document)
 					}
 				});
 			});
+			$('.rashod-edit').click(function() {
+				var html = '<table class="zayav-rashod-edit">' +
+						'<tr><td class="label">Заявка: <td><b>' + ZAYAV.head + '</b>' +
+						'<tr><td class="label topi">Расходы:<td id="zrs">' +
+						'</table>',
+					dialog = _dialog({
+						width:470,
+						top:30,
+						head:'Изменение расходов заявки',
+						content:html,
+						butSubmit:'Сохранить',
+						submit:submit
+					});
+				$('#zrs').zayavRashod();
+				function submit() {
+					var send = {
+						op:'zayav_rashod_edit',
+						zayav_id:ZAYAV.id,
+						rashod:$('#zrs').zayavRashod('get')
+					};
+					if(send.spisok == 'sum_error') err('Некорректно указана сумма');
+					else {
+						dialog.process();
+						$.post(AJAX_MAIN, send, function(res) {
+							if(res.success) {
+								$('.zrashod').html(res.html);
+								dialog.close();
+								_msg('Сохранено.');
+							} else
+								dialog.abort();
+						}, 'json');
+					}
+				}
+				function err(msg) {
+					dialog.bottom.vkHint({
+						msg:'<SPAN class="red">' + msg + '</SPAN>',
+						top:-47,
+						left:147,
+						indent:40,
+						show:1,
+						remove:1
+					});
+				}
+			});
 		}
 
 		if($('#remind').length > 0) {
@@ -2325,6 +2527,8 @@ $(document)
 				$('#rules_worker')._check(0);
 				$('#rules_product')._check(0);
 				$('#rules_prihodtype')._check(0);
+				$('#rules_zayavrashod')._check(0);
+				$('#rules_historyshow')._check(0);
 			});
 			$('#rules_setup')._check(function(v, id) {
 				$('.setup-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
@@ -2332,11 +2536,14 @@ $(document)
 				$('#rules_worker')._check(0);
 				$('#rules_product')._check(0);
 				$('#rules_prihodtype')._check(0);
+				$('#rules_zayavrashod')._check(0);
 			});
 			$('#rules_worker')._check(setupRulesSet);
 			$('#rules_rekvisit')._check(setupRulesSet);
 			$('#rules_product')._check(setupRulesSet);
 			$('#rules_prihodtype')._check(setupRulesSet);
+			$('#rules_zayavrashod')._check(setupRulesSet);
+			$('#rules_historyshow')._check(setupRulesSet);
 		}
 		if($('#setup_rekvisit').length > 0) {
 			$('.vkButton').click(function() {

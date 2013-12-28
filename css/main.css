@@ -139,11 +139,24 @@
 #clientInfo .cdel{color:red}
 
 /* Поля изделий при управлении заявкой */
-._product-list .td{padding-bottom:6px}
+._product-list .ptab{padding-bottom:6px}
 ._product-list .vkSel{margin-right:5px}
-._product-list .count{width:20px;padding-top:4px}
+._product-list .count{width:20px}
 ._product-list .img_del{margin:0 0 -4px 6px}
 ._product-list .add{display:inline-block;text-align:center;padding:4px 0 8px}
+
+/* Изменение списка расходов в заявке */
+._zayav-rashod .ptab{margin-bottom:6px}
+/*._zayav-rashod .tddop{width:155px}*/
+._zayav-rashod .zrtxt{width:142px;margin-right:5px}
+._zayav-rashod .vkSel{margin-right:5px}
+._zayav-rashod .zrsum{width:40px;margin-right:3px;text-align:right}
+._zayav-rashod .img_del{margin-bottom:-3px}
+
+.zayav-rashod-spisok *{font-size:10px}
+.zayav-rashod-spisok{width:222px;margin:5px 4px;border-collapse:collapse}
+.zayav-rashod-spisok td{border:#dee4e8 solid 1px;padding:2px 4px}
+.zayav-rashod-spisok .sum{text-align:right}
 
 /* Внесение новой заявки */
 .zayav-add{border-spacing:12px;margin-bottom:30px}
@@ -192,9 +205,11 @@
 
 /* Информация о заявке */
 .zayav-info .delete{float:right;margin-top:4px;color:#933}
-.zayav-info .headName{margin-top:15px}
 .zayav-info:not(.h) .histories,.zayav-info.h .content{display:none}
-.zayav-info .content{margin:10px 15px}
+.zayav-info .content{margin:10px}
+.zayav-info .content .headName{margin:2px 12px 5px 5px}
+.zayav-info .tabmain{width:100%}
+.zayav-info .mainleft{vertical-align:top}
 .zayav-info .tabInfo{width:100%;margin:0 10px;border-spacing:6px}
 .zayav-info.zakaz .label{width:60px}
 .zayav-info.zamer .label{width:80px}
@@ -220,13 +235,16 @@
 .zayav-info .dogn.d{color:#aaa;font-weight:normal}
 .zayav-info .img_word{margin:0 15px -4px -2px}
 .zayav-info .reneg{color:#888}
-.zayav-info .vg_none{color:#822;font:italic 11px arial}
+.zayav-info .mainright{vertical-align:top;width:230px;border-left:#E9EDF1 solid 1px}
+.zayav-info .mainright .headBlue{margin:0}
+.zayav-info .acc-sum{margin:7px}
 .zayav-info .mon em{float:right;margin:0 5px}
 .zayav-info .sum.acc{color:#07a;cursor:help}
 .zayav-info .sum.opl{color:#090;cursor:help}
-.zayav-info .dtime_add{font-size:10px;color:#999;text-align:right;margin-bottom:10px}
+.zayav-info .dtime_add{font-size:10px;color:#999;text-align:right;margin:10px 0}
 .zayav-info .vkComment{margin-bottom:15px}
-.zayav-info .histories{min-height:210px;margin:15px 20px}
+.zayav-info .histories{min-height:210px;margin:12px 15px}
+.zayav-info .histories .headName{margin:0 0 10px}
 /*.zayav-info .status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}*/
 
 .zayav-info-edit{border-spacing:8px}
@@ -262,6 +280,8 @@
 .zayav-dogovor h1{display:block;font-weight:bold;text-align:center;margin-bottom:3px;color:#444}
 .zayav-dogovor #reason{width:376px;height:30px}
 .zayav-dogovor #preview{display:block;text-align:center;margin-top:10px}
+
+.zayav-rashod-edit{border-spacing:8px}
 
 .accrual-add{border-spacing:8px}
 .accrual-add .label{width:120px;text-align:right}
@@ -321,8 +341,8 @@
 .history_unit .changes *{font-size:10px;color:#777}
 .history_unit .changes th{text-align:right;font-weight:700;vertical-align:top}
 .history_unit .changes td{padding:0 3px;vertical-align:top}
-.history_unit a.deleted{color:#a66}
-.history_unit .prim{font:italic 11px Arial;color:#555}
+.history_unit a.deleted{color:#b66}
+.history_unit em{color:#707070;margin-left:3px}
 .history_unit .oplata{color:#770}
 
 
@@ -345,7 +365,7 @@
 #setup_worker_add .res{margin:10px 0 0 20px}
 
 #setup_rules .rtab{border-spacing:8px;margin-left:20px}
-#setup_rules .lab{width:170px}
+#setup_rules .lab{width:200px;text-align:right}
 #setup_rules .setup-div{margin-top:-5px}
 #setup_rules .setup-div div{display:block;margin-top:5px;color:#555}
 
@@ -367,3 +387,10 @@
 #setup_prihodtype .money{width:60px;text-align:center}
 #setup_prihodtype .del{color:#888;cursor:help}
 #setup_prihodtype .set{width:40px}
+
+#setup_zayavrashod .name{width:110px}
+#setup_zayavrashod td.name{cursor:move}
+#setup_zayavrashod .txt{width:75px;text-align:center}
+#setup_zayavrashod .worker{width:80px;text-align:center}
+#setup_zayavrashod .use{width:55px;text-align:center}
+#setup_zayavrashod .set{width:35px}
