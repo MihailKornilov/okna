@@ -949,6 +949,13 @@ function zayav_product_test($product) {// Проверка корректности данных изделий п
 	}
 	return empty($send) ? false : $send;
 }//zayav_product_test()
+function zayav_product_array($arr) {//Добавление к элементам массива заявок массив product
+	$sql = "SELECT * FROM `zayav_product` WHERE `zayav_id` IN (".implode(',', array_keys($arr)).") ORDER BY `id`";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$arr[$r['zayav_id']]['product'][] = $r;
+	return $arr;
+}
 function zayav_product_spisok($arr, $type='html') {
 	if(!is_array($arr)) {
 		$sql = "SELECT * FROM `zayav_product` WHERE `zayav_id`=".$arr." ORDER BY `id`";
@@ -957,8 +964,6 @@ function zayav_product_spisok($arr, $type='html') {
 		while($r = mysql_fetch_assoc($q))
 			$arr[] = $r;
 	}
-	if(empty($arr))
-		return '';
 	$send = '<table class="product">';
 	$json = array();
 	$array = array();
@@ -1010,8 +1015,6 @@ function zayav_rashod_spisok($arr, $type='html') {
 		while($r = mysql_fetch_assoc($q))
 			$arr[] = $r;
 	}
-	if(empty($arr))
-		return '';
 	$send = '<table class="zayav-rashod-spisok">';
 	$json = array();
 	$array = array();
@@ -1021,16 +1024,30 @@ function zayav_rashod_spisok($arr, $type='html') {
 					 '<td>'.(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
 							(_zayavRashod($r['category_id'], 'worker') ? _viewer($r['worker_id'], 'link') : '').
 					 '<td class="sum">'.$r['sum'].' р.';
-//		$json[] = '['.$r['product_id'].','.$r['product_sub_id'].','.$r['count'].']';
-//		$array[] = array($r['product_id'], $r['product_sub_id'], $r['count']);
+		$json[] = '['.
+					$r['category_id'].',"'.
+					(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
+					(_zayavRashod($r['category_id'], 'worker') ? $r['worker_id'] : '').'",'.
+					$r['sum'].
+				  ']';
+		$array[] = array(
+					$r['category_id'],
+					(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
+					(_zayavRashod($r['category_id'], 'worker') ? $r['worker_id'] : ''),
+					$r['sum']);
 //		$cash[] = _product($r['product_id']).($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '');
 	}
 	$send .= '</table>';
 	switch($type) {
 		default:
 		case 'html': return $send;
-//		case 'json': return implode(',', $json);
-//		case 'array': return $array;
+		case 'json': return implode(',', $json);
+		case 'array': return $array;
+		case 'all': return array(
+			'html' => $send,
+			'json' => implode(',', $json),
+			'array' => $array
+		);
 //		case 'cash': return implode('<br />', $cash);
 	}
 }//zayav_rashod_spisok()
@@ -1118,6 +1135,12 @@ function _zakazStatus($id) {
 	);
 	return $arr[$id];
 }//_zakazStatus()
+function zakazFilter($v) {
+	$filter = array(
+		'find' => win1251(htmlspecialchars(trim($v['find'])))
+	);
+	return $filter;
+}//zakazFilter()
 function zakaz_spisok($page=1, $filter=array()) {
 	$cond = "`deleted`=0
 		 AND `dogovor_require`=0
@@ -1148,14 +1171,12 @@ function zakaz_spisok($page=1, $filter=array()) {
 			LIMIT ".$start.",".$limit;
 	$q = query($sql);
 	$zayav = array();
-	while($r = mysql_fetch_assoc($q)) {
-		if(isset($zayav_id) && $zayav_id == $r['id'])
-			continue;
+	while($r = mysql_fetch_assoc($q))
 		$zayav[$r['id']] = $r;
-	}
 
 	$zayav = _clientLink($zayav);
 	$zayav = _dogNomer($zayav);
+	$zayav = zayav_product_array($zayav);
 
 	$send['spisok'] = '';
 	foreach($zayav as $r)
@@ -1164,7 +1185,7 @@ function zakaz_spisok($page=1, $filter=array()) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
 		$send['spisok'] .=
-			'<div class="ajaxNext" val="'.($page + 1).'">'.
+			'<div class="ajaxNext" id="zakaz_next" val="'.($page + 1).'">'.
 				'<span>Показать ещё '.$c.' заказ'._end($c, '', 'а', 'ов').'</span>'.
 			'</div>';
 	}
@@ -1180,7 +1201,7 @@ function zakaz_unit($r, $no_client=0) {
 			'<a class="name">Заказ'.$dop.($r['dogovor_id'] ? ' <span>(Договор '.$r['dogovor_nomer'].')</span>' : '').'</a>'.
 			'<table class="ztab">'.
 				($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
-				'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($r['id']).$r['zakaz_txt'].
+				'<tr><td class="label top">Изделия:<td>'.(isset($r['product']) ? zayav_product_spisok($r['product']) : '').$r['zakaz_txt'].
 			'</table>'.
 		'</div>';
 }//zamer_unit()
@@ -1316,6 +1337,12 @@ function _zamerStatus($id) {
 	);
 	return $arr[$id];
 }//_zakazStatus()
+function zamerFilter($v) {
+	$filter = array(
+		'find' => win1251(htmlspecialchars(trim($v['find'])))
+	);
+	return $filter;
+}//zamerFilter()
 function zamer_spisok($page=1, $filter=array()) {
 	$cond = "`deleted`=0
 		 AND `dogovor_require`=0
@@ -1353,6 +1380,7 @@ function zamer_spisok($page=1, $filter=array()) {
 	}
 
 	$zayav = _clientLink($zayav);
+	$zayav = zayav_product_array($zayav);
 
 	$send['spisok'] = '';
 	foreach($zayav as $r)
@@ -1361,7 +1389,7 @@ function zamer_spisok($page=1, $filter=array()) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
 		$send['spisok'] .=
-			'<div class="ajaxNext" val="'.($page + 1).'">'.
+			'<div class="ajaxNext" id="zamer_next" val="'.($page + 1).'">'.
 				'<span>Показать ещё '.$c.' замер'._end($c, '', 'а', 'ов').'</span>'.
 			'</div>';
 	}
@@ -1375,7 +1403,7 @@ function zamer_unit($r, $no_client=0) {
 		'<table class="ztab">'.
 			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
 			'<tr><td class="label top">Адрес:<td>'.$r['adres'].
-			'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($r['id']).
+			'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($r['product']).
 	'</table>'.
 	'</div>';
 }//zamer_unit()
@@ -1402,6 +1430,12 @@ function _dogNomer($arr) {//Добавление к списку данный по договору, получаемого 
 		}
 	return $arr;
 }//_dogNomer()
+function dogovorFilter($v) {
+	$filter = array(
+		'find' => win1251(htmlspecialchars(trim($v['find'])))
+	);
+	return $filter;
+}//dogovorFilter()
 function dogovor_spisok($page=1, $filter=array()) {
 	$cond = "`deleted`=0
 		 AND `dogovor_id`=0
@@ -1447,7 +1481,7 @@ function dogovor_spisok($page=1, $filter=array()) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
 		$send['spisok'] .=
-			'<div class="ajaxNext" val="'.($page + 1).'">'.
+			'<div class="ajaxNext" id="dog_next" val="'.($page + 1).'">'.
 				'<span>Показать ещё '.$c.' заяв'._end($c, 'ку', 'ки', 'ок').'</span>'.
 			'</div>';
 	}
@@ -1477,6 +1511,12 @@ function _setStatus($id) {
 	);
 	return $arr[$id];
 }//_zakazStatus()
+function setFilter($v) {
+	$filter = array(
+		'find' => win1251(htmlspecialchars(trim($v['find'])))
+	);
+	return $filter;
+}//setFilter()
 function set_spisok($page=1, $filter=array()) {
 	$cond = "`deleted`=0
 	     AND `dogovor_require`=0
@@ -1523,7 +1563,7 @@ function set_spisok($page=1, $filter=array()) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
 		$send['spisok'] .=
-			'<div class="ajaxNext" val="'.($page + 1).'">'.
+			'<div class="ajaxNext" id="set_next" val="'.($page + 1).'">'.
 				'<span>Показать ещё '.$c.' заяв'._end($c, 'ку', 'ки', 'ок').'</span>'.
 			'</div>';
 	}
@@ -1604,10 +1644,12 @@ function zayav_info($zayav_id) {
 
 	$dog = $z['dogovor_id'] ? query_assoc("SELECT * FROM `zayav_dogovor` WHERE `id`=".$z['dogovor_id']) : array();
 	$dogSpisok = $z['dogovor_id'] ? zayavDogovorList($z['id']).'<a class="reneg">Перезаключить</a>' : '<input type="hidden" id="dogovor_action" />';
-	$dogPaspEmpty = empty($dog) || isset($dog['pasp_empty']) && $dog['pasp_empty'];
 
 	$d = explode(' ', $z['zamer_dtime']);
 	$time = explode(':', $d[1]);
+
+	$accSum = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE `deleted`=0 AND `zayav_id`=".$zayav_id);
+	$rashod = zayav_rashod_spisok($z['id'], 'all');
 
 	return
 	'<script type="text/javascript">'.
@@ -1618,6 +1660,7 @@ function zayav_info($zayav_id) {
 			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
 			'zakaz_txt:"'.$z['zakaz_txt'].'",'.
 			'adres:"'.$z['adres'].'",'.
+			'rashod:['.$rashod['json'].'],'.
 
 			'nomer_vg:"'.$z['nomer_vg'].'",'.
 			'nomer_g:"'.$z['nomer_g'].'",'.
@@ -1634,11 +1677,11 @@ function zayav_info($zayav_id) {
 			'data_create:"'.(empty($dog) ? '' : $dog['data_create']).'",'.
 			'fio:"'.(empty($dog) ? $client['fio'] : $dog['fio']).'",'.
 			'adres:"'.(empty($dog) ? $client['adres'] : $dog['adres']).'",'.
-			'pasp_seria:"'.($dogPaspEmpty ? $client['pasp_seria'] : $dog['pasp_seria']).'",'.
-			'pasp_nomer:"'.($dogPaspEmpty ? $client['pasp_nomer'] : $dog['pasp_nomer']).'",'.
-			'pasp_adres:"'.($dogPaspEmpty ? $client['pasp_adres'] : $dog['pasp_adres']).'",'.
-			'pasp_ovd:"'.($dogPaspEmpty ? $client['pasp_ovd'] : $dog['pasp_ovd']).'",'.
-			'pasp_data:"'.($dogPaspEmpty ? $client['pasp_data'] : $dog['pasp_data']).'",'.
+			'pasp_seria:"'.(empty($dog) ? $client['pasp_seria'] : $dog['pasp_seria']).'",'.
+			'pasp_nomer:"'.(empty($dog) ? $client['pasp_nomer'] : $dog['pasp_nomer']).'",'.
+			'pasp_adres:"'.(empty($dog) ? $client['pasp_adres'] : $dog['pasp_adres']).'",'.
+			'pasp_ovd:"'.(empty($dog) ? $client['pasp_ovd'] : $dog['pasp_ovd']).'",'.
+			'pasp_data:"'.(empty($dog) ? $client['pasp_data'] : $dog['pasp_data']).'",'.
 			'sum:"'.(empty($dog) ? '' : $dog['sum']).'",'.
 			'avans:"'.(empty($dog['avans']) ? '' : $dog['avans']).'"'.
 		'},'.
@@ -1695,8 +1738,10 @@ function zayav_info($zayav_id) {
 	(ZAKAZ || SET ?
 				'<TD class="mainright">'.
 					'<div class="headBlue">Расходы по заявке<a class="add rashod-edit">изменить</a></div>'.
-					'<div class="acc-sum">Общая сумма начислений: <b>'.query_value("SELECT SUM(`sum`) FROM `accrual` WHERE `deleted`=0 AND `zayav_id`=".$zayav_id).'</b> руб.</div>'.
-					'<div class="zrashod">'.zayav_rashod_spisok($zayav_id).'</div>'
+					'<div class="acc-sum">'.
+						($accSum ? 'Общая сумма начислений: <b>'.$accSum.'</b> руб.' : 'Начислений нет.').
+					'</div>'.
+					'<div class="zrashod">'.$rashod['html'].'</div>'
 	: '').
 			'</TABLE>'.
 	(DOG ?  '<div class="vkButton dogovor_create"><button>Заключить договор</button></div>'.
@@ -1830,7 +1875,7 @@ function dogovor_print($dog_id) {
 	'<div class="paragraph">'.
 		'<p>Общество с ограниченной ответственностью «Территория Комфорта», '.
 		'в лице менеджера по продажам, Билоченко Юлия Александровна, действующей на основании доверенности, '.
-		'с одной стороны, и '.$v['fio'].', '.($v['pasp_empty'] ? $v['adres'] : $v['pasp_adres']).', именуемый в дальнейшем «Заказчик», с другой стороны, '.
+		'с одной стороны, и '.$v['fio'].', '.($v['pasp_adres'] ? $v['pasp_adres'] : $v['adres']).', именуемый в дальнейшем «Заказчик», с другой стороны, '.
 		'заключили настоящий договор, далее «Договор», о нижеследующем:'.
 	'</div>'.
 	'<div class="p-head">1. Предмет договора</div>'.
@@ -1899,10 +1944,9 @@ function dogovor_print($dog_id) {
 				'Адрес офиса: '.$g['ofice_adres'].
 			'<td><b>Заказчик:</b><br />'.
 				$v['fio'].'<br />'.
-	($v['pasp_empty'] ? '<br />'.$v['adres'] :
 				'Паспорт серии '.$v['pasp_seria'].' '.$v['pasp_nomer'].'<br />'.
 				'выдан '.$v['pasp_ovd'].' '.$v['pasp_data'].'<br /><br />'.
-				$v['pasp_adres']).
+				$v['pasp_adres'].
 	'</table>'.
 	'<div class="podpis-head">Подписи сторон:</div>'.
 	'<table class="podpis">'.
@@ -1918,7 +1962,7 @@ function dogovor_print($dog_id) {
 	'<div class="act-head">АКТ сдачи-приёмки заказа</div>'.
 	'<table class="act-tab">'.
 		'<tr><td class="label">По адресу:<td class="title">'.$v['adres'].'<td><td>'.
-		'<tr><td class="label">Заказ:<td class="title">'.$v['zayav_id'].'<td class="label">Заказчик:<td>'.$fioPodpis.
+		'<tr><td class="label">Заказ:<td class="title">'.$v['nomer'].'<td class="label">Заказчик:<td>'.$fioPodpis.
 	'</table>'.
 	'<div class="act-inf">Экземпляр Заказчика является основанием для направления претензии.</div>'.
 	'<div class="act-p">'.
@@ -1941,7 +1985,7 @@ function dogovor_print($dog_id) {
 	'<div class="act-head">АКТ сдачи-приёмки заказа</div>'.
 	'<table class="act-tab">'.
 		'<tr><td class="label">По адресу:<td class="title">'.$v['adres'].'<td><td>'.
-		'<tr><td class="label">Заказ:<td class="title">'.$v['zayav_id'].'<td class="label">Заказчик:<td>'.$fioPodpis.
+		'<tr><td class="label">Заказ:<td class="title">'.$v['nomer'].'<td class="label">Заказчик:<td>'.$fioPodpis.
 	'</table>'.
 	'<div class="time-dost">Время доставки _____________________</div>'.
 	'<div class="act-p">'.
@@ -2256,18 +2300,19 @@ function history_types($v) {
 			($v['zayav_id'] ? ' у заявки '.$v['zayav_link'] : '').
 			'.';
 
-		case 13: return 'Добавление нового сотрудника '._viewer($v['value'], 'link').'.';
-		case 14: return 'Удаление сотрудника '._viewer($v['value'], 'link').'.';
+		case 13: return 'В установках: добавление нового сотрудника '._viewer($v['value'], 'link').'.';
+		case 14: return 'В установках: удаление сотрудника '._viewer($v['value'], 'link').'.';
 
 		case 15: return 'Изменение информации о дате или продолжительности замера '.$v['zayav_link'].':<div class="changes">'.$v['value1'].'</div>';
 		case 16: return 'Замер '.$v['zayav_link'].' выполнен и отправлен на заключение договора.';
 		case 17: return 'Замер '.$v['zayav_link'].' отменён.';
 		case 18: return 'Замер '.$v['zayav_link'].' восстановлен.';
 		case 19: return
-			'Заключение договора '.$v['dogovor_nomer'].
+			($v['value'] ? 'Пере' : 'З').'аключение договора '.$v['dogovor_nomer'].
 			' от '.$v['dogovor_data'].
 			' на сумму <b>'.$v['dogovor_sum'].'</b> руб.'.
-			' для заявки '.$v['zayav_link'].'.';
+			' для заявки '.$v['zayav_link'].'.'.
+			($v['value'] ? ' <em>(Причина: '.$v['value'].'.)</em>' : '');
 		case 20: return
 			'Внесение авансового платежа на  на сумму <b>'.$v['dogovor_avans'].'</b> руб.'.
 			' для заявки '.$v['zayav_link'].
@@ -2278,17 +2323,19 @@ function history_types($v) {
 
 		case 23: return 'Внесение нового заявки '.$v['zayav_link'].'<em>(заказ)</em> для клиента '.$v['client_link'].'.';
 		case 24: return 'Изменение данных заявки '.$v['zayav_link'].'<em>(заказ)</em>:<div class="changes">'.$v['value1'].'</div>';
-		case 25: return 'Изменение статуса заявки '.$v['zayav_link'].'<em>(заказ)</em>'.
-						': <span style="background-color:#'._statusColor($v['value']).'">'._zakazStatus($v['value']).'</span>'.
+		case 25: return 'Изменение статуса заявки '.$v['zayav_link'].'<em>(заказ)</em>:<br />'.
+						'<span style="background-color:#'._statusColor($v['value']).'">'._zakazStatus($v['value']).'</span>'.
 						' » '.
 						'<span style="background-color:#'._statusColor($v['value1']).'">'._zakazStatus($v['value1']).'</span>';
-		case 26: return 'Изменение статуса заявки '.$v['zayav_link'].'<em>(установка)</em>'.
-						': <span style="background-color:#'._statusColor($v['value']).'">'._setStatus($v['value']).'</span>'.
+		case 26: return 'Изменение статуса заявки '.$v['zayav_link'].'<em>(установка)</em>:<br />'.
+						'<span style="background-color:#'._statusColor($v['value']).'">'._setStatus($v['value']).'</span>'.
 						' » '.
 						'<span style="background-color:#'._statusColor($v['value1']).'">'._setStatus($v['value1']).'</span>';
 
 		case 27: return 'Загрузка файла '.$v['value'].' для заявки '.$v['zayav_link'].'.';
 		case 28: return 'Удаление файла '.$v['value'].' у заявки '.$v['zayav_link'].'.';
+
+		case 29: return 'Изменение расходов по заявке '.$v['zayav_link'].':<div class="changes">'.$v['value'].'</div>';
 
 		case 501: return 'В установках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В установках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -2307,6 +2354,9 @@ function history_types($v) {
 		case 511: return 'В установках: внесение новой категории расходов заявки <u>'.$v['value'].'</u>.';
 		case 512: return 'В установках: изменение данных категории расходов заявки <u>'.$v['value'].'</u>:<div class="changes">'.$v['value1'].'</div>';
 		case 513: return 'В установках: удаление данных категории расходов заявки <u>'.$v['value'].'</u>.';
+
+		case 514: return 'В установках: изменение данных сотрудника <u>'._viewer($v['value'], 'name').'</u>:<div class="changes">'.$v['value1'].'</div>';
+
 		default: return $v['type'];
 	}
 }//history_types()
@@ -2603,10 +2653,8 @@ function setup_worker() {
 	'</div>';
 }//setup_worker()
 function setup_worker_spisok() {
-	$sql = "SELECT `viewer_id`,
-				   CONCAT(`first_name`,' ',`last_name`) AS `name`,
-				   `photo`,
-				   `admin`
+	$sql = "SELECT *,
+				   CONCAT(`first_name`,' ',`last_name`) AS `name`
 			FROM `vk_user`
 			WHERE `worker`=1
 			  AND `viewer_id`!=982006
@@ -2616,11 +2664,10 @@ function setup_worker_spisok() {
 	while($r = mysql_fetch_assoc($q)) {
 		$send .=
 		'<table class="unit" val="'.$r['viewer_id'].'">'.
-			'<tr><td class="photo"><img src="'.$r['photo'].'">'.
-				'<td>'.
-					($r['admin'] ? '' : '<div class="img_del"></div>').
-					'<a class="name">'.$r['name'].'</a>'.
-					($r['admin'] ? '' : '<a href="'.URL.'&p=setup&d=worker&id='.$r['viewer_id'].'" class="rules_set">Настроить права</a>').
+			'<tr><td class="photo"><a href="'.URL.'&p=setup&d=worker&id='.$r['viewer_id'].'"><img src="'.$r['photo'].'"></a>'.
+				'<td>'.($r['admin'] ? '' : '<div class="img_del"></div>').
+					   '<a href="'.URL.'&p=setup&d=worker&id='.$r['viewer_id'].'" class="name">'.$r['name'].'</a>'.
+					   '<div class="post">'.$r['post'].'</div>'.
 		'</table>';
 	}
 	return $send;
@@ -2631,13 +2678,27 @@ function setup_worker_rules($viewer_id) {
 		return _norules('Настройка прав для сотрудника '.$u['name']);
 	if(!isset($u['worker']))
 		return 'Сотрудника не существует.';
-	if($u['admin'])
-		return 'Невозможно изменять права сотрудника <b>'.$u['name'].'</b>.';
 	$rule = workerRulesArray($u['rules']);
 	return
 	'<script type="text/javascript">var RULES_VIEWER_ID='.$viewer_id.';</script>'.
 	'<div id="setup_rules">'.
-		'<div class="headName">Настройка прав для сотрудника '.$u['name'].'</div>'.
+
+		'<table class="utab">'.
+			'<tr><td>'.$u['photo'].
+				'<td><div class="name">'.$u['name'].'</div>'.
+					'<a href="http://vk.com/id'.$viewer_id.'" class="vklink" target="_blank">Перейти на страницу VK</a>'.
+		'</table>'.
+
+		'<div class="headName">Общее</div>'.
+		'<table class="gtab">'.
+			'<tr><td class="label">Имя:<td><input type="text" id="first_name" value="'.$u['first_name'].'" />'.
+			'<tr><td class="label">Фамилия:<td><input type="text" id="last_name" value="'.$u['last_name'].'" />'.
+			'<tr><td class="label">Должность:<td><input type="text" id="post" value="'.$u['post'].'" />'.
+			'<tr><td><td><div class="vkButton"><button id="gtab_save">Сохранить</button></div>'.
+		'</table>'.
+
+	(!$u['admin'] ?
+		'<div class="headName">Права</div>'.
 		'<table class="rtab">'.
 			'<tr><td class="lab">Разрешать вход в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).
 		'</table>'.
@@ -2654,7 +2715,8 @@ function setup_worker_rules($viewer_id) {
 					'</div>'.
 				'<tr><td class="lab">Может видеть историю действий:<td>'._check('rules_historyshow', '', $rule['RULES_HISTORYSHOW']).
 			'</table>'.
-		'</div>'.
+		'</div>'
+	: '').
 	'</div>';
 }//setup_worker_rules()
 

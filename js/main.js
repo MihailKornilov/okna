@@ -164,16 +164,17 @@ var hashLoc,
 		});
 
 	},
-	zayavFilter = function() {
+	zakazFilter = function() {
 		var v = {
-				find:$.trim($('#find input').val()),
+				find:$.trim($('#find input').val())
 //				sort:$('#sort').val(),
-				desc:$('#desc').val(),
-				category:$('#category').val(),
-				status:$('#status').val()
-			},
+//				desc:$('#desc').val(),
+//				category:$('#category').val(),
+//				status:$('#status').val()
+			};
+/*
 			loc = '';
-//		if(v.sort != '1') loc += '.sort=' + v.sort;
+		if(v.sort != '1') loc += '.sort=' + v.sort;
 		if(v.desc != '0') loc += '.desc=' + v.desc;
 		if(v.find) loc += '.find=' + escape(v.find);
 		else {
@@ -183,11 +184,17 @@ var hashLoc,
 		VK.callMethod('setLocation', hashLoc + loc);
 
 		setCookie('zayav_find', escape(v.find));
-  //	  setCookie('zayav_sort', v.sort);
+	    setCookie('zayav_sort', v.sort);
 		setCookie('zayav_desc', v.desc);
 		setCookie('zayav_category', v.category);
 		setCookie('zayav_status', v.status);
-
+*/
+		return v;
+	},
+	zamerFilter = function() {
+		var v = {
+			find:$.trim($('#find input').val())
+		};
 		return v;
 	},
 	zayavSpisokLoad = function() {
@@ -202,6 +209,12 @@ var hashLoc,
 			$('#mainLinks').removeClass('busy');
 		}, 'json');
 	},
+	dogovorFilter = function() {
+		var v = {
+			find:$.trim($('#find input').val())
+		};
+		return v;
+	},
 	dogovorCreate = function() {
 		var html = '<table class="zayav-dogovor">' +
 				'<tr><td colspan="2">' +
@@ -211,7 +224,7 @@ var hashLoc,
 					'</div>'
 		: '') +
 				'<tr><td class="label r">Фио клиента:<td><input type="text" id="fio" value="' + DOG.fio + '" />' +
-				'<tr><td class="label r">Адрес установки:<td><input type="text" id="adres" value="' + DOG.adres + '" />' +
+				'<tr><td class="label r">Адрес:<td><input type="text" id="adres" value="' + DOG.adres + '" />' +
 				'<tr><td class="label r">Паспорт:' +
 					'<td>Серия:<input type="text" id="pasp_seria" maxlength="8" value="' + DOG.pasp_seria + '" />' +
 						'Номер:<input type="text" id="pasp_nomer" maxlength="10" value="' + DOG.pasp_nomer + '" />' +
@@ -310,6 +323,12 @@ var hashLoc,
 				}, 'json');
 			}
 		}
+	},
+	setFilter = function() {
+		var v = {
+			find:$.trim($('#find input').val())
+		};
+		return v;
 	},
 
 	setupRulesSet = function(action, value) {
@@ -484,28 +503,40 @@ $.fn.zayavRashod = function(o) {
 		}
 	}
 
-	t.html('<div class="_zayav-rashod"><a class="add">Добавить поле</a></div>');
-	var add = t.find('.add');
-	add.click(itemAdd);
-	itemAdd();
+	t.html('<div class="_zayav-rashod"></div>');
+	var zr = t.find('._zayav-rashod');
 
-	function itemAdd() {
+	if(typeof o == 'object')
+		for(n = 0; n < o.length; n++)
+			itemAdd(o[n])
+
+	itemAdd([]);
+
+	function itemAdd(v) {
 		var attr = id + num,
 			attr_cat = attr + 'cat',
 			attr_worker = attr + 'worker',
 			html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
-						'<td><input type="hidden" id="' + attr_cat + '" />' +
+						'<td><input type="hidden" id="' + attr_cat + '" value="' + (v[0] || 0) + '" />' +
 						'<td class="tddop">' +
-						'<td class="tdsum dn"><input type="text" class="zrsum" maxlength="6" />руб.' +
-						'<td>' + (num > 1 ? '<div class="img_del"></div>' : '') +
+							(v[0] && ZAYAVRASHOD_TXT_ASS[v[0]] ? '<input type="text" class="zrtxt" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
+							(v[0] && ZAYAVRASHOD_WORKER_ASS[v[0]] ? '<input type="hidden" id="' + attr_worker + '" value="' + v[1] + '" />' : '') +
+						'<td class="tdsum' + (v[0] ? '' : ' dn') + '"><input type="text" class="zrsum" maxlength="6" tabindex="' + (num * 10) + '" value="' + (v[2] || '') + '" />руб.' +
 					'</table>';
-		add.before(html);
+		zr.append(html);
 		var ptab = $('#ptab' + num),
 			tddop = ptab.find('.tddop'),
 			zrsum = ptab.find('.zrsum');
-		ptab.find('.img_del').click(function() {
-			ptab.remove();
-		});
+		if(v[0] && ZAYAVRASHOD_WORKER_ASS[v[0]])
+			$('#' + attr_worker).vkSel({
+				width:150,
+				display:'inline-block',
+				title0:'Сотрудник',
+				spisok:WORKER_SPISOK,
+				func:function() {
+					zrsum.focus();
+				}
+			});
 		$('#' + attr_cat).vkSel({
 			width:120,
 			display:'inline-block',
@@ -514,7 +545,7 @@ $.fn.zayavRashod = function(o) {
 			func:function(id) {
 				ptab.find('.tdsum')[(id ? 'remove' : 'add') + 'Class']('dn');
 				if(ZAYAVRASHOD_TXT_ASS[id]) {
-					tddop.html('<input type="text" class="zrtxt" />');
+					tddop.html('<input type="text" class="zrtxt" tabindex="' + (num * 10 - 11) + '" />');
 					tddop.find('.zrtxt').focus();
 				} else if(ZAYAVRASHOD_WORKER_ASS[id]) {
 					tddop.html('<input type="hidden" id="' + attr_worker + '" />');
@@ -533,6 +564,8 @@ $.fn.zayavRashod = function(o) {
 					zrsum.focus();
 				}
 				zrsum.val('');
+				if(id && !ptab.next().hasClass('ptab'))
+					itemAdd([]);
 			}
 		});
 		num++;
@@ -540,7 +573,7 @@ $.fn.zayavRashod = function(o) {
 	return t;
 };
 
-	$(document)
+$(document)
 	.on('change', '._attach input', function() {
 		setCookie('_attached', 0);
 		var t = $(this), att = t;
@@ -803,6 +836,10 @@ $.fn.zayavRashod = function(o) {
 			});
 	})
 
+	.on('click', '.zayav_unit', function() {
+		document.location.href = URL + '&p=zayav&d=info&id=' + $(this).attr('val');
+	})
+
 	.on('click', '#zayav #filter_break', function() {
 		zFind.clear();
 		//$('#sort')._radio(1);
@@ -879,6 +916,60 @@ $.fn.zayavRashod = function(o) {
 				});
 		}
 	})
+	.on('click', '#zakaz_next', function() {
+		var next = $(this);
+		if(next.hasClass('busy'))
+			return;
+		var send = zakazFilter();
+		send.op = 'zakaz_next';
+		send.page = next.attr('val');
+		next.addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				next.after(res.html).remove();
+			else
+				next.removeClass('busy');
+		}, 'json');
+	})
+	.on('click', '.zakaz_status', function() {
+		var t = $(this),
+			html = '<table class="zamer-status-edit">' +
+				'<tr><td class="label topi">Статус заказа:<td><INPUT type="hidden" id="edit_zakaz" value="' + ZAYAV.status + '">' +
+				'</table>',
+			dialog = _dialog({
+				width:400,
+				top:30,
+				head:'Изменение статуса заказа',
+				content:html,
+				butSubmit:'Применить',
+				submit:submit
+			});
+		$('#edit_zakaz')._radio({
+			bottom:20,
+			spisok:[
+				{uid:1,title:'Ожидает выполнения'},
+				{uid:2,title:'Выполнен'},
+				{uid:3,title:'Отменён'}
+			]
+		});
+		function submit() {
+			var	send = {
+				op:'zakaz_status',
+				zayav_id:ZAYAV.id,
+				status:$('#edit_zakaz').val()
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					dialog.close();
+					_msg('Данные изменены!');
+					document.location.reload();
+				} else
+					dialog.abort();
+			}, 'json');
+		}
+	})
+
 	.on('click', '.zamer_table', function() {
 		var dialog = _dialog({
 				width:600,
@@ -1012,6 +1103,118 @@ $.fn.zayavRashod = function(o) {
 			});
 		}
 	})
+	.on('click', '.zamer_status', function() {
+		var t = $(this),
+			id = typeof ZAYAV != 'undefined' ? ZAYAV.id : t.attr('val'),
+			dialog = _dialog({
+				width:400,
+				top:30,
+				head:'Изменение статуса замера',
+				load:1,
+				butSubmit:'Применить',
+				submit:submit
+			});
+		if(typeof ZAYAV == 'undefined')
+			$.post(AJAX_MAIN, {op:'zamer_info_get',zayav_id:id}, function(res) {
+				if(res.success)
+					info_get(res);
+				else
+					dialog.loadError();
+			}, 'json');
+		else
+			info_get(ZAYAV);
+		function info_get(res) {
+			dialog.content.html('<table class="zamer-status-edit">' +
+				'<tr><td class="label topi">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
+				'<tr class="tr_data dn"><td class="label">Новое время:<td class="zayav-zamer-dtime">' +
+				'<tr class="tr_data dn"><td class="label">Длительность:' +
+				'   <td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
+				'<a class="zamer_table" val="' + id + '">Таблица замеров</a>' +
+				'<tr class="tr_prim dn"><td class="label top">Комментарий:<td><textarea id="prim"></textarea>' +
+				'</table>');
+			$('#edit_zamer')._radio({
+				bottom:20,
+				spisok:[
+					{uid:1,title:'Указать другое время<span>Замер будет перенесён на другое время.</span>'},
+					{uid:2,title:'Выполнен<span>Замер выполнен успешно. Заявка будет переведена на заключение договора.</span>'},
+					{uid:3,title:'Отмена<span>Отмена заявки по какой-либо причине.</span>'}
+				],
+				func:function(v) {
+					$('.tr_data')[(v == 1 ? 'remove' : 'add') + 'Class']('dn');
+					$('.tr_prim').removeClass('dn');
+				}
+			});
+			zayavZamerDtime(res);
+		}
+		function submit() {
+			var send = {
+				op:'zamer_status',
+				zayav_id:id,
+				status:$('#edit_zamer').val(),
+				zamer_day:$('#zamer_day').val(),
+				zamer_hour:$('#zamer_hour').val(),
+				zamer_min:$('#zamer_min').val(),
+				zamer_duration:$('#zamer_duration').val(),
+				prim:$('#prim').val()
+			};
+			if(send.status == -1) err('Выберите вариант.');
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Данные изменены!');
+						document.location.reload();
+					} else {
+						dialog.abort();
+						err(res.text);
+					}
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			$(this).vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				top:-58,
+				left:-5,
+				indent:40,
+				remove:1,
+				show:1
+			});
+		}
+	})
+	.on('click', '#zamer_next', function() {
+		var next = $(this);
+		if(next.hasClass('busy'))
+			return;
+		var send = zamerFilter();
+		send.op = 'zamer_next';
+		send.page = next.attr('val');
+		next.addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				next.after(res.html).remove();
+			else
+				next.removeClass('busy');
+		}, 'json');
+	})
+
+	.on('click', '#dog_next', function() {
+		var next = $(this);
+		if(next.hasClass('busy'))
+			return;
+		var send = dogovorFilter();
+		send.op = 'dog_next';
+		send.page = next.attr('val');
+		next.addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				next.after(res.html).remove();
+			else
+				next.removeClass('busy');
+		}, 'json');
+	})
+
 	.on('click', '.set_add', function() {
 		if(typeof CLIENT == 'undefined')
 			CLIENT = {
@@ -1096,142 +1299,6 @@ $.fn.zayavRashod = function(o) {
 				});
 		}
 	})
-	.on('click', '#zayav .ajaxNext', function() {
-		if($(this).hasClass('busy'))
-			return;
-		var next = $(this),
-			send = zayavFilter();
-		send.op = 'zayav_next';
-		send.page = $(this).attr('val');
-		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				next.after(res.html).remove();
-			else
-				next.removeClass('busy');
-		}, 'json');
-	})
-	.on('click', '.zayav_unit', function() {
-		document.location.href = URL + '&p=zayav&d=info&id=' + $(this).attr('val');
-	})
-	.on('click', '.zakaz_status', function() {
-		var t = $(this),
-			html = '<table class="zamer-status-edit">' +
-				'<tr><td class="label topi">Статус заказа:<td><INPUT type="hidden" id="edit_zakaz" value="' + ZAYAV.status + '">' +
-				'</table>',
-			dialog = _dialog({
-				width:400,
-				top:30,
-				head:'Изменение статуса заказа',
-				content:html,
-				butSubmit:'Применить',
-				submit:submit
-			});
-			$('#edit_zakaz')._radio({
-				bottom:20,
-				spisok:[
-					{uid:1,title:'Ожидает выполнения'},
-					{uid:2,title:'Выполнен'},
-					{uid:3,title:'Отменён'}
-				]
-			});
-		function submit() {
-			var	send = {
-				op:'zakaz_status',
-				zayav_id:ZAYAV.id,
-				status:$('#edit_zakaz').val()
-			};
-			dialog.process();
-			$.post(AJAX_MAIN, send, function(res) {
-				if(res.success) {
-					dialog.close();
-					_msg('Данные изменены!');
-					document.location.reload();
-				} else
-					dialog.abort();
-			}, 'json');
-		}
-	})
-	.on('click', '.zamer_status', function() {
-		var t = $(this),
-			id = typeof ZAYAV != 'undefined' ? ZAYAV.id : t.attr('val'),
-			dialog = _dialog({
-				width:400,
-				top:30,
-				head:'Изменение статуса замера',
-				load:1,
-				butSubmit:'Применить',
-				submit:submit
-			});
-		if(typeof ZAYAV == 'undefined')
-			$.post(AJAX_MAIN, {op:'zamer_info_get',zayav_id:id}, function(res) {
-				if(res.success)
-					info_get(res);
-				else
-					dialog.loadError();
-			}, 'json');
-		else
-			info_get(ZAYAV);
-		function info_get(res) {
-			dialog.content.html('<table class="zamer-status-edit">' +
-				'<tr><td class="label topi">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
-				'<tr class="tr_data dn"><td class="label">Новое время:<td class="zayav-zamer-dtime">' +
-				'<tr class="tr_data dn"><td class="label">Длительность:' +
-				'   <td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
-						'<a class="zamer_table" val="' + id + '">Таблица замеров</a>' +
-				'<tr class="tr_prim dn"><td class="label top">Комментарий:<td><textarea id="prim"></textarea>' +
-				'</table>');
-			$('#edit_zamer')._radio({
-				bottom:20,
-				spisok:[
-					{uid:1,title:'Указать другое время<span>Замер будет перенесён на другое время.</span>'},
-					{uid:2,title:'Выполнен<span>Замер выполнен успешно. Заявка будет переведена на заключение договора.</span>'},
-					{uid:3,title:'Отмена<span>Отмена заявки по какой-либо причине.</span>'}
-				],
-				func:function(v) {
-					$('.tr_data')[(v == 1 ? 'remove' : 'add') + 'Class']('dn');
-					$('.tr_prim').removeClass('dn');
-				}
-			});
-			zayavZamerDtime(res);
-		}
-		function submit() {
-			var send = {
-				op:'zamer_status',
-				zayav_id:id,
-				status:$('#edit_zamer').val(),
-				zamer_day:$('#zamer_day').val(),
-				zamer_hour:$('#zamer_hour').val(),
-				zamer_min:$('#zamer_min').val(),
-				zamer_duration:$('#zamer_duration').val(),
-				prim:$('#prim').val()
-			};
-			if(send.status == -1) err('Выберите вариант.');
-			else {
-				dialog.process();
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success) {
-						dialog.close();
-						_msg('Данные изменены!');
-						document.location.reload();
-					} else {
-						dialog.abort();
-						err(res.text);
-					}
-				}, 'json');
-			}
-		}
-		function err(msg) {
-			$(this).vkHint({
-				msg:'<SPAN class="red">' + msg + '</SPAN>',
-				top:-58,
-				left:-5,
-				indent:40,
-				remove:1,
-				show:1
-			});
-		}
-	})
 	.on('click', '.set_status', function() {
 		var t = $(this),
 			html = '<table class="zamer-status-edit">' +
@@ -1269,6 +1336,21 @@ $.fn.zayavRashod = function(o) {
 					dialog.abort();
 			}, 'json');
 		}
+	})
+	.on('click', '#set_next', function() {
+		var next = $(this);
+		if(next.hasClass('busy'))
+			return;
+		var send = setFilter();
+		send.op = 'set_next';
+		send.page = next.attr('val');
+		next.addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				next.after(res.html).remove();
+			else
+				next.removeClass('busy');
+		}, 'json');
 	})
 
 	.on('click', '.remind_calendar .on', function() {
@@ -1337,68 +1419,91 @@ $.fn.zayavRashod = function(o) {
 
 	.on('click', '#setup_worker .add', function() {
 		var html = '<div id="setup_worker_add">' +
-				'<h1>Ссылка на страницу или ID пользователя ВКонтакте:</h1>' +
-				'<input type="text" />' +
-				'<DIV class="vkButton"><BUTTON>Найти</BUTTON></DIV>' +
-				'</div>',
+				'<h1>Укажите адрес страницы пользователя или его ID ВКонтакте:</h1>' +
+				'<input type="text" id="viewer_id" />' +
+				'<div class="vkButton"><button>Найти</button></div>' +
+				'<a class="manual">Или заполните данные вручную..</a>' +
+				'<table class="manual_tab">' +
+					'<tr><td class="label">Имя:<td><input type="text" id="first_name" />' +
+					'<tr><td class="label">Фамилия:<td><input type="text" id="last_name" />' +
+					'<tr><td class="label">Пол:<td><input type="hidden" id="sex" value="0" />' +
+					'<tr><td class="label">Должность:<td><input type="text" id="post" />' +
+				'</table>' +
+			'</div>',
 			dialog = _dialog({
 				top:50,
-				width:360,
+				width:400,
 				head:'Добавление нового сотрудника',
 				content:html,
 				butSubmit:'Добавить',
 				submit:submit
 			}),
-			user_id,
-			input = dialog.content.find('input'),
-			but = input.next();
-		input.focus().keyEnter(user_find);
+			viewer_id = 0,
+			but = $('#viewer_id').focus().keyEnter(user_find).next();
 		but.click(user_find);
-
+		$('.manual').click(function() {
+			$(this)
+				.hide()
+				.next().show();
+			$('#first_name').focus();
+		});
+		$('#sex')._radio({
+			spisok:[
+				{uid:2, title:'М'},
+				{uid:1, title:'Ж'}
+			]
+		});
 		function user_find() {
 			if(but.hasClass('busy'))
 				return;
-			user_id = false;
+			viewer_id = 0;
+			$('.res').remove();
 			var send = {
-				user_ids:$.trim(input.val()),
+				user_ids:$.trim($('#viewer_id').val()),
 				fields:'photo_50',
 				v:5.2
 			};
 			if(!send.user_ids)
 				return;
-			but.addClass('busy').next('.res').remove();
+			but.addClass('busy');
 			VK.api('users.get', send, function(data) {
 				but.removeClass('busy');
 				if(data.response) {
 					var u = data.response[0],
-						html = '<TABLE class="res">' +
-							'<tr><td class="photo"><IMG src=' + u.photo_50 + '>' +
-							'<td class="name">' + u.first_name + ' ' + u.last_name +
-						'</TABLE>';
+						html =
+						'<table class="res">' +
+							'<tr><td class="photo"><img src=' + u.photo_50 + '>' +
+								'<td class="name">' + u.first_name + ' ' + u.last_name +
+						'</table>';
 					but.after(html);
-					user_id = u.id;
+					viewer_id = u.id;
 				}
 			});
 		}
 		function submit() {
-			if(!user_id) {
-				err('Не выбран пользователь', -47);
-				return;
-			}
 			var send = {
 				op:'setup_worker_add',
-				id:user_id
+				viewer_id:viewer_id,
+				first_name:$('#first_name').val(),
+				last_name:$('#last_name').val(),
+				sex:$('#sex').val(),
+				post:$('#post').val()
 			};
-			dialog.process();
-			$.post(AJAX_MAIN, send, function(res) {
-				dialog.abort();
-				if(res.success) {
-					dialog.close();
-					_msg('Новый сотрудник успешно добавлен.');
-					$('#spisok').html(res.html);
-				} else
-					err(res.text, -60);
-			}, 'json');
+			if(!send.id && !send.first_name && !send.last_name) err('Произведите поиск пользователя<br>или укажите вручную имя и фамилию', -60);
+			else if(send.first_name && send.last_name && send.sex == 0) err('Не указан пол', -47);
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Новый сотрудник успешно добавлен.');
+						$('#spisok').html(res.html);
+					} else {
+						dialog.abort();
+						err(res.text, -60);
+					}
+				}, 'json');
+			}
 		}
 		function err(msg, top) {
 			dialog.bottom.vkHint({
@@ -1407,7 +1512,7 @@ $.fn.zayavRashod = function(o) {
 				indent:40,
 				show:1,
 				top:top,
-				left:92
+				left:112
 			});
 		}
 	})
@@ -2479,14 +2584,14 @@ $.fn.zayavRashod = function(o) {
 						butSubmit:'Сохранить',
 						submit:submit
 					});
-				$('#zrs').zayavRashod();
+				$('#zrs').zayavRashod(ZAYAV.rashod);
 				function submit() {
 					var send = {
 						op:'zayav_rashod_edit',
 						zayav_id:ZAYAV.id,
 						rashod:$('#zrs').zayavRashod('get')
 					};
-					if(send.spisok == 'sum_error') err('Некорректно указана сумма');
+					if(send.rashod == 'sum_error') err('Некорректно указана сумма');
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function(res) {
@@ -2519,6 +2624,36 @@ $.fn.zayavRashod = function(o) {
 		}
 
 		if($('#setup_rules').length > 0) {
+			$('#gtab_save').click(function() {
+				var send = {
+					op:'setup_worker_save',
+					viewer_id:RULES_VIEWER_ID,
+					first_name:$('#first_name').val(),
+					last_name:$('#last_name').val(),
+					post:$('#post').val()
+				},
+					but = $(this).parent();
+				if(!send.first_name) { err('Не указано имя'); $('#first_name').focus(); }
+				else if(!send.last_name) { err('Не указана фамилия'); $('#last_name').focus(); }
+				else {
+					but.addClass('busy');
+					$.post(AJAX_MAIN, send, function(res) {
+						but.removeClass('busy');
+						if(res.success)
+							_msg('Сохранено.');
+					}, 'json');
+				}
+				function err(msg) {
+					but.vkHint({
+						msg:'<SPAN class="red">' + msg + '</SPAN>',
+						top:-57,
+						left:-6,
+						indent:40,
+						show:1,
+						remove:1
+					});
+				}
+			});
 			$('#rules_appenter')._check(function(v, id) {
 				$('.app-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
 				$('.setup-div').addClass('dn');

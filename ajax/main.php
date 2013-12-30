@@ -507,7 +507,9 @@ switch(@$_POST['op']) {
 			if($product)
 				foreach($product as $r)
 					$new[] = _product($r[0]).($r[1] ? ' '._productSub($r[1]) : '').': '.$r[2].' шт.';
-			$changes .= '<tr><th>Изделия:<td>'.$zayav['zakaz_txt'].(!empty($old) ? '<br />' : '').implode('<br />', $old).'<td>»<td>'.$zakaz_txt.(!empty($new) ? '<br />' : '').implode('<br />', $new);
+			$changes .= '<tr><th>Изделия:<td>'.implode('<br />', $old).($zayav['zakaz_txt'] ? '<br />' : '').$zayav['zakaz_txt'].
+							'<td>»'.
+							'<td>'.implode('<br />', $new).($zakaz_txt ? '<br />' : '').$zakaz_txt;
 		}
 		if($zayav['nomer_vg'] != $nomer_vg)
 			$changes .= '<tr><th>Номер ВГ:<td>'.$zayav['nomer_vg'].'<td>»<td>'.$nomer_vg;
@@ -553,6 +555,13 @@ switch(@$_POST['op']) {
 		}
 
 		jsonSuccess();
+		break;
+	case 'zakaz_next':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+			jsonError();
+		$data = zakaz_spisok(intval($_POST['page']), zakazFilter($_POST));
+		$send['html'] = utf8($data['spisok']);
+		jsonSuccess($send);
 		break;
 	case 'zamer_table_get':
 		if(!empty($_POST['mon']) && preg_match(REGEXP_DATE, $_POST['mon'].'-01'))
@@ -835,6 +844,13 @@ switch(@$_POST['op']) {
 			));
 		jsonSuccess();
 		break;
+	case 'zamer_next':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+			jsonError();
+		$data = zamer_spisok(intval($_POST['page']), zamerFilter($_POST));
+		$send['html'] = utf8($data['spisok']);
+		jsonSuccess($send);
+		break;
 	case 'dog_edit':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
@@ -892,6 +908,13 @@ switch(@$_POST['op']) {
 				'value' => '<table>'.$changes.'</table>'
 			));
 		jsonSuccess();
+		break;
+	case 'dog_next':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+			jsonError();
+		$data = dogovor_spisok(intval($_POST['page']), dogovorFilter($_POST));
+		$send['html'] = utf8($data['spisok']);
+		jsonSuccess($send);
 		break;
 	case 'set_add':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
@@ -1046,6 +1069,13 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
+	case 'set_next':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+			jsonError();
+		$data = set_spisok(intval($_POST['page']), setFilter($_POST));
+		$send['html'] = utf8($data['spisok']);
+		jsonSuccess($send);
+		break;
 	case 'zayav_rashod_edit':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
@@ -1059,23 +1089,33 @@ switch(@$_POST['op']) {
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-		$sql = "DELETE FROM `zayav_rashod` WHERE `zayav_id`=".$zayav_id;
-		query($sql);
-		foreach($rashod as $r) {
-			$sql = "INSERT INTO `zayav_rashod` (
-						`zayav_id`,
-						`category_id`,
-						`txt`,
-						`worker_id`,
-						`sum`
-					) VALUES (
-						".$zayav_id.",
-						".$r[0].",
-						'".(_zayavRashod($r[0], 'txt') ? addslashes($r[1]) : '')."',
-						".(_zayavRashod($r[0], 'worker') ? intval($r[1]) : 0).",
-						".$r[2]."
-					)";
+		$rashodOld = zayav_rashod_spisok($zayav_id, 'array');
+		if($rashod != $rashodOld) {
+			$old = zayav_rashod_spisok($zayav_id);
+			$sql = "DELETE FROM `zayav_rashod` WHERE `zayav_id`=".$zayav_id;
 			query($sql);
+			foreach($rashod as $r) {
+				$sql = "INSERT INTO `zayav_rashod` (
+							`zayav_id`,
+							`category_id`,
+							`txt`,
+							`worker_id`,
+							`sum`
+						) VALUES (
+							".$zayav_id.",
+							".$r[0].",
+							'".(_zayavRashod($r[0], 'txt') ? addslashes($r[1]) : '')."',
+							".(_zayavRashod($r[0], 'worker') ? intval($r[1]) : 0).",
+							".$r[2]."
+						)";
+				query($sql);
+			}
+			$changes = '<tr><td>'.$old.'<td>»<td>'.zayav_rashod_spisok($zayav_id);
+			history_insert(array(
+				'type' => 29,
+				'zayav_id' => $zayav_id,
+				'value' => '<table>'.$changes.'</table>'
+			));
 		}
 		$send['html'] = utf8(zayav_rashod_spisok($zayav_id));
 		jsonSuccess($send);
@@ -1085,13 +1125,6 @@ switch(@$_POST['op']) {
 		$data = zayav_data(1, zayavfilter($_POST));
 		$send['all'] = utf8(zayav_count($data['all']));
 		$send['html'] = utf8(zayav_spisok($data));
-		jsonSuccess($send);
-		break;
-	case 'zayav_next':
-		$_POST['find'] = win1251($_POST['find']);
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$send['html'] = utf8(zayav_spisok(zayav_data(intval($_POST['page']), zayavfilter($_POST))));
 		jsonSuccess($send);
 		break;
 	case 'zayav_delete':
@@ -1258,27 +1291,18 @@ switch(@$_POST['op']) {
 			'sum' => intval($_POST['sum']),
 			'avans' => intval($_POST['avans']),
 			'data_create' => $_POST['data_create'],
-			'link' => time().'_dogovor_'.intval($_POST['nomer']).'_'.$_POST['data_create']
-		);
-		$pasp = array(
+			'link' => time().'_dogovor_'.intval($_POST['nomer']).'_'.$_POST['data_create'],
 			'pasp_seria' => htmlspecialchars(trim($_POST['pasp_seria'])),
 			'pasp_nomer' => htmlspecialchars(trim($_POST['pasp_nomer'])),
 			'pasp_adres' => htmlspecialchars(trim($_POST['pasp_adres'])),
 			'pasp_ovd' => htmlspecialchars(trim($_POST['pasp_ovd'])),
-			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data'])),
-			'pasp_empty' => 0
+			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data']))
 		);
 
 		if(query_value("SELECT COUNT(`id`) FROM `zayav_dogovor` WHERE `deleted`=0 AND `id`!=".$id." AND `nomer`=".$v['nomer'])) {
 			echo 'Ошибка: договор с номером <b>'.$v['nomer'].'</b> уже был заключен.';
 			exit;
 		}
-		foreach($pasp as $k => $p)
-			if(empty($p) && $k != 'pasp_empty') {
-				$pasp['pasp_empty'] = 1;
-				break;
-			}
-		$v += $pasp;
 		if(empty($v['fio'])) {
 			echo 'Ошибка: не указано Фио клиента.';
 			exit;
@@ -1326,14 +1350,11 @@ switch(@$_POST['op']) {
 		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
 		$reason = win1251(htmlspecialchars(trim($_POST['reason'])));
-		$pasp = array(
-			'pasp_seria' => win1251(htmlspecialchars(trim($_POST['pasp_seria']))),
-			'pasp_nomer' => win1251(htmlspecialchars(trim($_POST['pasp_nomer']))),
-			'pasp_adres' => win1251(htmlspecialchars(trim($_POST['pasp_adres']))),
-			'pasp_ovd' => win1251(htmlspecialchars(trim($_POST['pasp_ovd']))),
-			'pasp_data' => win1251(htmlspecialchars(trim($_POST['pasp_data']))),
-			'pasp_empty' => 0
-		);
+		$pasp_seria = win1251(htmlspecialchars(trim($_POST['pasp_seria'])));
+		$pasp_nomer = win1251(htmlspecialchars(trim($_POST['pasp_nomer'])));
+		$pasp_adres = win1251(htmlspecialchars(trim($_POST['pasp_adres'])));
+		$pasp_ovd = win1251(htmlspecialchars(trim($_POST['pasp_ovd'])));
+		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
 		$sum = intval($_POST['sum']);
 		$avans = intval($_POST['avans']);
 		if(empty($fio) || empty($adres))
@@ -1342,20 +1363,13 @@ switch(@$_POST['op']) {
 		if(query_value("SELECT COUNT(`id`) FROM `zayav_dogovor` WHERE `deleted`=0 AND `id`!=".$id." AND `nomer`=".$nomer))
 			jsonError('Договор с номером <b>'.$nomer.'</b> уже был заключен.');
 
-		foreach($pasp as $k => $p)
-			if(empty($p) && $k != 'pasp_empty') {
-				$pasp['pasp_empty'] = 1;
-				break;
-			}
-
 		if($sum < $avans)
 			jsonError();
 
 		$sql = "SELECT *
 				FROM `zayav`
 				WHERE `id`=".$zayav_id."
-				  AND `zamer_status`!=1
-				  AND `zamer_status`!=3
+				  AND `deleted`=0
 				LIMIT 1";
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
 			jsonError();
@@ -1372,7 +1386,6 @@ switch(@$_POST['op']) {
 					`client_id`,
 					`fio`,
 					`adres`,
-					`pasp_empty`,
 					`pasp_seria`,
 					`pasp_nomer`,
 					`pasp_adres`,
@@ -1390,12 +1403,11 @@ switch(@$_POST['op']) {
 					".$zayav['client_id'].",
 					'".addslashes($fio)."',
 					'".addslashes($adres)."',
-					".$pasp['pasp_empty'].",
-					'".addslashes($pasp['pasp_seria'])."',
-					'".addslashes($pasp['pasp_nomer'])."',
-					'".addslashes($pasp['pasp_adres'])."',
-					'".addslashes($pasp['pasp_ovd'])."',
-					'".addslashes($pasp['pasp_data'])."',
+					'".addslashes($pasp_seria)."',
+					'".addslashes($pasp_nomer)."',
+					'".addslashes($pasp_adres)."',
+					'".addslashes($pasp_ovd)."',
+					'".addslashes($pasp_data)."',
 					".$sum.",
 					".$avans.",
 					'".time().'_dogovor_'.$nomer.'_'.$data_create."',
@@ -1452,12 +1464,11 @@ switch(@$_POST['op']) {
 
 		// Обновление паспортных данных клиента
 		$sql = "UPDATE `client`
-		        SET ".($pasp['pasp_empty'] ? '' : "
-		            `pasp_seria`='".addslashes($pasp['pasp_seria'])."',
-					`pasp_nomer`='".addslashes($pasp['pasp_nomer'])."',
-					`pasp_adres`='".addslashes($pasp['pasp_adres'])."',
-					`pasp_ovd`='".addslashes($pasp['pasp_ovd'])."',
-					`pasp_data`='".addslashes($pasp['pasp_data'])."',")."
+		        SET `pasp_seria`='".addslashes($pasp_seria)."',
+					`pasp_nomer`='".addslashes($pasp_nomer)."',
+					`pasp_adres`='".addslashes($pasp_adres)."',
+					`pasp_ovd`='".addslashes($pasp_ovd)."',
+					`pasp_data`='".addslashes($pasp_data)."',
 					`fio`='".$fio."'
 		        WHERE `id`=".$zayav['client_id'];
 		query($sql);
@@ -1466,7 +1477,8 @@ switch(@$_POST['op']) {
 			'type' => 19,
 			'client_id' => $zayav['client_id'],
 			'zayav_id' => $zayav_id,
-			'dogovor_id' => $dog_id
+			'dogovor_id' => $dog_id,
+			'value' => addslashes($reason)
 		));
 
 		// Внесение авансового платежа, если есть
@@ -1573,15 +1585,47 @@ switch(@$_POST['op']) {
 	case 'setup_worker_add':
 		if(!RULES_WORKER)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+		if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
 			jsonError();
-		$viewer_id = intval($_POST['id']);
-		$sql = "SELECT `worker` FROM `vk_user` WHERE `viewer_id`=".$viewer_id." LIMIT 1";
-		if(query_value($sql))
-			jsonError('Этот пользователь уже является</br >сотрудником.');
-		_viewer($viewer_id);
-		query("UPDATE `vk_user` SET `worker`=1 WHERE `viewer_id`=".$viewer_id);
-		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+		$viewer_id = intval($_POST['viewer_id']);
+		if($viewer_id) {
+			$sql = "SELECT `worker` FROM `vk_user` WHERE `viewer_id`=".$viewer_id." LIMIT 1";
+			if(query_value($sql))
+				jsonError('Этот пользователь уже является</br >сотрудником.');
+			_viewer($viewer_id);
+			query("UPDATE `vk_user` SET `worker`=1 WHERE `viewer_id`=".$viewer_id);
+			xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+		} else {
+			if(!preg_match(REGEXP_NUMERIC, $_POST['sex']) || !$_POST['sex'])
+				jsonError();
+			$first_name = win1251(htmlspecialchars(trim($_POST['first_name'])));
+			$last_name = win1251(htmlspecialchars(trim($_POST['last_name'])));
+			$post = win1251(htmlspecialchars(trim($_POST['post'])));
+			$sex = intval($_POST['sex']);
+			if(!$first_name || !$last_name)
+				jsonError();
+			$viewer_id = _maxSql('vk_user', 'viewer_id');
+			if($viewer_id < 2147000001)
+				$viewer_id = 2147000001;
+			$sql = "INSERT INTO `vk_user` (
+				`viewer_id`,
+				`first_name`,
+				`last_name`,
+				`sex`,
+				`photo`,
+				`worker`,
+				`post`
+			) VALUES (
+				".$viewer_id.",
+				'".addslashes($first_name)."',
+				'".addslashes($last_name)."',
+				".$sex.",
+				'http://vk.com/images/camera_c.gif',
+				1,
+				'".addslashes($post)."'
+			)";
+			query($sql);
+		}
 
 		history_insert(array(
 			'type' => 13,
@@ -1614,6 +1658,47 @@ switch(@$_POST['op']) {
 
 		$send['html'] = utf8(setup_worker_spisok());
 		jsonSuccess($send);
+		break;
+	case 'setup_worker_save':
+		if(!RULES_WORKER)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
+			jsonError();
+
+		$viewer_id = intval($_POST['viewer_id']);
+		$first_name = win1251(htmlspecialchars(trim($_POST['first_name'])));
+		$last_name = win1251(htmlspecialchars(trim($_POST['last_name'])));
+		$post = win1251(htmlspecialchars(trim($_POST['post'])));
+
+		if(!$first_name || !$last_name)
+			jsonError();
+
+		$sql = "SELECT * FROM `vk_user` WHERE `worker`=1 AND `viewer_id`=".$viewer_id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		query("UPDATE `vk_user`
+		       SET `first_name`='".addslashes($first_name)."',
+		           `last_name`='".addslashes($last_name)."',
+		           `post`='".addslashes($post)."'
+		       WHERE `viewer_id`=".$viewer_id);
+		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+
+		$changes = '';
+		if($r['first_name'] != $first_name)
+			$changes .= '<tr><th>Имя:<td>'.$r['first_name'].'<td>»<td>'.$first_name;
+		if($r['last_name'] != $last_name)
+			$changes .= '<tr><th>Фамилия:<td>'.$r['last_name'].'<td>»<td>'.$last_name;
+		if($r['post'] != $post)
+			$changes .= '<tr><th>Должность:<td>'.$r['post'].'<td>»<td>'.$post;
+		if($changes)
+			history_insert(array(
+				'type' => 514,
+				'value' => $viewer_id,
+				'value1' => '<table>'.$changes.'</table>'
+			));
+
+		jsonSuccess();
 		break;
 	case 'setup_rules_set':
 		if(!RULES_WORKER)
