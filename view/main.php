@@ -2686,7 +2686,7 @@ function setup_worker_rules($viewer_id) {
 		'<table class="utab">'.
 			'<tr><td>'.$u['photo'].
 				'<td><div class="name">'.$u['name'].'</div>'.
-					'<a href="http://vk.com/id'.$viewer_id.'" class="vklink" target="_blank">Перейти на страницу VK</a>'.
+					 ($viewer_id < 2147000001 ? '<a href="http://vk.com/id'.$viewer_id.'" class="vklink" target="_blank">Перейти на страницу VK</a>' : '').
 		'</table>'.
 
 		'<div class="headName">Общее</div>'.
@@ -2697,7 +2697,7 @@ function setup_worker_rules($viewer_id) {
 			'<tr><td><td><div class="vkButton"><button id="gtab_save">Сохранить</button></div>'.
 		'</table>'.
 
-	(!$u['admin'] ?
+	(!$u['admin'] && $viewer_id < 2147000001 ?
 		'<div class="headName">Права</div>'.
 		'<table class="rtab">'.
 			'<tr><td class="lab">Разрешать вход в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).

@@ -1419,7 +1419,11 @@ $(document)
 
 	.on('click', '#setup_worker .add', function() {
 		var html = '<div id="setup_worker_add">' +
-				'<h1>Укажите адрес страницы пользователя или его ID ВКонтакте:</h1>' +
+				'<h1>Укажите адрес страницы пользователя или его<br />ID ВКонтакте:</h1>' +
+				'<h2>Формат адреса может быть следующих видов:<br />' +
+					'<u>http://vk.com/id12345</u>, <u>http://vk.com/durov</u>.<br />' +
+					'Либо используйте ID пользователя: <u>id12345</u>, <u>durov</u>, <u>12345</u>.' +
+				'</h2>' +
 				'<input type="text" id="viewer_id" />' +
 				'<div class="vkButton"><button>Найти</button></div>' +
 				'<a class="manual">Или заполните данные вручную..</a>' +
@@ -1432,7 +1436,7 @@ $(document)
 			'</div>',
 			dialog = _dialog({
 				top:50,
-				width:400,
+				width:350,
 				head:'Добавление нового сотрудника',
 				content:html,
 				butSubmit:'Добавить',
@@ -1445,6 +1449,9 @@ $(document)
 			$(this)
 				.hide()
 				.next().show();
+			$('.res').remove();
+			viewer_id = 0;
+			$('#viewer_id').val('');
 			$('#first_name').focus();
 		});
 		$('#sex')._radio({
@@ -1465,6 +1472,12 @@ $(document)
 			};
 			if(!send.user_ids)
 				return;
+			if(/vk.com/.test(send.user_ids))
+				send.user_ids = send.user_ids.split('vk.com/')[1];
+			if(/\?/.test(send.user_ids))
+				send.user_ids = send.user_ids.split('?')[0];
+			if(/#/.test(send.user_ids))
+				send.user_ids = send.user_ids.split('#')[0];
 			but.addClass('busy');
 			VK.api('users.get', send, function(data) {
 				but.removeClass('busy');
@@ -1489,7 +1502,7 @@ $(document)
 				sex:$('#sex').val(),
 				post:$('#post').val()
 			};
-			if(!send.id && !send.first_name && !send.last_name) err('Произведите поиск пользователя<br>или укажите вручную имя и фамилию', -60);
+			if(!send.viewer_id && !send.first_name && !send.last_name) err('Произведите поиск пользователя<br>или укажите вручную имя и фамилию', -60);
 			else if(send.first_name && send.last_name && send.sex == 0) err('Не указан пол', -47);
 			else {
 				dialog.process();
@@ -1512,7 +1525,7 @@ $(document)
 				indent:40,
 				show:1,
 				top:top,
-				left:112
+				left:90
 			});
 		}
 	})

@@ -358,14 +358,22 @@
 #setup_worker .img_del{float:right;margin-top:2px}
 #setup_worker .name,#setup_worker_add .name{font-weight:bold;font-size:12px;color:#45688e}
 #setup_worker .post{margin-top:15px}
-#setup_worker_add{margin:10px 0}
 #setup_worker_add h1{font-weight:bold;color:#31618C}
+#setup_worker_add h2{
+	border:#ddd solid 1px;
+	margin:7px 0;
+	padding:10px;
+	background-color:#ffe;
+	color:#333;
+}
 #setup_worker_add #viewer_id{width:240px;padding:5px;height:13px;margin:7px 5px 0 0}
-#setup_worker_add .res{margin:10px 0 0 20px}
+#setup_worker_add .vkButton{margin:0}
+#setup_worker_add .res{margin:10px 0 0 15px}
 #setup_worker_add .manual{display:inline-block;margin-top:15px}
-#setup_worker_add .manual_tab{border-spacing:8px;margin:15px 0 0 20px;display:none}
+#setup_worker_add .manual_tab{border-spacing:8px;margin-top:25px;display:none}
 #setup_worker_add .manual_tab input{width:230px}
 #setup_worker_add #sex_radio div{display:inline-block;margin-right:15px}
+
 
 #setup_rules .utab td{padding-right:10px;vertical-align:top}
 #setup_rules .vklink{color:#777;display:inline-block;margin-top:10px}
