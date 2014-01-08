@@ -777,6 +777,7 @@ function client_info($client_id) {
 
 	$zayavCount = count($zayav);
 	$zayav = _dogNomer($zayav);
+	$zayav = zayav_product_array($zayav);
 
 	$zayavSpisok = '';
 	foreach($zayav as $r) {
@@ -2357,6 +2358,10 @@ function history_types($v) {
 
 		case 514: return 'В установках: изменение данных сотрудника <u>'._viewer($v['value'], 'name').'</u>:<div class="changes">'.$v['value1'].'</div>';
 
+		case 515: return 'В установках: внесение нового счёта <u>'.$v['value'].'</u>.';
+		case 516: return 'В установках: изменение данных счёта <u>'.$v['value'].'</u>:<div class="changes">'.$v['value1'].'</div>';
+		case 517: return 'В установках: удаление счёта <u>'.$v['value'].'</u>.';
+
 		default: return $v['type'];
 	}
 }//history_types()
@@ -2587,6 +2592,7 @@ function setup() {
 		'worker' => 'Сотрудники',
 		'rekvisit' => 'Реквизиты организации',
 		'product' => 'Виды изделий',
+		'invoice' => 'Счета',
 		'prihodtype' => 'Виды платежей',
 		'zayavrashod' => 'Расходы по заявке'
 	);
@@ -2627,6 +2633,7 @@ function setup() {
 			}
 			$left = setup_product();
 			break;
+		case 'invoice': $left = setup_invoice(); break;
 		case 'prihodtype': $left = setup_prihodtype(); break;
 		case 'zayavrashod': $left = setup_zayavrashod(); break;
 	}
@@ -2686,7 +2693,7 @@ function setup_worker_rules($viewer_id) {
 		'<table class="utab">'.
 			'<tr><td>'.$u['photo'].
 				'<td><div class="name">'.$u['name'].'</div>'.
-					 ($viewer_id < 2147000001 ? '<a href="http://vk.com/id'.$viewer_id.'" class="vklink" target="_blank">Перейти на страницу VK</a>' : '').
+					 ($viewer_id < VIEWER_MAX ? '<a href="http://vk.com/id'.$viewer_id.'" class="vklink" target="_blank">Перейти на страницу VK</a>' : '').
 		'</table>'.
 
 		'<div class="headName">Общее</div>'.
@@ -2697,7 +2704,7 @@ function setup_worker_rules($viewer_id) {
 			'<tr><td><td><div class="vkButton"><button id="gtab_save">Сохранить</button></div>'.
 		'</table>'.
 
-	(!$u['admin'] && $viewer_id < 2147000001 ?
+	(!$u['admin'] && $viewer_id < VIEWER_MAX ?
 		'<div class="headName">Права</div>'.
 		'<table class="rtab">'.
 			'<tr><td class="lab">Разрешать вход в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).
@@ -2833,6 +2840,42 @@ function setup_product_sub_spisok($product_id) {
 		$send .= '</table>';
 	return $send;
 }//setup_product_sub_spisok()
+
+function setup_invoice() {
+//	if(!RULES_PRIHODTYPE)
+//		return _norules('Настройки видов платежей');
+	return
+	'<div id="setup_invoice">'.
+		'<div class="headName">Управление счетами<a class="add">Новый счёт</a></div>'.
+		'<div class="spisok">'.setup_invoice_spisok().'</div>'.
+	'</div>';
+}//setup_invoice()
+function setup_invoice_spisok() {
+	$sql = "SELECT * FROM `invoice` ORDER BY `id`";
+	$q = query($sql);
+	if(!mysql_num_rows($q))
+		return 'Список пуст.';
+
+	$spisok = array();
+	while($r = mysql_fetch_assoc($q))
+		$spisok[$r['id']] = $r;
+
+	$send =
+	'<table class="_spisok">'.
+		'<tr><th class="name">Наименование'.
+			'<th class="money-type">Виды платежей'.
+			'<th class="set">';
+	foreach($spisok as $id => $r)
+		$send .=
+		'<tr val="'.$id.'">'.
+			'<td class="name">'.$r['name'].
+			'<td class="money">'.
+			'<td class="set">'.
+				'<div class="img_edit"></div>'.
+				'<div class="img_del"></div>';
+	$send .= '</table>';
+	return $send;
+}//setup_invoice_spisok()
 
 function setup_prihodtype() {
 	if(!RULES_PRIHODTYPE)

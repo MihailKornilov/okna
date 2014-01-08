@@ -1605,8 +1605,8 @@ switch(@$_POST['op']) {
 			if(!$first_name || !$last_name)
 				jsonError();
 			$viewer_id = _maxSql('vk_user', 'viewer_id');
-			if($viewer_id < 2147000001)
-				$viewer_id = 2147000001;
+			if($viewer_id < VIEWER_MAX)
+				$viewer_id = VIEWER_MAX;
 			$sql = "INSERT INTO `vk_user` (
 				`viewer_id`,
 				`first_name`,
@@ -1967,6 +1967,91 @@ switch(@$_POST['op']) {
 		));
 
 		jsonSuccess();
+		break;
+	case 'setup_invoice_add':
+//		if(!RULES_PRIHODTYPE)
+//			jsonError();
+		$name = win1251(htmlspecialchars(trim($_POST['name'])));
+		if(empty($name))
+			jsonError();
+		$sql = "INSERT INTO `invoice` (
+					`name`
+				) VALUES (
+					'".addslashes($name)."'
+				)";
+		query($sql);
+
+		//xcache_unset(CACHE_PREFIX.'prihodtype');
+		GvaluesCreate();
+
+		history_insert(array(
+			'type' => 515,
+			'value' => $name
+		));
+
+
+		$send['html'] = utf8(setup_invoice_spisok());
+		jsonSuccess($send);
+		break;
+	case 'setup_invoice_edit':
+//		if(!RULES_PRIHODTYPE)
+//			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+			jsonError();
+		$id = intval($_POST['id']);
+		$name = win1251(htmlspecialchars(trim($_POST['name'])));
+		if(empty($name))
+			jsonError();
+
+		$sql = "SELECT * FROM `invoice` WHERE `id`=".$id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "UPDATE `invoice`
+				SET `name`='".addslashes($name)."'
+				WHERE `id`=".$id;
+		query($sql);
+
+		//xcache_unset(CACHE_PREFIX.'prihodtype');
+		GvaluesCreate();
+
+		$changes = '';
+		if($r['name'] != $name)
+			$changes .= '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
+		if($changes)
+			history_insert(array(
+				'type' => 516,
+				'value' => $name,
+				'value1' => '<table>'.$changes.'</table>'
+			));
+
+		$send['html'] = utf8(setup_invoice_spisok());
+		jsonSuccess($send);
+		break;
+	case 'setup_invoice_del':
+//		if(!RULES_PRIHODTYPE)
+//			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+			jsonError();
+		$id = intval($_POST['id']);
+
+		$sql = "SELECT * FROM `invoice` WHERE `id`=".$id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "DELETE FROM `invoice` WHERE `id`=".$id;
+		query($sql);
+
+//		xcache_unset(CACHE_PREFIX.'prihodtype');
+		GvaluesCreate();
+
+		history_insert(array(
+			'type' => 517,
+			'value' => $r['name']
+		));
+
+		$send['html'] = utf8(setup_invoice_spisok());
+		jsonSuccess($send);
 		break;
 	case 'setup_prihodtype_add':
 		if(!RULES_PRIHODTYPE)

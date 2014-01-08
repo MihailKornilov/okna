@@ -350,6 +350,9 @@
 #setup .right{padding:0;width:170px;border-left:0}
 #setup .rightLink a.sel{border-color:#6B8EB5}
 
+.setup-tab{border-spacing:10px}
+.setup-tab #name{width:210px}
+
 #setup_worker .headName{margin-bottom:15px}
 #setup_worker .unit,#setup_worker_add .res{border-spacing:10px;border:#DDE solid 1px;width:300px;margin:6px 0 6px 20px}
 #setup_worker .unit td,#setup_worker_add .res td{vertical-align:top}

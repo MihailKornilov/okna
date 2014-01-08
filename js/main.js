@@ -1793,6 +1793,124 @@ $(document)
 		}
 	})
 
+	.on('click', '#setup_invoice .add', function() {
+		var t = $(this),
+			html = '<table class="setup-tab">' +
+				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="50" />' +
+				'</table>',
+			dialog = _dialog({
+				top:60,
+				width:400,
+				head:'Добавление нового счёта',
+				content:html,
+				submit:submit
+			});
+		$('#name').focus().keyEnter(submit);
+		function submit() {
+			var send = {
+				op:'setup_invoice_add',
+				name:$('#name').val()
+			};
+			if(!send.name) {
+				dialog.bottom.vkHint({
+					msg:'<SPAN class=red>Не указано наименование</SPAN>',
+					top:-47,
+					left:131,
+					indent:50,
+					show:1,
+					remove:1
+				});
+				$('#name').focus();
+			} else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						$('.spisok').html(res.html);
+						dialog.close();
+						_msg('Внесено!');
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+	})
+	.on('click', '#setup_invoice .img_edit', function() {
+		var t = $(this);
+		while(t[0].tagName != 'TR')
+			t = t.parent();
+		var id = t.attr('val'),
+			name = t.find('.name').html(),
+			html = '<table style="border-spacing:10px">' +
+				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" style="width:210px" value="' + name + '" />' +
+				'</table>',
+			dialog = _dialog({
+				top:60,
+				width:440,
+				head:'Редактирование данный счёта',
+				content:html,
+				butSubmit:'Сохранить',
+				submit:submit
+			});
+		$('#name').focus().keyEnter(submit);
+		function submit() {
+			var send = {
+				op:'setup_invoice_edit',
+				id:id,
+				name:$('#name').val(),
+				kassa_put:$('#kassa_put').val()
+			};
+			if(!send.name) {
+				dialog.bottom.vkHint({
+					msg:'<SPAN class=red>Не указано наименование</SPAN>',
+					top:-47,
+					left:131,
+					indent:50,
+					show:1,
+					remove:1
+				});
+				$('#name').focus();
+			} else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						$('.spisok').html(res.html);
+						dialog.close();
+						_msg('Сохранено!');
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+	})
+	.on('click', '#setup_invoice .img_del', function() {
+		var t = $(this),
+			dialog = _dialog({
+				top:90,
+				width:300,
+				head:'Удаление счёта',
+				content:'<center><b>Подтвердите удаление счёта.</b></center>',
+				butSubmit:'Удалить',
+				submit:submit
+			});
+		function submit() {
+			while(t[0].tagName != 'TR')
+				t = t.parent();
+			var send = {
+				op:'setup_invoice_del',
+				id:t.attr('val')
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					$('.spisok').html(res.html);
+					dialog.close();
+					_msg('Удалено!');
+				} else
+					dialog.abort();
+			}, 'json');
+		}
+	})
+
 	.on('click', '#setup_prihodtype .add', function() {
 		var t = $(this),
 			html = '<table style="border-spacing:10px">' +
