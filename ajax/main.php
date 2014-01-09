@@ -124,8 +124,6 @@ switch(@$_POST['op']) {
 		);
 		if(!preg_match(REGEXP_NUMERIC, $_POST['type']) || $_POST['type'] == 0)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['kassa']))
-			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) || $_POST['sum'] == 0)
 			jsonError();
 		if(preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
@@ -134,7 +132,6 @@ switch(@$_POST['op']) {
 			$v['client_id'] = intval($_POST['client_id']);
 
 		$v['type'] = intval($_POST['type']);
-		$v['kassa'] = intval($_POST['kassa']);
 		$v['sum'] = intval($_POST['sum']);
 
 		$send['html'] = utf8(money_insert($v));
@@ -1489,14 +1486,12 @@ switch(@$_POST['op']) {
 						`dogovor_id`,
 						`sum`,
 						`prihod_type`,
-						`kassa`,
 						`viewer_id_add`
 					) VALUES (
 						".$zayav_id.",
 						".$zayav['client_id'].",
 						".$dog_id.",
 						".$avans.",
-						1,
 						1,
 						".VIEWER_ID."
 					)";
@@ -1972,12 +1967,15 @@ switch(@$_POST['op']) {
 //		if(!RULES_PRIHODTYPE)
 //			jsonError();
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
+		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		if(empty($name))
 			jsonError();
 		$sql = "INSERT INTO `invoice` (
-					`name`
+					`name`,
+					`about`
 				) VALUES (
-					'".addslashes($name)."'
+					'".addslashes($name)."',
+					'".addslashes($about)."'
 				)";
 		query($sql);
 
@@ -2000,6 +1998,7 @@ switch(@$_POST['op']) {
 			jsonError();
 		$id = intval($_POST['id']);
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
+		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		if(empty($name))
 			jsonError();
 
@@ -2008,7 +2007,8 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		$sql = "UPDATE `invoice`
-				SET `name`='".addslashes($name)."'
+				SET `name`='".addslashes($name)."',
+					`about`='".addslashes($about)."'
 				WHERE `id`=".$id;
 		query($sql);
 
@@ -2018,6 +2018,8 @@ switch(@$_POST['op']) {
 		$changes = '';
 		if($r['name'] != $name)
 			$changes .= '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
+		if($r['about'] != $about)
+			$changes .= '<tr><th>Описание:<td>'.str_replace("\n", '<br />', $r['about']).'<td>»<td>'.str_replace("\n", '<br />', $about);
 		if($changes)
 			history_insert(array(
 				'type' => 516,
@@ -2056,23 +2058,15 @@ switch(@$_POST['op']) {
 	case 'setup_prihodtype_add':
 		if(!RULES_PRIHODTYPE)
 			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['kassa_put']))
-			jsonError();
-		$kassa_put = intval($_POST['kassa_put']);
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
 		if(empty($name))
 			jsonError();
-		$sort = query_value("SELECT IFNULL(MAX(`sort`)+1,0) FROM `setup_prihodtype`");
 		$sql = "INSERT INTO `setup_prihodtype` (
 					`name`,
-					`kassa_put`,
-					`sort`,
-					`viewer_id_add`
+					`sort`
 				) VALUES (
 					'".addslashes($name)."',
-					".$kassa_put.",
-					".$sort.",
-					".VIEWER_ID."
+					"._maxSql('setup_prihodtype', 'sort')."
 				)";
 		query($sql);
 
@@ -2093,11 +2087,8 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['kassa_put']))
-			jsonError();
 		$id = intval($_POST['id']);
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
-		$kassa_put = intval($_POST['kassa_put']);
 		if(empty($name))
 			jsonError();
 
@@ -2106,8 +2097,7 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		$sql = "UPDATE `setup_prihodtype`
-				SET `name`='".addslashes($name)."',
-					`kassa_put`=".$kassa_put."
+				SET `name`='".addslashes($name)."'
 				WHERE `id`=".$id;
 		query($sql);
 
@@ -2117,8 +2107,6 @@ switch(@$_POST['op']) {
 		$changes = '';
 		if($r['name'] != $name)
 			$changes .= '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
-		if($r['kassa_put'] != $kassa_put)
-			$changes .= '<tr><th>Возможность внесения в кассу:<td>'.($r['kassa_put'] ? 'да' : 'нет').'<td>»<td>'.($kassa_put ? 'да' : 'нет');
 		if($changes)
 			history_insert(array(
 				'type' => 508,

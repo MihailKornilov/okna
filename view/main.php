@@ -162,7 +162,6 @@ function GvaluesCreate() {//Составление файла G_values.js
 		"\n".'PRODUCT_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_product` ORDER BY `name`").','.
 		 //"\n".'PRODUCT_ASS=_toSpisok(PRODUCT_ASS),'.
 		"\n".'PRIHOD_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_prihodtype` ORDER BY `sort`").','.
-		"\n".'PRIHODKASSA_ASS='.query_ptpJson("SELECT `id`,`kassa_put` FROM `setup_prihodtype` WHERE `kassa_put`=1").','.
 		"\n".'ZAYAVRASHOD_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_zayavrashod` ORDER BY `sort`").','.
 		"\n".'ZAYAVRASHOD_TXT_ASS='.query_ptpJson("SELECT `id`,`show_txt` FROM `setup_zayavrashod` WHERE `show_txt`=1").','.
 		"\n".'ZAYAVRASHOD_WORKER_ASS='.query_ptpJson("SELECT `id`,`show_worker` FROM `setup_zayavrashod` WHERE `show_worker`=1").','.
@@ -256,29 +255,24 @@ function _prihodType($type_id=false, $i='name') {//Список изделий для заявок
 		$key = CACHE_PREFIX.'prihodtype';
 		$arr = xcache_get($key);
 		if(empty($arr)) {
-			$sql = "SELECT `id`,`name`,`kassa_put` FROM `setup_prihodtype` ORDER BY `sort`";
+			$sql = "SELECT `id`,`name` FROM `setup_prihodtype` ORDER BY `sort`";
 			$q = query($sql);
 			while($r = mysql_fetch_assoc($q))
 				$arr[$r['id']] = array(
-					'name' => $r['name'],
-					'kassa' => $r['kassa_put']
+					'name' => $r['name']
 				);
 			xcache_set($key, $arr, 86400);
 		}
 		if(!defined('PRIHODTYPE_LOADED')) {
 			foreach($arr as $id => $r) {
 				define('PRIHODTYPE_'.$id, $r['name']);
-				define('PRIHODTYPE_KASSA_'.$id, $r['kassa']);
 			}
 			define('PRIHODTYPE_0', '');
-			define('PRIHODTYPE_KASSA_0', '');
 			define('PRIHODTYPE_LOADED', true);
 		}
 	}
 	if($type_id === false)
 		return $arr;
-	if($i == 'kassa')
-		return constant('PRIHODTYPE_KASSA_'.$type_id);
 	return constant('PRIHODTYPE_'.$type_id);
 }//_prihodType()
 function _zamerDuration($v=false) {
@@ -2440,18 +2434,11 @@ function money_insert($v) {//Внесение платежа
 	if(empty($v['client_id']))
 		$v['client_id'] = 0;
 
-	if(empty($v['kassa']))
-		$v['kassa'] = 0;
-	$v['kassa'] = _prihodType($v['type'], 'kassa') ? $v['kassa'] : 0;
-	if($v['kassa'] > 1)
-		return false;
-
 	$sql = "INSERT INTO `money` (
 				`zayav_id`,
 				`client_id`,
 				`prihod_type`,
 				`sum`,
-				`kassa`,
 				`prim`,
 				`viewer_id_add`
 			) VALUES (
@@ -2459,7 +2446,6 @@ function money_insert($v) {//Внесение платежа
 				".$v['client_id'].",
 				".$v['type'].",
 				".$v['sum'].",
-				".$v['kassa'].",
 				'".addslashes($v['prim'])."',
 				".VIEWER_ID."
 			)";
@@ -2846,6 +2832,12 @@ function setup_invoice() {
 //		return _norules('Настройки видов платежей');
 	return
 	'<div id="setup_invoice">'.
+	'<table style="border-spacing:10px">'.
+	'<tr><td class="label r topi">Виды платежей:<td><input type="hidden" id="prihod" />'.
+	'<tr><td class="label r topi">Виды платежей:<td><input type="hidden" id="prihod1" />'.
+	'<tr><td class="label r topi">Виды платежей:<td><input type="hidden" id="prihod2" />'.
+	'<tr><td class="label r topi">Виды платежей:<td>'.
+	'</table>'.
 		'<div class="headName">Управление счетами<a class="add">Новый счёт</a></div>'.
 		'<div class="spisok">'.setup_invoice_spisok().'</div>'.
 	'</div>';
@@ -2868,7 +2860,9 @@ function setup_invoice_spisok() {
 	foreach($spisok as $id => $r)
 		$send .=
 		'<tr val="'.$id.'">'.
-			'<td class="name">'.$r['name'].
+			'<td class="name">'.
+				'<div>'.$r['name'].'</div>'.
+				'<pre>'.$r['about'].'</pre>'.
 			'<td class="money">'.
 			'<td class="set">'.
 				'<div class="img_edit"></div>'.
@@ -2914,7 +2908,6 @@ function setup_prihodtype_spisok() {
 	$send =
 	'<table class="_spisok">'.
 		'<tr><th class="name">Наименование'.
-			'<th class="kassa">Возможность<br />внесения<br />в кассу'.
 			'<th class="money">Кол-во<br />платежей'.
 			'<th class="set">'.
 	'</table>'.
@@ -2925,7 +2918,6 @@ function setup_prihodtype_spisok() {
 		$send .='<dd val="'.$id.'">'.
 			'<table class="_spisok">'.
 				'<tr><td class="name">'.$r['name'].
-					'<td class="kassa">'.($r['kassa_put'] ? 'да' : '').
 					'<td class="money">'.$money.
 					'<td class="set">'.
 						'<div class="img_edit"></div>'.

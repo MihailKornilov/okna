@@ -633,7 +633,6 @@ $(document)
 				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="prihod_type" value="0">' +
 						'<a href="' + URL + '&p=setup&d=prihodtype" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
 				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="7"> руб.' +
-				'<tr class="tr_kassa dn"><td class="label">Деньги поступили в кассу?:<td><input type="hidden" id="kassa" value="2">' +
 				'<tr><td class="label">Примечание:<em>(не обязательно)</em><td><input type="text" id="prim">' +
 				'</table>';
 		var dialog = _dialog({
@@ -658,18 +657,7 @@ $(document)
 			title0:'Не указан',
 			spisok:PRIHOD_SPISOK,
 			func:function(uid) {
-				$('#kassa')._radio(2);
-				$('.tr_kassa')[(PRIHODKASSA_ASS[uid] ? 'remove' : 'add') + 'Class']('dn');
 				$('#sum').focus();
-			}
-		});
-		$('#kassa')._radio({
-			spisok:[
-				{uid:1, title:'да'},
-				{uid:0, title:'нет'}
-			],
-			func:function() {
-				$('#prim').focus();
 			}
 		});
 		function submit() {
@@ -680,16 +668,13 @@ $(document)
 				sum:$('#sum').val(),
 				zayav_id:$('#zayav_id').val(),
 				client_id:OPL.client_id,
-				kassa:$('#kassa').val(),
 				prim:$.trim($('#prim').val())
 			};
 			if(send.type == 0) err('Не указан вид платежа');
 			else if(!REGEXP_NUMERIC.test(send.sum)) {
 				err('Некорректно указана сумма.');
 				$('#sum').focus();
-			} else if(PRIHODKASSA_ASS[send.type] && send.kassa == 2)
-				err('Укажите, деньги поступили в кассу или нет');
-			else if(send.zayav_id == 0 && !send.prim)
+			} else if(send.zayav_id == 0 && !send.prim)
 				err('Если не выбрана заявка, необходимо указать примечание');
 			else {
 				dialog.process();
@@ -1797,6 +1782,7 @@ $(document)
 		var t = $(this),
 			html = '<table class="setup-tab">' +
 				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="50" />' +
+				'<tr><td class="label r top">Описание:<td><textarea id="about"></textarea>' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -1809,13 +1795,14 @@ $(document)
 		function submit() {
 			var send = {
 				op:'setup_invoice_add',
-				name:$('#name').val()
+				name:$('#name').val(),
+				about:$('#about').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
 					msg:'<SPAN class=red>Не указано наименование</SPAN>',
 					top:-47,
-					left:131,
+					left:100,
 					indent:50,
 					show:1,
 					remove:1
@@ -1839,13 +1826,15 @@ $(document)
 		while(t[0].tagName != 'TR')
 			t = t.parent();
 		var id = t.attr('val'),
-			name = t.find('.name').html(),
-			html = '<table style="border-spacing:10px">' +
-				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" style="width:210px" value="' + name + '" />' +
+			name = t.find('.name div').html(),
+			about = t.find('.name pre').html(),
+			html = '<table class="setup-tab">' +
+				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" value="' + name + '" />' +
+				'<tr><td class="label r top">Описание:<td><textarea id="about">' + about + '</textarea>' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
-				width:440,
+				width:400,
 				head:'Редактирование данный счёта',
 				content:html,
 				butSubmit:'Сохранить',
@@ -1857,13 +1846,13 @@ $(document)
 				op:'setup_invoice_edit',
 				id:id,
 				name:$('#name').val(),
-				kassa_put:$('#kassa_put').val()
+				about:$('#about').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
 					msg:'<SPAN class=red>Не указано наименование</SPAN>',
 					top:-47,
-					left:131,
+					left:100,
 					indent:50,
 					show:1,
 					remove:1
@@ -1913,9 +1902,8 @@ $(document)
 
 	.on('click', '#setup_prihodtype .add', function() {
 		var t = $(this),
-			html = '<table style="border-spacing:10px">' +
-				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" style="width:210px" />' +
-				'<tr><td class="label r">Возможность внесения в кассу:<td><input id="kassa_put" type="hidden" />' +
+			html = '<table class="setup-tab">' +
+				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -1925,19 +1913,10 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
-		$('#kassa_put')._check();
-		$('#kassa_put_check').vkHint({
-			msg:'При внесении платежа дополнительно<br />будет задаваться вопрос:<br />"Деньги поступили в кассу или нет?"',
-			top:-83,
-			left:-91,
-			indent:90,
-			delayShow:1000
-		});
 		function submit() {
 			var send = {
 				op:'setup_prihodtype_add',
-				name:$('#name').val(),
-				kassa_put:$('#kassa_put').val()
+				name:$('#name').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
@@ -1969,10 +1948,8 @@ $(document)
 			t = t.parent();
 		var id = t.attr('val'),
 			name = t.find('.name').html(),
-			kassa = t.find('.kassa').html() ? 1 : 0,
-			html = '<table style="border-spacing:10px">' +
-				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" style="width:210px" value="' + name + '" />' +
-				'<tr><td class="label r">Возможность внесения в кассу:<td><input id="kassa_put" type="hidden" value="' + kassa + '" />' +
+			html = '<table class="setup-tab">' +
+				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" value="' + name + '" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -1983,20 +1960,11 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
-		$('#kassa_put')._check();
-		$('#kassa_put_check').vkHint({
-			msg:'При внесении платежа дополнительно<br />будет задаваться вопрос:<br />"Деньги поступили в кассу или нет?"',
-			top:-83,
-			left:-91,
-			indent:90,
-			delayShow:1000
-		});
 		function submit() {
 			var send = {
 				op:'setup_prihodtype_edit',
 				id:id,
-				name:$('#name').val(),
-				kassa_put:$('#kassa_put').val()
+				name:$('#name').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
@@ -2201,6 +2169,27 @@ $(document)
 	})
 
 	.ready(function() {
+		$('#prihod').vkSel({
+			display:'inline-block',
+			width:210,
+			title0:'Не указаны',
+		//	funcAdd:function() {},
+			spisok:PRODUCT_SPISOK
+		});
+		$('#prihod1')._select({
+			display:'inline-block',
+			width:210,
+			title0:'Не указаны',
+		//	funcAdd:function() {},
+			spisok:PRODUCT_SPISOK
+		});
+		$('#prihod2')._select({
+			display:'inline-block',
+			width:210,
+			title0:'Не указаны',
+		//	funcAdd:function() {},
+			spisok:PRODUCT_SPISOK
+		});
 		if($('#client').length > 0) {
 			window.cFind = $('#find')._search({
 				width:602,
