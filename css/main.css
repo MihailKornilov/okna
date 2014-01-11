@@ -139,7 +139,7 @@
 
 /* Поля изделий при управлении заявкой */
 ._product-list .ptab{padding-bottom:6px}
-._product-list .vkSel{margin-right:5px}
+._product-list ._select{margin-right:5px}
 ._product-list .count{width:20px}
 ._product-list .img_del{margin:0 0 -4px 6px}
 ._product-list .add{display:inline-block;text-align:center;padding:4px 0 8px}
@@ -148,7 +148,7 @@
 ._zayav-rashod .ptab{margin-bottom:6px}
 /*._zayav-rashod .tddop{width:155px}*/
 ._zayav-rashod .zrtxt{width:142px;margin-right:5px}
-._zayav-rashod .vkSel{margin-right:5px}
+._zayav-rashod ._select{margin-right:5px}
 ._zayav-rashod .zrsum{width:40px;margin-right:3px;text-align:right}
 
 .zayav-rashod-spisok *{font-size:10px}
@@ -167,9 +167,8 @@
 .zayav-add.all{text-align:center}
 .zayav-add .vkButton{margin-top:15px}
 .zayav-zamer-dtime ._calendar{margin-right:8px}
-.zayav-zamer-dtime #vkSel_zamer_hour{margin-right:2px}
-.zayav-zamer-dtime #vkSel_zamer_min{margin-left:1px}
-.zayav-zamer-dtime .vkSel .main{height:23px}
+.zayav-zamer-dtime #zamer_hour_select{margin-right:2px}
+.zayav-zamer-dtime #zamer_min_select{margin-left:1px}
 
 
 .zayav_unit{
@@ -350,6 +349,7 @@
 #setup .rightLink a.sel{border-color:#6B8EB5}
 
 .setup-tab{border-spacing:10px}
+.setup-tab .label{text-align:right}
 .setup-tab #name{width:210px}
 .setup-tab textarea{width:210px;height:70px}
 
@@ -401,7 +401,8 @@
 #setup_product_sub .headName{margin-top:10px}
 #setup_product_sub .zayav{text-align:center}
 
-#setup_invoice .name{width:170px}
+#setup_invoice .name{vertical-align:top;width:170px}
+#setup_invoice .type{vertical-align:top}
 #setup_invoice pre{color:#777;font-size:10px;margin:3px 7px}
 
 #setup_prihodtype .name{width:170px}

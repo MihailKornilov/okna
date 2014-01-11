@@ -147,19 +147,16 @@ var hashLoc,
 		'</table>';
 		$('.zayav-zamer-dtime').html(html);
 		$('#zamer_day')._calendar();
-		$('#zamer_hour').vkSel({
+		$('#zamer_hour')._select({
 			width:40,
-			display:'inline-block',
 			spisok:ZAMER_HOUR
 		});
-		$('#zamer_min').vkSel({
+		$('#zamer_min')._select({
 			width:40,
-			display:'inline-block',
 			spisok:ZAMER_MIN
 		});
-		$('#zamer_duration').vkSel({
+		$('#zamer_duration')._select({
 			width:100,
-			display:'inline-block',
 			spisok:ZAMER_DURATION
 		});
 
@@ -441,14 +438,14 @@ $.fn.productList = function(o) {
 		ptab.find('.img_del').click(function() {
 			ptab.remove();
 		});
-		$('#' + attr_id).vkSel({
+		$('#' + attr_id)._select({
 			width:119,
-			display:'inline-block',
 			title0:'Не указано',
 			spisok:PRODUCT_SPISOK,
 			func:function(id) {
-				$('#vkSel_' + attr_subid).remove();
-				$('#' + attr_subid).val(0);
+				$('#' + attr_subid)
+					._select('remove')
+					.val(0);
 				if(id > 0 && PRODUCT_SUB_SPISOK[id])
 					subSel(id, attr_subid, attr_count);
 				$('#' + attr_count).val(id > 0 ? 1 : '').focus();
@@ -460,9 +457,8 @@ $.fn.productList = function(o) {
 	function subSel(id, attr_subid, attr_count) {
 		if(id == 0 || !PRODUCT_SUB_SPISOK[id])
 			return;
-		$('#' + attr_subid).vkSel({
+		$('#' + attr_subid)._select({
 			width:120,
-			display:'inline-block',
 			title0:'Подвид не указан',
 			spisok:PRODUCT_SUB_SPISOK[id],
 			func:function() {
@@ -528,18 +524,16 @@ $.fn.zayavRashod = function(o) {
 			tddop = ptab.find('.tddop'),
 			zrsum = ptab.find('.zrsum');
 		if(v[0] && ZAYAVRASHOD_WORKER_ASS[v[0]])
-			$('#' + attr_worker).vkSel({
+			$('#' + attr_worker)._select({
 				width:150,
-				display:'inline-block',
 				title0:'Сотрудник',
 				spisok:WORKER_SPISOK,
 				func:function() {
 					zrsum.focus();
 				}
 			});
-		$('#' + attr_cat).vkSel({
+		$('#' + attr_cat)._select({
 			width:120,
-			display:'inline-block',
 			title0:'Категория',
 			spisok:ZAYAVRASHOD_SPISOK,
 			func:function(id) {
@@ -549,9 +543,8 @@ $.fn.zayavRashod = function(o) {
 					tddop.find('.zrtxt').focus();
 				} else if(ZAYAVRASHOD_WORKER_ASS[id]) {
 					tddop.html('<input type="hidden" id="' + attr_worker + '" />');
-					$('#' + attr_worker).vkSel({
+					$('#' + attr_worker)._select({
 						width:150,
-						display:'inline-block',
 						title0:'Сотрудник',
 						spisok:WORKER_SPISOK,
 						func:function() {
@@ -645,14 +638,12 @@ $(document)
 		$('#sum').focus();
 		$('#sum,#prim').keyEnter(submit);
 		if(OPL.zayav_spisok)
-			$('#zayav_id').vkSel({
-				display:'inline-block',
+			$('#zayav_id')._select({
 				width:180,
 				title0:'Не указана',
 				spisok:OPL.zayav_spisok
 			});
-		$('#prihod_type').vkSel({
-			display:'inline-block',
+		$('#prihod_type')._select({
 			width:180,
 			title0:'Не указан',
 			spisok:PRIHOD_SPISOK,
@@ -845,7 +836,7 @@ $(document)
 					'<tr><td class="label">Клиент:' +
 						'<td><INPUT type="hidden" id="client_id" value="' + CLIENT.id + '">' +
 							'<b>' + CLIENT.fio + '</b>' +
-					'<tr><td class="label top">Изделие:<td id="product">' +
+					'<tr><td class="label topi">Изделие:<td id="product">' +
 					'<tr><td><td><input type="text" id="zakaz_txt" placeholder="либо укажите содержание заказа вручную.." maxlength="300">' +
 					'<tr><td class="label top">Заметка:	<td><textarea id="comm"></textarea>' +
 					'</table>',
@@ -1008,7 +999,7 @@ $(document)
 				'<tr><td class="label">Клиент:' +
 					'<td><INPUT type="hidden" id="client_id" value="' + CLIENT.id + '">' +
 						'<b>' + CLIENT.fio + '</b>' +
-				'<tr><td class="label top">Изделие:<td id="product">' +
+				'<tr><td class="label topi">Изделие:<td id="product">' +
 				'<tr><td class="label">Адрес проведения замера:' +
 					'<td><INPUT type="text" id="adres" maxlength="100" />' +
 						'<INPUT type="hidden" id="homeadres" />' +
@@ -1040,8 +1031,8 @@ $(document)
 		});
 		$('#homeadres_check').vkHint({
 			msg:'Совпадает с адресом проживания',
-			top:-74,
-			left:196,
+			top:-75,
+			left:193,
 			indent:60,
 			delayShow:700
 		});
@@ -1213,7 +1204,7 @@ $(document)
 					'<tr><td class="label">Клиент:' +
 						'<td><INPUT type="hidden" id="client_id" value="' + CLIENT.id + '">' +
 						'<b>' + CLIENT.fio + '</b>' +
-					'<tr><td class="label top">Изделие:<td id="product">' +
+					'<tr><td class="label topi">Изделие:<td id="product">' +
 					'<tr><td class="label">Адрес установки:' +
 						'<td><INPUT type="text" id="adres" maxlength="100" />' +
 							'<INPUT type="hidden" id="homeadres" />' +
@@ -1243,8 +1234,8 @@ $(document)
 		});
 		$('#homeadres_check').vkHint({
 			msg:'Совпадает с адресом проживания',
-			top:-74,
-			left:196,
+			top:-75,
+			left:193,
 			indent:60,
 			delayShow:700
 		});
@@ -1781,8 +1772,9 @@ $(document)
 	.on('click', '#setup_invoice .add', function() {
 		var t = $(this),
 			html = '<table class="setup-tab">' +
-				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="50" />' +
-				'<tr><td class="label r top">Описание:<td><textarea id="about"></textarea>' +
+				'<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="50" />' +
+				'<tr><td class="label topi">Описание:<td><textarea id="about"></textarea>' +
+				'<tr><td class="label topi">Виды платежей:<td><input type="hidden" id="types" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -1792,21 +1784,20 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
+		$('#types')._select({
+			width:218,
+			multiselect:1,
+			spisok:PRIHOD_SPISOK
+		});
 		function submit() {
 			var send = {
 				op:'setup_invoice_add',
 				name:$('#name').val(),
-				about:$('#about').val()
+				about:$('#about').val(),
+				types:$('#types').val()
 			};
 			if(!send.name) {
-				dialog.bottom.vkHint({
-					msg:'<SPAN class=red>Не указано наименование</SPAN>',
-					top:-47,
-					left:100,
-					indent:50,
-					show:1,
-					remove:1
-				});
+				err('Не указано наименование');
 				$('#name').focus();
 			} else {
 				dialog.process();
@@ -1815,10 +1806,22 @@ $(document)
 						$('.spisok').html(res.html);
 						dialog.close();
 						_msg('Внесено!');
-					} else
+					} else {
 						dialog.abort();
+						err(res.text);
+					}
 				}, 'json');
 			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class=red>' + msg + '</SPAN>',
+				top:-47,
+				left:100,
+				indent:50,
+				show:1,
+				remove:1
+			});
 		}
 	})
 	.on('click', '#setup_invoice .img_edit', function() {
@@ -1828,9 +1831,11 @@ $(document)
 		var id = t.attr('val'),
 			name = t.find('.name div').html(),
 			about = t.find('.name pre').html(),
+			types = t.find('.type_id').val(),
 			html = '<table class="setup-tab">' +
 				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" value="' + name + '" />' +
 				'<tr><td class="label r top">Описание:<td><textarea id="about">' + about + '</textarea>' +
+				'<tr><td class="label topi">Виды платежей:<td><input type="hidden" id="types" value="' + types + '" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -1841,22 +1846,21 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
+		$('#types')._select({
+			width:218,
+			multiselect:1,
+			spisok:PRIHOD_SPISOK
+		});
 		function submit() {
 			var send = {
 				op:'setup_invoice_edit',
 				id:id,
 				name:$('#name').val(),
-				about:$('#about').val()
+				about:$('#about').val(),
+				types:$('#types').val()
 			};
 			if(!send.name) {
-				dialog.bottom.vkHint({
-					msg:'<SPAN class=red>Не указано наименование</SPAN>',
-					top:-47,
-					left:100,
-					indent:50,
-					show:1,
-					remove:1
-				});
+				err('Не указано наименование');
 				$('#name').focus();
 			} else {
 				dialog.process();
@@ -1865,10 +1869,22 @@ $(document)
 						$('.spisok').html(res.html);
 						dialog.close();
 						_msg('Сохранено!');
-					} else
+					} else {
 						dialog.abort();
+						err(res.text);
+					}
 				}, 'json');
 			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class=red>' + msg + '</SPAN>',
+				top:-47,
+				left:100,
+				indent:50,
+				show:1,
+				remove:1
+			});
 		}
 	})
 	.on('click', '#setup_invoice .img_del', function() {
@@ -2169,27 +2185,6 @@ $(document)
 	})
 
 	.ready(function() {
-		$('#prihod').vkSel({
-			display:'inline-block',
-			width:210,
-			title0:'Не указаны',
-		//	funcAdd:function() {},
-			spisok:PRODUCT_SPISOK
-		});
-		$('#prihod1')._select({
-			display:'inline-block',
-			width:210,
-			title0:'Не указаны',
-		//	funcAdd:function() {},
-			spisok:PRODUCT_SPISOK
-		});
-		$('#prihod2')._select({
-			display:'inline-block',
-			width:210,
-			title0:'Не указаны',
-		//	funcAdd:function() {},
-			spisok:PRODUCT_SPISOK
-		});
 		if($('#client').length > 0) {
 			window.cFind = $('#find')._search({
 				width:602,
@@ -2399,12 +2394,6 @@ $(document)
 						submit:submit
 					});
 				$('#product').productList(ZAYAV.product);
-				$('#product_id').vkSel({
-					width:142,
-					display:'inline-block',
-					title0:'Изделие не указано',
-					spisok:PRODUCT_SPISOK
-				});
 				$('#zakaz_txt').keyEnter(submit);
 				function submit() {
 					var msg,
@@ -2460,12 +2449,6 @@ $(document)
 						submit:submit
 					});
 				$('#product').productList(ZAYAV.product);
-				$('#product_id').vkSel({
-					width:142,
-					display:'inline-block',
-					title0:'Изделие не указано',
-					spisok:PRODUCT_SPISOK
-				});
 				zayavZamerDtime(ZAYAV);
 				function submit() {
 					var send = {
@@ -2521,12 +2504,6 @@ $(document)
 						submit:submit
 					});
 				$('#product').productList(ZAYAV.product);
-				$('#product_id').vkSel({
-					width:142,
-					display:'inline-block',
-					title0:'Изделие не указано',
-					spisok:PRODUCT_SPISOK
-				});
 				function submit() {
 					var msg,
 						send = {
@@ -2578,12 +2555,6 @@ $(document)
 						submit:submit
 					});
 				$('#product').productList(ZAYAV.product);
-				$('#product_id').vkSel({
-					width:142,
-					display:'inline-block',
-					title0:'Изделие не указано',
-					spisok:PRODUCT_SPISOK
-				});
 				$('#adres,#nomer_vg,#nomer_g,#nomer_d').keyEnter(submit);
 				function submit() {
 					var msg,

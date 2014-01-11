@@ -2832,12 +2832,6 @@ function setup_invoice() {
 //		return _norules('Настройки видов платежей');
 	return
 	'<div id="setup_invoice">'.
-	'<table style="border-spacing:10px">'.
-	'<tr><td class="label r topi">Виды платежей:<td><input type="hidden" id="prihod" />'.
-	'<tr><td class="label r topi">Виды платежей:<td><input type="hidden" id="prihod1" />'.
-	'<tr><td class="label r topi">Виды платежей:<td><input type="hidden" id="prihod2" />'.
-	'<tr><td class="label r topi">Виды платежей:<td>'.
-	'</table>'.
 		'<div class="headName">Управление счетами<a class="add">Новый счёт</a></div>'.
 		'<div class="spisok">'.setup_invoice_spisok().'</div>'.
 	'</div>';
@@ -2852,10 +2846,20 @@ function setup_invoice_spisok() {
 	while($r = mysql_fetch_assoc($q))
 		$spisok[$r['id']] = $r;
 
+	$sql = "SELECT *
+	        FROM `setup_prihodtype`
+	        WHERE `invoice_id`>0
+	        ORDER BY `sort`";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q)) {
+		$spisok[$r['invoice_id']]['type_name'][] = $r['name'];
+		$spisok[$r['invoice_id']]['type_id'][] = $r['id'];
+	}
+
 	$send =
 	'<table class="_spisok">'.
 		'<tr><th class="name">Наименование'.
-			'<th class="money-type">Виды платежей'.
+			'<th class="type">Виды платежей'.
 			'<th class="set">';
 	foreach($spisok as $id => $r)
 		$send .=
@@ -2863,7 +2867,9 @@ function setup_invoice_spisok() {
 			'<td class="name">'.
 				'<div>'.$r['name'].'</div>'.
 				'<pre>'.$r['about'].'</pre>'.
-			'<td class="money">'.
+			'<td class="type">'.
+				(isset($r['type_name']) ? implode('<br />', $r['type_name']) : '').
+				'<input type="hidden" class="type_id" value="'.(isset($r['type_id']) ? implode(',', $r['type_id']) : 0).'" />'.
 			'<td class="set">'.
 				'<div class="img_edit"></div>'.
 				'<div class="img_del"></div>';

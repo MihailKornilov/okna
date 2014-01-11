@@ -1968,8 +1968,18 @@ switch(@$_POST['op']) {
 //			jsonError();
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
+		$types = trim($_POST['types']);
 		if(empty($name))
 			jsonError();
+
+		if(!empty($types)) {
+			foreach(explode(',', $types) as $id)
+				if(!preg_match(REGEXP_NUMERIC, $id))
+					jsonError();
+			$prihod = query_value("SELECT `name` FROM `setup_prihodtype` WHERE `id` IN (".$types.") AND `invoice_id`>0 LIMIT 1");
+			if($prihod)
+				jsonError('Вид платежа <u>'.$prihod.'</u> задействован в другом счёте');
+		}
 		$sql = "INSERT INTO `invoice` (
 					`name`,
 					`about`
@@ -1978,6 +1988,9 @@ switch(@$_POST['op']) {
 					'".addslashes($about)."'
 				)";
 		query($sql);
+
+		if(!empty($types))
+			query("UPDATE `setup_prihodtype` SET `invoice_id`=".mysql_insert_id()." WHERE `id` IN (".$types.")");
 
 		//xcache_unset(CACHE_PREFIX.'prihodtype');
 		GvaluesCreate();
@@ -1996,21 +2009,41 @@ switch(@$_POST['op']) {
 //			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
-		$id = intval($_POST['id']);
+		$invoice_id = intval($_POST['id']);
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
+		$types = trim($_POST['types']);
 		if(empty($name))
 			jsonError();
 
-		$sql = "SELECT * FROM `invoice` WHERE `id`=".$id;
+		if(!empty($types)) {
+			foreach(explode(',', $types) as $id)
+				if(!preg_match(REGEXP_NUMERIC, $id))
+					jsonError();
+			$prihod = query_value("SELECT `name`
+								   FROM `setup_prihodtype`
+								   WHERE `id` IN (".$types.")
+								     AND `invoice_id`>0
+								     AND `invoice_id`!=".$invoice_id."
+								   LIMIT 1");
+			if($prihod)
+				jsonError('Вид платежа <u>'.$prihod.'</u> задействован в другом счёте');
+		}
+
+		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
 		$sql = "UPDATE `invoice`
 				SET `name`='".addslashes($name)."',
 					`about`='".addslashes($about)."'
-				WHERE `id`=".$id;
+				WHERE `id`=".$invoice_id;
 		query($sql);
+
+		query("UPDATE `setup_prihodtype` SET `invoice_id`=0 WHERE `invoice_id`=".$invoice_id);
+		if(!empty($types))
+			query("UPDATE `setup_prihodtype` SET `invoice_id`=".$invoice_id." WHERE `id` IN (".$types.")");
+
 
 		//xcache_unset(CACHE_PREFIX.'prihodtype');
 		GvaluesCreate();
@@ -2035,14 +2068,14 @@ switch(@$_POST['op']) {
 //			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
-		$id = intval($_POST['id']);
+		$invoice_id = intval($_POST['id']);
 
-		$sql = "SELECT * FROM `invoice` WHERE `id`=".$id;
+		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-		$sql = "DELETE FROM `invoice` WHERE `id`=".$id;
-		query($sql);
+		query("DELETE FROM `invoice` WHERE `id`=".$invoice_id);
+		query("UPDATE `setup_prihodtype` SET `invoice_id`=0 WHERE `invoice_id`=".$invoice_id);
 
 //		xcache_unset(CACHE_PREFIX.'prihodtype');
 		GvaluesCreate();
