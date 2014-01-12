@@ -623,8 +623,8 @@ $(document)
 				'<tr><td class="label">Клиент:<td>' + OPL.client_fio +
 				'<tr><td class="label">Заявка:<td><input type="hidden" id="zayav_id" value="' + (OPL.zayav_id ? OPL.zayav_id : 0) + '">' +
 						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '') +
-				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="prihod_type" value="0">' +
-						'<a href="' + URL + '&p=setup&d=prihodtype" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
+				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="income_id" value="0">' +
+						'<a href="' + URL + '&p=setup&d=income" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
 				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="7"> руб.' +
 				'<tr><td class="label">Примечание:<em>(не обязательно)</em><td><input type="text" id="prim">' +
 				'</table>';
@@ -643,7 +643,7 @@ $(document)
 				title0:'Не указана',
 				spisok:OPL.zayav_spisok
 			});
-		$('#prihod_type')._select({
+		$('#income_id')._select({
 			width:180,
 			title0:'Не указан',
 			spisok:PRIHOD_SPISOK,
@@ -655,7 +655,7 @@ $(document)
 			var send = {
 				op:'oplata_add',
 				from:OPL.from,
-				type:$('#prihod_type').val(),
+				type:$('#income_id').val(),
 				sum:$('#sum').val(),
 				zayav_id:$('#zayav_id').val(),
 				client_id:OPL.client_id,
@@ -675,11 +675,11 @@ $(document)
 						_msg('Платёж успешно внесён!');
 						switch(OPL.from) {
 							case 'client':
-								$('#money_spisok').html(res.html);
+								$('#income_spisok').html(res.html);
 								$('.left:first').html(res.balans);
 								break;
 							case 'zayav':
-								$('#money_spisok').html(res.html);
+								$('#income_spisok').html(res.html);
 								break;
 							default: break;
 						}
@@ -1373,6 +1373,54 @@ $(document)
 		}, 'json');
 	})
 
+	.on('click', '.invoice_set', function() {
+		var t = $(this),
+			html =
+				'<table style="border-spacing:10px">' +
+					'<tr><td class="label">Сумма:<td><INPUT type="text" class="money" id="sum" maxlength="7"> руб.' +
+				'</table>',
+			dialog = _dialog({
+				width:300,
+				top:60,
+				head:'Установка начального баланса счёта',
+				content:html,
+				butSubmit:'Установить',
+				submit:submit
+			});
+		$('#sum').focus().keyEnter(submit);
+		function submit() {
+			var send = {
+				op:'invoice_set',
+				invoice_id:t.attr('val'),
+				sum:$('#sum').val()
+			};
+			if(!REGEXP_NUMERIC.test(send.sum)) {
+				err('Некорректно указана сумма');
+				$('#sum').focus();
+			} else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						t.parent().html('<b>' + send.sum + '</b> руб.');
+						dialog.close();
+						_msg('Баланс установлен.');
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:40,
+				show:1,
+				top:-48,
+				left:62
+			});
+		}
+	})
+
 	.on('click', '#money_next', function() {
 		if($(this).hasClass('busy'))
 			return;
@@ -1916,7 +1964,7 @@ $(document)
 		}
 	})
 
-	.on('click', '#setup_prihodtype .add', function() {
+	.on('click', '#setup_income .add', function() {
 		var t = $(this),
 			html = '<table class="setup-tab">' +
 				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" />' +
@@ -1931,7 +1979,7 @@ $(document)
 		$('#name').focus().keyEnter(submit);
 		function submit() {
 			var send = {
-				op:'setup_prihodtype_add',
+				op:'setup_income_add',
 				name:$('#name').val()
 			};
 			if(!send.name) {
@@ -1958,7 +2006,7 @@ $(document)
 			}
 		}
 	})
-	.on('click', '#setup_prihodtype .img_edit', function() {
+	.on('click', '#setup_income .img_edit', function() {
 		var t = $(this);
 		while(t[0].tagName != 'DD')
 			t = t.parent();
@@ -1978,7 +2026,7 @@ $(document)
 		$('#name').focus().keyEnter(submit);
 		function submit() {
 			var send = {
-				op:'setup_prihodtype_edit',
+				op:'setup_income_edit',
 				id:id,
 				name:$('#name').val()
 			};
@@ -2006,7 +2054,7 @@ $(document)
 			}
 		}
 	})
-	.on('click', '#setup_prihodtype .img_del', function() {
+	.on('click', '#setup_income .img_del', function() {
 		var t = $(this),
 			dialog = _dialog({
 				top:90,
@@ -2020,7 +2068,7 @@ $(document)
 			while(t[0].tagName != 'DD')
 				t = t.parent();
 			var send = {
-				op:'setup_prihodtype_del',
+				op:'setup_income_del',
 				id:t.attr('val')
 			};
 			dialog.process();
@@ -2226,7 +2274,7 @@ $(document)
 				$('.res').css('display', val == 'zayav' ? 'block' : 'none');
 				$('#zayav_filter').css('display', val == 'zayav' ? 'block' : 'none');
 				$('#zayav_spisok').css('display', val == 'zayav' ? 'block' : 'none');
-				$('#money_spisok').css('display', val == 'money' ? 'block' : 'none');
+				$('#income_spisok').css('display', val == 'money' ? 'block' : 'none');
 				$('#remind_spisok').css('display', val == 'remind' ? 'block' : 'none');
 				$('#comments').css('display', val == 'comm' ? 'block' : 'none');
 				$('#histories').css('display', val == 'hist' ? 'block' : 'none');
@@ -2625,7 +2673,7 @@ $(document)
 							if(res.success) {
 								dialog.close();
 								_msg('Начисление успешно произведено.');
-								$('#money_spisok').html(res.html);
+								$('#income_spisok').html(res.html);
 							}
 						}, 'json');
 					}
@@ -2752,7 +2800,7 @@ $(document)
 				$('#rules_setup')._check(0);
 				$('#rules_worker')._check(0);
 				$('#rules_product')._check(0);
-				$('#rules_prihodtype')._check(0);
+				$('#rules_income')._check(0);
 				$('#rules_zayavrashod')._check(0);
 				$('#rules_historyshow')._check(0);
 			});
@@ -2761,13 +2809,13 @@ $(document)
 				setupRulesSet(v, id);
 				$('#rules_worker')._check(0);
 				$('#rules_product')._check(0);
-				$('#rules_prihodtype')._check(0);
+				$('#rules_income')._check(0);
 				$('#rules_zayavrashod')._check(0);
 			});
 			$('#rules_worker')._check(setupRulesSet);
 			$('#rules_rekvisit')._check(setupRulesSet);
 			$('#rules_product')._check(setupRulesSet);
-			$('#rules_prihodtype')._check(setupRulesSet);
+			$('#rules_income')._check(setupRulesSet);
 			$('#rules_zayavrashod')._check(setupRulesSet);
 			$('#rules_historyshow')._check(setupRulesSet);
 		}

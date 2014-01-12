@@ -130,8 +130,8 @@
 #clientInfo #zayav_result{color:#777;text-align:center}
 #clientInfo .zayav_unit{margin-right:10px}
 #clientInfo .ajaxNext{margin:5px 10px 0 10px}
-#clientInfo #money_spisok,#clientInfo #histories{margin:10px;display:none}
-#clientInfo #money_spisok ._empty{margin:0;padding:60px 10px}
+#clientInfo #income_spisok,#clientInfo #histories{margin:10px;display:none}
+#clientInfo #income_spisok ._empty{margin:0;padding:60px 10px}
 #clientInfo #comments,#clientInfo #remind_spisok{margin:0 10px;display:none}
 #clientInfo #remind_spisok ._empty{margin:10px 0;padding:60px 10px}
 #clientInfo .right{width:145px;height:auto}
@@ -325,10 +325,9 @@
 .remind_unit:not(:hover) .action{display:none}
 
 
-
-
-#report .left{padding:10px}
+/* Îò÷¸òû */
 #report .headName{margin:0 0 15px 0}
+#report_history{margin:10px}
 .history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
 .history_unit .head{font-size:10px;color:#777}
 .history_unit .head a{font-size:10px;margin-left:10px}
@@ -341,6 +340,11 @@
 .history_unit a.deleted{color:#b66}
 .history_unit em{color:#707070;margin-left:3px}
 .history_unit .oplata{color:#770}
+#incoming{margin:10px}
+#invoice{margin:10px}
+#invoice pre{color:#777;font-size:10px;margin:3px 7px}
+#invoice .balans{text-align:right}
+#invoice .setup{display:inline-block;float:right;margin-top:15px}
 
 
 #setup .left{padding:15px}
@@ -405,11 +409,11 @@
 #setup_invoice .type{vertical-align:top}
 #setup_invoice pre{color:#777;font-size:10px;margin:3px 7px}
 
-#setup_prihodtype .name{width:170px}
-#setup_prihodtype td.name{cursor:move}
-#setup_prihodtype .money{width:60px;text-align:center}
-#setup_prihodtype .del{color:#888;cursor:help}
-#setup_prihodtype .set{width:40px}
+#setup_income .name{width:170px}
+#setup_income td.name{cursor:move}
+#setup_income .money{width:60px;text-align:center}
+#setup_income .del{color:#888;cursor:help}
+#setup_income .set{width:40px}
 
 #setup_zayavrashod .name{width:110px}
 #setup_zayavrashod td.name{cursor:move}

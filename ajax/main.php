@@ -134,7 +134,7 @@ switch(@$_POST['op']) {
 		$v['type'] = intval($_POST['type']);
 		$v['sum'] = intval($_POST['sum']);
 
-		$send['html'] = utf8(money_insert($v));
+		$send['html'] = utf8(income_insert($v));
 		if(empty($send))
 			jsonError();
 		if($v['from'] == 'client') {
@@ -173,7 +173,7 @@ switch(@$_POST['op']) {
 			'client_id' => $r['client_id'],
 			'value' => $r['sum'],
 			'value1' => $r['prim'],
-			'value2' => $r['prihod_type']
+			'value2' => $r['income_id']
 		));
 
 		jsonSuccess();
@@ -204,7 +204,7 @@ switch(@$_POST['op']) {
 			'client_id' => $r['client_id'],
 			'value' => $r['sum'],
 			'value1' => $r['prim'],
-			'value2' => $r['prihod_type']
+			'value2' => $r['income_id']
 		));
 
 		jsonSuccess();
@@ -1485,7 +1485,7 @@ switch(@$_POST['op']) {
 						`client_id`,
 						`dogovor_id`,
 						`sum`,
-						`prihod_type`,
+						`income_id`,
 						`viewer_id_add`
 					) VALUES (
 						".$zayav_id.",
@@ -1568,11 +1568,26 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 
+	case 'invoice_set':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']))
+			jsonError();
+		$invoice_id = intval($_POST['invoice_id']);
+		$sum = intval($_POST['sum']);
+		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+		$income = query_value("SELECT SUM(`sum`) FROM `money` WHERE `deleted`=0 AND `invoice_id`=".$invoice_id);
+		query("UPDATE `invoice` SET `start`=".($income - $sum)." WHERE `id`=".$invoice_id);
+		jsonSuccess();
+		break;
+
 	case 'money_next':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
 			jsonError();
 		$page = intval($_POST['page']);
-		$data = money_spisok($page, $_POST);
+		$data = income_spisok($page, $_POST);
 		$send['html'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
@@ -1723,7 +1738,7 @@ switch(@$_POST['op']) {
 		if($value == 'RULES_SETUP') {
 			unset($rules['RULES_WORKER']);
 			unset($rules['RULES_PRODUCT']);
-			unset($rules['RULES_PRIHODTYPE']);
+			unset($rules['RULES_INCOME']);
 			unset($rules['RULES_ZAYAVRASHOD']);
 		}
 		if($action)
@@ -1964,7 +1979,7 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'setup_invoice_add':
-//		if(!RULES_PRIHODTYPE)
+//		if(!RULES_INCOME)
 //			jsonError();
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
@@ -1976,7 +1991,7 @@ switch(@$_POST['op']) {
 			foreach(explode(',', $types) as $id)
 				if(!preg_match(REGEXP_NUMERIC, $id))
 					jsonError();
-			$prihod = query_value("SELECT `name` FROM `setup_prihodtype` WHERE `id` IN (".$types.") AND `invoice_id`>0 LIMIT 1");
+			$prihod = query_value("SELECT `name` FROM `setup_income` WHERE `id` IN (".$types.") AND `invoice_id`>0 LIMIT 1");
 			if($prihod)
 				jsonError('Вид платежа <u>'.$prihod.'</u> задействован в другом счёте');
 		}
@@ -1990,9 +2005,9 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		if(!empty($types))
-			query("UPDATE `setup_prihodtype` SET `invoice_id`=".mysql_insert_id()." WHERE `id` IN (".$types.")");
+			query("UPDATE `setup_income` SET `invoice_id`=".mysql_insert_id()." WHERE `id` IN (".$types.")");
 
-		//xcache_unset(CACHE_PREFIX.'prihodtype');
+		//xcache_unset(CACHE_PREFIX.'income');
 		GvaluesCreate();
 
 		history_insert(array(
@@ -2005,7 +2020,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'setup_invoice_edit':
-//		if(!RULES_PRIHODTYPE)
+//		if(!RULES_INCOME)
 //			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
@@ -2021,7 +2036,7 @@ switch(@$_POST['op']) {
 				if(!preg_match(REGEXP_NUMERIC, $id))
 					jsonError();
 			$prihod = query_value("SELECT `name`
-								   FROM `setup_prihodtype`
+								   FROM `setup_income`
 								   WHERE `id` IN (".$types.")
 								     AND `invoice_id`>0
 								     AND `invoice_id`!=".$invoice_id."
@@ -2040,12 +2055,12 @@ switch(@$_POST['op']) {
 				WHERE `id`=".$invoice_id;
 		query($sql);
 
-		query("UPDATE `setup_prihodtype` SET `invoice_id`=0 WHERE `invoice_id`=".$invoice_id);
+		query("UPDATE `setup_income` SET `invoice_id`=0 WHERE `invoice_id`=".$invoice_id);
 		if(!empty($types))
-			query("UPDATE `setup_prihodtype` SET `invoice_id`=".$invoice_id." WHERE `id` IN (".$types.")");
+			query("UPDATE `setup_income` SET `invoice_id`=".$invoice_id." WHERE `id` IN (".$types.")");
 
 
-		//xcache_unset(CACHE_PREFIX.'prihodtype');
+		//xcache_unset(CACHE_PREFIX.'income');
 		GvaluesCreate();
 
 		$changes = '';
@@ -2064,7 +2079,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'setup_invoice_del':
-//		if(!RULES_PRIHODTYPE)
+//		if(!RULES_INCOME)
 //			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
@@ -2075,9 +2090,9 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		query("DELETE FROM `invoice` WHERE `id`=".$invoice_id);
-		query("UPDATE `setup_prihodtype` SET `invoice_id`=0 WHERE `invoice_id`=".$invoice_id);
+		query("UPDATE `setup_income` SET `invoice_id`=0 WHERE `invoice_id`=".$invoice_id);
 
-//		xcache_unset(CACHE_PREFIX.'prihodtype');
+//		xcache_unset(CACHE_PREFIX.'income');
 		GvaluesCreate();
 
 		history_insert(array(
@@ -2088,22 +2103,22 @@ switch(@$_POST['op']) {
 		$send['html'] = utf8(setup_invoice_spisok());
 		jsonSuccess($send);
 		break;
-	case 'setup_prihodtype_add':
-		if(!RULES_PRIHODTYPE)
+	case 'setup_income_add':
+		if(!RULES_INCOME)
 			jsonError();
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
 		if(empty($name))
 			jsonError();
-		$sql = "INSERT INTO `setup_prihodtype` (
+		$sql = "INSERT INTO `setup_income` (
 					`name`,
 					`sort`
 				) VALUES (
 					'".addslashes($name)."',
-					"._maxSql('setup_prihodtype', 'sort')."
+					"._maxSql('setup_income', 'sort')."
 				)";
 		query($sql);
 
-		xcache_unset(CACHE_PREFIX.'prihodtype');
+		xcache_unset(CACHE_PREFIX.'income');
 		GvaluesCreate();
 
 		history_insert(array(
@@ -2112,11 +2127,11 @@ switch(@$_POST['op']) {
 		));
 
 
-		$send['html'] = utf8(setup_prihodtype_spisok());
+		$send['html'] = utf8(setup_income_spisok());
 		jsonSuccess($send);
 		break;
-	case 'setup_prihodtype_edit':
-		if(!RULES_PRIHODTYPE)
+	case 'setup_income_edit':
+		if(!RULES_INCOME)
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
@@ -2125,16 +2140,16 @@ switch(@$_POST['op']) {
 		if(empty($name))
 			jsonError();
 
-		$sql = "SELECT * FROM `setup_prihodtype` WHERE `id`=".$id;
+		$sql = "SELECT * FROM `setup_income` WHERE `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-		$sql = "UPDATE `setup_prihodtype`
+		$sql = "UPDATE `setup_income`
 				SET `name`='".addslashes($name)."'
 				WHERE `id`=".$id;
 		query($sql);
 
-		xcache_unset(CACHE_PREFIX.'prihodtype');
+		xcache_unset(CACHE_PREFIX.'income');
 		GvaluesCreate();
 
 		$changes = '';
@@ -2147,11 +2162,11 @@ switch(@$_POST['op']) {
 				'value1' => '<table>'.$changes.'</table>'
 			));
 
-		$send['html'] = utf8(setup_prihodtype_spisok());
+		$send['html'] = utf8(setup_income_spisok());
 		jsonSuccess($send);
 		break;
-	case 'setup_prihodtype_del':
-		if(!RULES_PRIHODTYPE)
+	case 'setup_income_del':
+		if(!RULES_INCOME)
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
@@ -2161,16 +2176,16 @@ switch(@$_POST['op']) {
 		if($id == 1)
 			jsonError();
 
-		$sql = "SELECT * FROM `setup_prihodtype` WHERE `id`=".$id;
+		$sql = "SELECT * FROM `setup_income` WHERE `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-		if(query_value("SELECT COUNT(`id`) FROM `money` WHERE `prihod_type`=".$id))
+		if(query_value("SELECT COUNT(`id`) FROM `money` WHERE `income_id`=".$id))
 			jsonError();
-		$sql = "DELETE FROM `setup_prihodtype` WHERE `id`=".$id;
+		$sql = "DELETE FROM `setup_income` WHERE `id`=".$id;
 		query($sql);
 
-		xcache_unset(CACHE_PREFIX.'prihodtype');
+		xcache_unset(CACHE_PREFIX.'income');
 		GvaluesCreate();
 
 		history_insert(array(
@@ -2178,7 +2193,7 @@ switch(@$_POST['op']) {
 			'value' => $r['name']
 		));
 
-		$send['html'] = utf8(setup_prihodtype_spisok());
+		$send['html'] = utf8(setup_income_spisok());
 		jsonSuccess($send);
 		break;
 	case 'setup_zayavrashod_add':
