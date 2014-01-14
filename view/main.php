@@ -327,16 +327,6 @@ function _zayavRashod($type_id=false, $i='name') {//Список расходов заявки
 	return constant('ZAYAVRASHOD_'.$type_id);
 }//_zayavRashod()
 
-function _sumSpace($sum) {//Приведение суммы к удобному виду с пробелами
-	$send = '';
-	while($sum > 0) {
-		$del = $sum % 1000;
-		$send = ($del ? $del : '000').' '.$send;
-		$sum = floor($sum / 1000);
-	}
-	return $send ? $send : 0;
-}//_sumSpace()
-
 function _mainLinks() {
 	global $html;
 //	_remindActiveSet();
@@ -557,6 +547,44 @@ function translit($str) {
 	return strtr($str, $list);
 }
 
+function _calendarFilter($data=array()) {
+	$year = empty($data['year']) ? strftime('%Y') : $data['year'];
+	$month = empty($data['month']) ? strftime('%m') : ($data['month'] < 10 ? 0 : '').$data['month'];
+	$days = empty($data['days']) ? array() : $data['days'];
+
+	$send = '<div class="_calendarFilter">'.
+				'<table class="month">'.
+					'<tr class="week-name"><td>пн<td>вт<td>ср<td>чт<td>пт<td>сб<td>вс';
+
+	$unix = strtotime($year.'-'.$month.'-01');
+	$dayCount = date('t', $unix);   // Количество дней в месяце
+	$week = date('w', $unix);       // Номер первого дня недели
+	if(!$week)
+		$week = 7;
+
+	$curUnix = strtotime(strftime('%Y-%m-%d')); // Текущий день для выделения прошедших дней
+
+	$curMonth = $year == strftime('%Y') && $month == strftime('%m');
+	$curDay = round(strftime('%d'));
+
+	$send .= '<tr>';
+	for($n = $week; $n > 1; $n--, $send .= '<td>'); // Вставка пустых полей, если первый день недели не понедельник
+	for($n = 1; $n <= $dayCount; $n++) {
+		$cur = $curMonth && $curDay == $n ? ' cur' : '';
+		$on = empty($days[$year.'-'.$month.'-'.($n < 10 ? '0' : '').$n]) ? '' : ' on';
+		$old = $unix + $n * 86400 <= $curUnix ? ' old' : '';
+		$val = $on ? ' val="'.$year.'-'.$month.'-'.($n < 10 ? '0' : '').$n.'"' : '';
+		$send .= '<td class="d '.$cur.$on.$old.'"'.$val.'>'.$n;
+		$week++;
+		if($week > 7)
+			$week = 1;
+		if($week == 1)
+			$send .= '<tr>';
+	}
+	$send .= '</table></div>';
+
+	return $send;
+}//_calendarFilter()
 
 
 // ---===! client !===--- Секция клиентов
@@ -1017,22 +1045,19 @@ function zayav_rashod_test($rashod) {// Проверка корректности данных расходов за
 	}
 	return $send;
 }//zayav_rashod_test()
-function zayav_rashod_spisok($arr, $type='html') {
-	if(!is_array($arr)) {
-		$sql = "SELECT * FROM `zayav_rashod` WHERE `zayav_id`=".$arr." ORDER BY `id`";
-		$q = query($sql);
-		$arr = array();
-		while($r = mysql_fetch_assoc($q))
-			$arr[] = $r;
-	}
+function zayav_rashod_spisok($zayav_id, $type='html') {//Получение списка расходов заявки
+	$sql = "SELECT * FROM `zayav_rashod` WHERE `zayav_id`=".$zayav_id." ORDER BY `id`";
+	$q = query($sql);
+	$arr = array();
+	while($r = mysql_fetch_assoc($q))
+		$arr[] = $r;
 	$send = '<table class="zayav-rashod-spisok">';
 	$json = array();
 	$array = array();
-	$cash = array();
 	foreach($arr as $r) {
-		$send .= '<tr><td>'._zayavRashod($r['category_id']).
+		$send .= '<tr><td class="name">'._zayavRashod($r['category_id']).
 					 '<td>'.(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
-							(_zayavRashod($r['category_id'], 'worker') ? _viewer($r['worker_id'], 'link') : '').
+							(_zayavRashod($r['category_id'], 'worker') && $r['worker_id'] ? _viewer($r['worker_id'], 'link') : '').
 					 '<td class="sum">'.$r['sum'].' р.';
 		$json[] = '['.
 					$r['category_id'].',"'.
@@ -1045,7 +1070,11 @@ function zayav_rashod_spisok($arr, $type='html') {
 					(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
 					(_zayavRashod($r['category_id'], 'worker') ? $r['worker_id'] : ''),
 					$r['sum']);
-//		$cash[] = _product($r['product_id']).($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '');
+	}
+	if(!empty($arr)) {
+		$z = query_assoc("SELECT * FROM `zayav` WHERE `id`=".$zayav_id." LIMIT 1");
+		$send .= '<tr><td colspan="2" class="itog">Итог:<td class="sum"><b>'.$z['expense_sum'].'</b> р.'.
+				 '<tr><td colspan="2" class="itog">Остаток:<td class="sum">'.$z['expense_left'].' р.';
 	}
 	$send .= '</table>';
 	switch($type) {
@@ -1058,7 +1087,6 @@ function zayav_rashod_spisok($arr, $type='html') {
 			'json' => implode(',', $json),
 			'array' => $array
 		);
-//		case 'cash': return implode('<br />', $cash);
 	}
 }//zayav_rashod_spisok()
 
@@ -2090,44 +2118,6 @@ function remindDayLeftBg($d) {
 		return 'ffa';
 	return 'ddf';
 }
-function remindCalendar($data=array()) {
-	$year = empty($data['year']) ? strftime('%Y') : $data['year'];
-	$month = empty($data['month']) ? strftime('%m') : ($data['month'] < 10 ? 0 : '').$data['month'];
-	$days = empty($data['days']) ? array() : $data['days'];
-
-	$send = '<div class="remind_calendar">'.
-		'<table class="month">'.
-			'<tr class="week-name"><td>пн<td>вт<td>ср<td>чт<td>пт<td>сб<td>вс';
-
-	$unix = strtotime($year.'-'.$month.'-01');
-	$dayCount = date('t', $unix);   // Количество дней в месяце
-	$week = date('w', $unix);       // Номер первого дня недели
-	if(!$week)
-		$week = 7;
-
-	$curUnix = strtotime(strftime('%Y-%m-%d')); // Текущий день для выделения прошедших дней
-
-	$curMonth = $year == strftime('%Y') && $month == strftime('%m');
-	$curDay = round(strftime('%d'));
-
-	$send .= '<tr>';
-	for($n = $week; $n > 1; $n--, $send .= '<td>'); // Вставка пустых полей, если первый день недели не понедельник
-	for($n = 1; $n <= $dayCount; $n++) {
-		$cur = $curMonth && $curDay == $n ? ' cur' : '';
-		$on = empty($days[$year.'-'.$month.'-'.($n < 10 ? '0' : '').$n]) ? '' : ' on';
-		$old = $unix + $n * 86400 <= $curUnix ? ' old' : '';
-		$val = $on ? ' val="'.$year.'-'.$month.'-'.($n < 10 ? '0' : '').$n.'"' : '';
-		$send .= '<td class="d '.$cur.$on.$old.'"'.$val.'>'.$n;
-		$week++;
-		if($week > 7)
-			$week = 1;
-		if($week == 1)
-			$send .= '<tr>';
-	}
-	$send .= '</table></div>';
-
-	return $send;
-}//remindCalendar()
 function remind() {
 	$sql = "SELECT DATE_FORMAT(`zamer_dtime`,'%Y-%m-%d') AS `day`
 			FROM `zayav`
@@ -2154,7 +2144,7 @@ function remind() {
 		$fullCalendar .=
 			'<td class="ftd'.($cur ? ' fcur' : '').'">'.
 				'<a class="fmon" val="'.$n.'">'._monthDef($n).'</a>'.
-				remindCalendar($data);
+				_calendarFilter($data);
 		$qw++;
 		if($qw > 3)
 			$qw = 1;
@@ -2167,7 +2157,7 @@ function remind() {
 			'<tr><td class="left">'.remind_spisok().
 				'<td class="right">'.
 					'<div class="cal_select"><a class="goyear"><span>'._monthDef($curMon).'</span> '.strftime('%Y').'</a></div>'.
-					'<div id="cal_div">'.remindCalendar(array('days'=>$days)).'</div>'.
+					'<div id="cal_div">'._calendarFilter(array('days'=>$days)).'</div>'.
 		'</table>'.
 		'<div class="full"><div class="fhead">Календарь напоминаний: 2013 </div>'.$fullCalendar.'</div>'.
 	'</div>';
@@ -2230,6 +2220,7 @@ function report() {
 		foreach($pages as $p => $name)
 			$links .= '<a href="'.URL.'&p=report&d='.$p.'"'.($d == $p ? ' class="sel"' : '').'>'.$name.'</a>';
 
+	$right = '';
 	switch($d) {
 		default:
 		case 'history':
@@ -2243,10 +2234,11 @@ function report() {
 				case 'income':
 					$data = income_spisok();
 					$left =
-						'<div id="incoming">'.
+						'<div id="income">'.
 							'<div class="headName">Список платежей</div>'.
-							$data['spisok'].
+							'<div id="spisok">'.$data['spisok'].'</div>'.
 						'</div>';
+					$right = income_right();
 					break;
 				case 'expense': $left = 'расходы'; break;
 			}
@@ -2256,7 +2248,9 @@ function report() {
 	return
 	'<table class="tabLR" id="report">'.
 		'<tr><td class="left">'.$left.
-			'<td class="right"><div class="rightLink">'.$links.'</div>'.
+			'<td class="right">'.
+				'<div class="rightLink">'.$links.'</div>'.
+				$right.
 	'</table>';
 }//report()
 
@@ -2638,6 +2632,29 @@ function income_unit($r, $filter=array()) {
 			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" class="img_doc" target="_blank"></a>'.
 				(!$r['dogovor_id'] ? '<div class="img_del oplata-del"></div>' : '');
 }//income_unit()
+
+function income_right() {
+	$sql = "SELECT DATE_FORMAT(`dtime_add`,'%Y-%m-%d') AS `day`
+			FROM `money`
+			WHERE `deleted`=0
+			  AND `sum`>0
+			  AND `dtime_add` LIKE ('".strftime('%Y-%m-')."%')
+			GROUP BY DATE_FORMAT(`dtime_add`,'%Y-%m-%d')";
+	$q = query($sql);
+	$days = array();
+	while($r = mysql_fetch_assoc($q))
+		$days[$r['day']] = 1;
+	return
+		'<div class="income_data">'.
+			'<a class="income_mon" val="2014">'._monthDef(strftime('%m', time())).'</a> '.
+			'<a class="income_year">'.strftime('%Y', time()).'</a>'.
+		'</div>'.
+		_calendarFilter(array(
+			'days' => $days,
+			'year' => strftime('%Y')
+		));
+}//income_right()
+
 
 // ---===! setup !===--- Секция настроек
 

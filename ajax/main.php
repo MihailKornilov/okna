@@ -1091,6 +1091,7 @@ switch(@$_POST['op']) {
 			$old = zayav_rashod_spisok($zayav_id);
 			$sql = "DELETE FROM `zayav_rashod` WHERE `zayav_id`=".$zayav_id;
 			query($sql);
+			$expense_sum = 0;
 			foreach($rashod as $r) {
 				$sql = "INSERT INTO `zayav_rashod` (
 							`zayav_id`,
@@ -1106,7 +1107,14 @@ switch(@$_POST['op']) {
 							".$r[2]."
 						)";
 				query($sql);
+				$expense_sum += $r[2];
 			}
+			$accSum = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE `deleted`=0 AND `zayav_id`=".$zayav_id);
+			$sql = "UPDATE `zayav`
+			        SET `expense_sum`=".$expense_sum.",
+			            `expense_left`=".($accSum - $expense_sum)."
+					WHERE `id`=".$zayav_id;
+			query($sql);
 			$changes = '<tr><td>'.$old.'<td>»<td>'.zayav_rashod_spisok($zayav_id);
 			history_insert(array(
 				'type' => 29,
@@ -1114,7 +1122,9 @@ switch(@$_POST['op']) {
 				'value' => '<table>'.$changes.'</table>'
 			));
 		}
-		$send['html'] = utf8(zayav_rashod_spisok($zayav_id));
+		$expense = zayav_rashod_spisok($zayav_id, 'all');
+		$send['html'] = utf8($expense['html']);
+		$send['array'] = $expense['array'];
 		jsonSuccess($send);
 		break;
 	case 'zayav_spisok_load':

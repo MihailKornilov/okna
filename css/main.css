@@ -154,7 +154,9 @@
 .zayav-rashod-spisok *{font-size:10px}
 .zayav-rashod-spisok{width:222px;margin:5px 4px;border-collapse:collapse}
 .zayav-rashod-spisok td{border:#dee4e8 solid 1px;padding:2px 4px}
-.zayav-rashod-spisok .sum{text-align:right}
+.zayav-rashod-spisok .name{width:50px}
+.zayav-rashod-spisok .sum{text-align:right;width:40px}
+.zayav-rashod-spisok .itog{text-align:right}
 
 /* Внесение новой заявки */
 .zayav-add{border-spacing:12px;margin-bottom:30px}
@@ -294,15 +296,15 @@
 
 
 
-.remind_calendar .week-name{border-spacing:5px}
-.remind_calendar .month td{width:22px;padding:4px 0;text-align:center}
-.remind_calendar .week-name{color:#777;background-color:#eee}
-.remind_calendar .cur{font-weight:bold;color:#000}
-.remind_calendar .on{text-decoration:underline;color:#33d;cursor:pointer}
-.remind_calendar .on:hover{background-color:#eee}
-.remind_calendar .old{color:#888}
-.remind_calendar .old.on{color:#e44}
-.remind_calendar.busy{opacity:.4}
+._calendarFilter .week-name{border-spacing:5px}
+._calendarFilter .month td{width:22px;padding:4px 0;text-align:center}
+._calendarFilter .week-name{color:#777;background-color:#eee}
+._calendarFilter .cur{font-weight:bold;color:#000}
+._calendarFilter .on{text-decoration:underline;color:#33d;cursor:pointer}
+._calendarFilter .on:hover{background-color:#eee}
+._calendarFilter .old{color:#888}
+._calendarFilter .old.on{color:#e44}
+._calendarFilter.busy{opacity:.4}
 
 #remind:not(.y) .full{display:none}
 #remind.y .tabLR{display:none}
@@ -340,12 +342,12 @@
 .history_unit a.deleted{color:#b66}
 .history_unit em{color:#707070;margin-left:3px}
 .history_unit .oplata{color:#770}
-#incoming{margin:10px}
 #invoice{margin:10px}
 #invoice pre{color:#777;font-size:10px;margin:3px 7px}
 #invoice .balans{text-align:right}
 #invoice .setup{display:inline-block;float:right;margin-top:15px}
-
+#income{margin:10px}
+.income_data{margin:15px 0 3px;text-align:center}
 
 #setup .left{padding:15px}
 #setup .headName{margin:0 0 15px}
