@@ -71,7 +71,7 @@ function _header() {
 
 		'<head>'.
 		'<meta http-equiv="content-type" content="text/html; charset=windows-1251" />'.
-		'<title>Eurookna - Приложение '.API_ID.'</title>'.
+		'<title>Evrookna - Приложение '.API_ID.'</title>'.
 
 		//Отслеживание ошибок в скриптах
 		(SA ? '<script type="text/javascript" src="http://nyandoma'.(LOCAL ? '' : '.ru').'/js/errors.js?'.VERSION.'"></script>' : '').
@@ -755,7 +755,7 @@ function client_count($count, $dolg=0) {
 		$dolg = abs(query_value("SELECT SUM(`balans`) FROM `client` WHERE `deleted`=0 AND `balans`<0 LIMIT 1"));
 	return ($count > 0 ?
 		'Найден'._end($count, ' ', 'о ').$count.' клиент'._end($count, '', 'а', 'ов').
-		($dolg ? '<em>(Общая сумма долга = '.$dolg.' руб.)</em>' : '')
+		($dolg ? '<span class="dolg_sum">(Общая сумма долга = <b>'._sumSpace($dolg).'</b> руб.)</span>' : '')
 		:
 		'Клиентов не найдено');
 }//client_count()
@@ -813,21 +813,21 @@ function client_info($client_id) {
 	}
 
 	$zayavCount = count($zayav);
-	$zayav = _dogNomer($zayav);
-	$zayav = zayav_product_array($zayav);
-
 	$zayavSpisok = '';
-	foreach($zayav as $r) {
-		if(!$r['dogovor_id'] && $r['dogovor_require'])
-			$zayavSpisok .= dogovor_unit($r, 1);
-		elseif($r['zakaz_status'])
-			$zayavSpisok .= zakaz_unit($r, 1);
-		elseif($r['zamer_status'] == 1 || $r['zamer_status'] == 3)
-			$zayavSpisok .= zamer_unit($r, 1);
-		elseif($r['set_status'])
-			$zayavSpisok .= set_unit($r, 1);
+	if($zayavCount) {
+		$zayav = _dogNomer($zayav);
+		$zayav = zayav_product_array($zayav);
+		foreach($zayav as $r) {
+			if(!$r['dogovor_id'] && $r['dogovor_require'])
+				$zayavSpisok .= dogovor_unit($r, 1);
+			elseif($r['zakaz_status'])
+				$zayavSpisok .= zakaz_unit($r, 1);
+			elseif($r['zamer_status'] == 1 || $r['zamer_status'] == 3)
+				$zayavSpisok .= zamer_unit($r, 1);
+			elseif($r['set_status'])
+				$zayavSpisok .= set_unit($r, 1);
+		}
 	}
-
 	return
 	'<script type="text/javascript">'.
 		'var CLIENT={'.
@@ -1462,6 +1462,7 @@ function _dogNomer($arr) {//Добавление к списку данный по договору, получаемого 
 		foreach($arrIds[$r['id']] as $id) {
 			$d = explode('-', $r['data_create']);
 			$arr[$id]['dogovor_nomer'] = '№'.$r['nomer'];
+			$arr[$id]['dogovor_n'] = $r['nomer'];
 			$arr[$id]['dogovor_data'] = $d[2].'/'.$d[1].'/'.$d[0].' г.';
 			$arr[$id]['dogovor_sum'] = $r['sum'];
 			$arr[$id]['dogovor_avans'] = $r['avans'];
@@ -1828,7 +1829,7 @@ function zayav_money($zayav_id) {
 	while($r = mysql_fetch_assoc($q))
 		$money[strtotime($r['dtime_add']).$r['id']] =
 			'<tr val="'.$r['id'].'">'.
-				'<td class="sum acc" title="Начисление"><b>'.$r['sum'].'</b>'.
+				'<td class="sum acc" title="Начисление"><b>'._sumSpace($r['sum']).'</b>'.
 				'<td>'.$r['prim'].
 				'<td class="dtime" title="Вн'.(_viewer($r['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']).
 				'<td class="ed" align="right">'.
@@ -2251,6 +2252,7 @@ function report() {
 			'<td class="right">'.
 				'<div class="rightLink">'.$links.'</div>'.
 				$right.
+				'<a href="'.SITE.'/view/_report.php?'.VALUES.'">Отчёт</a>'.
 	'</table>';
 }//report()
 
@@ -2440,10 +2442,18 @@ function history_spisok($page=1, $filter=array()) {
 }//history_spisok()
 
 function invoice() {
+	return
+	'<div id="invoice">'.
+		'<div class="headName">Счета</div>'.
+		invoice_spisok().
+		'<a href="'.URL.'&p=setup&d=invoice" class="setup">Управление счетами</a>'.
+	'</div>';
+}//invoice()
+function invoice_spisok() {
 	$sql = "SELECT * FROM `invoice` ORDER BY `id`";
 	$q = query($sql);
 	if(!mysql_num_rows($q))
-		return 'Список пуст.';
+		return 'Счета не определены.';
 
 	$spisok = array();
 	while($r = mysql_fetch_assoc($q)) {
@@ -2454,20 +2464,15 @@ function invoice() {
 		$spisok[$r['id']] = $r;
 	}
 
-	$invoice = '<table class="_spisok">';
+	$send = '<table class="_spisok">';
 	foreach($spisok as $id => $r)
-		$invoice .= '<tr>'.
+		$send .= '<tr>'.
 			'<td class="name"><b>'.$r['name'].'</b><pre>'.$r['about'].'</pre>'.
 			'<td class="balans">'.
-				(isset($r['balans']) ? '<b>'.$r['balans'].'</b> руб.' : '<a class="invoice_set" val="'.$id.'">Установить начальную сумму</a>');
-	$invoice .= '</table>';
-	return
-	'<div id="invoice">'.
-		'<div class="headName">Счета</div>'.
-		$invoice.
-		'<a href="'.URL.'&p=setup&d=invoice" class="setup">Управление счетами</a>'.
-	'</div>';
-}//invoice()
+			(isset($r['balans']) ? '<b>'.$r['balans'].'</b> руб.' : '<a class="invoice_set" val="'.$id.'">Установить начальную сумму</a>');
+	$send .= '</table>';
+	return $send;
+}//invoice_spisok()
 
 function report_money_dopLinks($d1) {
 	return

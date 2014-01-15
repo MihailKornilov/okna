@@ -13,6 +13,7 @@ define('VALUES', 'viewer_id='.VIEWER_ID.
 	'&sid='.@$_GET['sid']);
 define('SITE', 'http://'.DOMAIN);
 define('URL', SITE.'/index.php?'.VALUES);
+define('API_URL', 'http://vk.com/app'.API_ID);
 
 $SA[982006] = 1; // Корнилов Михаил
 //$SA[166424274] = 1; // Тестовая запись

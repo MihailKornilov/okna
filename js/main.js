@@ -515,7 +515,7 @@ $.fn.zayavRashod = function(o) {
 			html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
 						'<td><input type="hidden" id="' + attr_cat + '" value="' + (v[0] || 0) + '" />' +
 						'<td class="tddop">' +
-							(v[0] && ZAYAVRASHOD_TXT_ASS[v[0]] ? '<input type="text" class="zrtxt" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
+							(v[0] && ZAYAVRASHOD_TXT_ASS[v[0]] ? '<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
 							(v[0] && ZAYAVRASHOD_WORKER_ASS[v[0]] ? '<input type="hidden" id="' + attr_worker + '" value="' + v[1] + '" />' : '') +
 						'<td class="tdsum' + (v[0] ? '' : ' dn') + '"><input type="text" class="zrsum" maxlength="6" tabindex="' + (num * 10) + '" value="' + (v[2] || '') + '" />руб.' +
 					'</table>';
@@ -537,9 +537,9 @@ $.fn.zayavRashod = function(o) {
 			title0:'Категория',
 			spisok:ZAYAVRASHOD_SPISOK,
 			func:function(id) {
-				ptab.find('.tdsum')[(id ? 'remove' : 'add') + 'Class']('dn');
+				ptab.find('.tdsum')[(id > 0 ? 'remove' : 'add') + 'Class']('dn');
 				if(ZAYAVRASHOD_TXT_ASS[id]) {
-					tddop.html('<input type="text" class="zrtxt" tabindex="' + (num * 10 - 11) + '" />');
+					tddop.html('<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 11) + '" />');
 					tddop.find('.zrtxt').focus();
 				} else if(ZAYAVRASHOD_WORKER_ASS[id]) {
 					tddop.html('<input type="hidden" id="' + attr_worker + '" />');
@@ -557,7 +557,7 @@ $.fn.zayavRashod = function(o) {
 					zrsum.focus();
 				}
 				zrsum.val('');
-				if(id && !ptab.next().hasClass('ptab'))
+				if(id > 0 && !ptab.next().hasClass('ptab'))
 					itemAdd([]);
 			}
 		});
