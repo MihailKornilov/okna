@@ -18,9 +18,13 @@ define('API_URL', 'http://vk.com/app'.API_ID);
 $SA[982006] = 1; // Корнилов Михаил
 //$SA[166424274] = 1; // Тестовая запись
 define('SA', isset($SA[VIEWER_ID]));
-if(SA) { ini_set('display_errors',1); error_reporting(E_ALL); }
+if(SA) {
+	error_reporting(E_ALL);
+	ini_set('display_errors', TRUE);
+	ini_set('display_startup_errors', TRUE);
+}
 
-setlocale(LC_ALL, "ru_RU.CP1251");
+setlocale(LC_ALL, 'ru_RU.CP1251');
 
 require_once(DOCUMENT_ROOT.'/syncro.php');
 require_once(VKPATH.'/vk.php');

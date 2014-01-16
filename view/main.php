@@ -1006,6 +1006,7 @@ function zayav_product_spisok($arr, $type='html') {
 	$json = array();
 	$array = array();
 	$cash = array();
+	$report = array();
 	foreach($arr as $r) {
 		$send .= '<tr><td>'._product($r['product_id']).
 			($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '').':'.
@@ -1013,6 +1014,7 @@ function zayav_product_spisok($arr, $type='html') {
 		$json[] = '['.$r['product_id'].','.$r['product_sub_id'].','.$r['count'].']';
 		$array[] = array($r['product_id'], $r['product_sub_id'], $r['count']);
 		$cash[] = _product($r['product_id']).($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '');
+		$report[] = _product($r['product_id']).($r['product_sub_id'] ? ' '._productSub($r['product_sub_id']) : '').': '.$r['count'].' רע.';
 	}
 	$send .= '</table>';
 	switch($type) {
@@ -1021,6 +1023,7 @@ function zayav_product_spisok($arr, $type='html') {
 		case 'json': return implode(',', $json);
 		case 'array': return $array;
 		case 'cash': return implode('<br />', $cash);
+		case 'report': return implode("\n", $report);
 	}
 }//zayav_product_spisok()
 
