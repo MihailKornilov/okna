@@ -28,6 +28,11 @@
 ._attach .form._busy .attach_a{visibility:hidden}
 ._attach .red{margin-left:10px}
 
+
+._dialog-tab{border-spacing:8px}
+._dialog-tab input[type="text"]{width:210px}
+
+
 /* Таблица для внесения платежа */
 .oplata-add-tab{border-spacing:8px}
 .oplata-add-tab .label{width:150px;text-align:right}
@@ -164,7 +169,7 @@
 .zayav-add .label{width:140px;text-align:right}
 .zayav-add .product_edit{margin:0 4px -4px 0}
 .zayav-add #adres{width:240px}
-.zayav-add #homeadres_check{margin:0 0 -3px 6px}
+#homeadres_check{margin:0 0 -3px 6px}
 .zayav-add #zakaz_txt{width:260px}
 .zayav-add #comm{width:260px;height:40px}
 .zayav-add.all{text-align:center}
@@ -215,6 +220,8 @@
 .zayav-info.zamer .label{width:80px}
 .zayav-info.dog .label{width:100px}
 .zayav-info.set .label{width:100px}
+.zayav-info .zakaz-to-set{float:right}
+.zayav-info .zakaz-to-set:not(:hover){color:#999}
 .zayav-info .product td{padding:1px 4px 3px 0}
 .zayav-info .zamer-dtime{cursor:help}
 .zayav-info .zamer-left{margin-left:15px;color:#884}
@@ -349,6 +356,13 @@
 #invoice .setup{display:inline-block;float:right;margin-top:15px}
 #income{margin:10px}
 .income_data{margin:15px 0 3px;text-align:center}
+
+#report_month{margin:10px 15px}
+#report_month .yr{display:block;font:bold 13px Tahoma}
+#report_month ._spisok{margin:3px 0 20px 15px}
+
+#report_mon{margin:10px 15px}
+#report_mon .headName{margin-top:15px}
 
 #setup .left{padding:15px}
 #setup .headName{margin:0 0 15px}

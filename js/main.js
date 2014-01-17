@@ -1489,6 +1489,10 @@ $(document)
 		}, 'json');
 	})
 
+	.on('click', '#report_month .yr', function() {
+		$(this).next().toggle();
+	})
+
 	.on('click', '#setup_worker .add', function() {
 		var html = '<div id="setup_worker_add">' +
 				'<h1>Укажите адрес страницы пользователя или его<br />ID ВКонтакте:</h1>' +
@@ -2800,6 +2804,67 @@ $(document)
 						indent:40,
 						show:1,
 						remove:1
+					});
+				}
+			});
+			$('.zakaz-to-set').click(function() {
+				var html = '<table class="_dialog-tab">' +
+					'<tr><td class="label">Клиент:<td>' + ZAYAV.client_fio +
+					'<tr><td class="label">Адрес установки:' +
+						'<td><INPUT type="text" id="adres" maxlength="100" value="' + ZAYAV.adres + '" />' +
+							'<INPUT type="hidden" id="homeadres" />' +
+					'</table>';
+				var dialog = _dialog({
+					top:60,
+					width:400,
+					head:'Перенос заказа в установку',
+					content:html,
+					butSubmit:'Перенести',
+					submit:submit
+				});
+				$('#adres').focus().keyEnter(submit);
+				$('#homeadres')._check({
+					func:function() {
+						$('#adres').val(ZAYAV.client_adres);
+					}
+				});
+				$('#homeadres_check').vkHint({
+					msg:'Совпадает с адресом проживания клиента',
+					top:-75,
+					left:163,
+					indent:60,
+					delayShow:400
+				});
+				function submit() {
+					var send = {
+						op:'zakaz_to_set',
+						zayav_id:ZAYAV.id,
+						adres:$('#adres').val()
+					};
+					if(!send.adres) {
+						err('Не указан адрес установки');
+						$('#adres').focus();
+					} else {
+						dialog.process();
+						$.post(AJAX_MAIN, send, function(res) {
+							dialog.abort();
+							if(res.success) {
+								dialog.close();
+								_msg('Выполнено.');
+								document.location.reload();
+							}
+						}, 'json');
+					}
+				}
+				function err(msg) {
+					dialog.bottom.vkHint({
+						msg:'<SPAN class="red">' + msg + '</SPAN>',
+						top:-48,
+						left:113,
+						indent:40,
+						remove:1,
+						show:1,
+						correct:0
 					});
 				}
 			});

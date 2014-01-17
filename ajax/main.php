@@ -553,6 +553,39 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
+	case 'zakaz_to_set':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
+			jsonError();
+
+		$zayav_id = intval($_POST['zayav_id']);
+		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+
+		if(empty($adres))
+			jsonError();
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `id`=".$zayav_id."
+				  AND `zakaz_status`>0
+				LIMIT 1";
+		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "UPDATE `zayav`
+		        SET `zakaz_status`=0,
+		            `set_status`=1,
+		            `adres`='".addslashes($adres)."'
+		        WHERE `id`=".$zayav_id;
+		query($sql);
+		history_insert(array(
+			'type' => 30,
+			'client_id' => $zayav['client_id'],
+			'zayav_id' => $zayav_id,
+			'value' => $adres
+		));
+
+		jsonSuccess();
+		break;
 	case 'zakaz_next':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
 			jsonError();
@@ -1124,6 +1157,8 @@ switch(@$_POST['op']) {
 		}
 		$expense = zayav_rashod_spisok($zayav_id, 'all');
 		$send['html'] = utf8($expense['html']);
+		foreach($expense['array'] as $n => $r)
+			$expense['array'][$n][1] = utf8($expense['array'][$n][1]);
 		$send['array'] = $expense['array'];
 		jsonSuccess($send);
 		break;
@@ -1652,6 +1687,8 @@ switch(@$_POST['op']) {
 			'value' => $viewer_id
 		));
 
+		GvaluesCreate();
+
 		$send['html'] = utf8(setup_worker_spisok());
 		jsonSuccess($send);
 		break;
@@ -1668,8 +1705,10 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(!$r['worker'])
 			jsonError();
+
 		query("UPDATE `vk_user` SET `worker`=0,`rules`='' WHERE `viewer_id`=".$viewer_id);
 		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+		GvaluesCreate();
 
 		history_insert(array(
 			'type' => 14,
@@ -1703,6 +1742,7 @@ switch(@$_POST['op']) {
 		           `post`='".addslashes($post)."'
 		       WHERE `viewer_id`=".$viewer_id);
 		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+		GvaluesCreate();
 
 		$changes = '';
 		if($r['first_name'] != $first_name)

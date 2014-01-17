@@ -352,7 +352,7 @@ function _mainLinks() {
 			'show' => 1
 		),
 		array(
-			'name' => 'Установки',
+			'name' => 'Настройки',
 			'page' => 'setup',
 			'show' => RULES_SETUP
 		)
@@ -1699,6 +1699,7 @@ function zayav_info($zayav_id) {
 			'id:'.$z['id'].','.
 			'head:"'.$head.'",'.
 			'client_fio:"'.$client['fio'].'",'.
+			'client_adres:"'.addslashes(htmlspecialchars_decode($client['adres'])).'",'.
 			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
 			'zakaz_txt:"'.$z['zakaz_txt'].'",'.
 			'adres:"'.$z['adres'].'",'.
@@ -1748,7 +1749,7 @@ function zayav_info($zayav_id) {
 		'<div class="content">'.
 			'<TABLE class="tabmain"><TR>'.
 				'<TD class="mainleft">'.
-					'<div class="headName">'.$head.'</div>'.
+					'<div class="headName">'.$head.(ZAKAZ ? '<a class="zakaz-to-set">Перенести в Установки</a>' : '').'</div>'.
 					'<table class="tabInfo">'.
 						'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
 						'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).$z['zakaz_txt'].
@@ -2205,7 +2206,8 @@ function report() {
 	$def = 'history';
 	$pages = array(
 		'history' => 'История действий',
-		'money' => 'Деньги'
+		'money' => 'Деньги',
+		'month' => 'Отчёт за месяц'
 	);
 
 	if(!RULES_HISTORYSHOW)
@@ -2248,6 +2250,9 @@ function report() {
 			}
 			$left = report_money_dopLinks($d1).$left;
 			break;
+		case 'month':
+			$left = !empty($_GET['m']) && preg_match(YEAR_MONTH, $_GET['m']) ? report_mon($_GET['m']) : report_month();
+			break;
 	}
 	return
 	'<table class="tabLR" id="report">'.
@@ -2255,7 +2260,6 @@ function report() {
 			'<td class="right">'.
 				'<div class="rightLink">'.$links.'</div>'.
 				$right.
-				'<a href="'.SITE.'/view/_report.php?'.VALUES.'">Отчёт</a>'.
 	'</table>';
 }//report()
 
@@ -2341,7 +2345,7 @@ function history_types($v) {
 			' при заключении договора '.$v['dogovor_nomer'].'.';
 
 		case 21: return 'Внесение новой заявки '.$v['zayav_link'].'<em>(установка)</em> для клиента '.$v['client_link'].'.';
-		case 22: return 'Изменение данных заявки на установку '.$v['zayav_link'].'<em>(установка)</em>:<div class="changes">'.$v['value1'].'</div>';
+		case 22: return 'Изменение данных заявки на установку '.$v['zayav_link'].'<em>(установка)</em>:<div class="changes">'.$v['value'].'</div>';
 
 		case 23: return 'Внесение нового заявки '.$v['zayav_link'].'<em>(заказ)</em> для клиента '.$v['client_link'].'.';
 		case 24: return 'Изменение данных заявки '.$v['zayav_link'].'<em>(заказ)</em>:<div class="changes">'.$v['value1'].'</div>';
@@ -2358,6 +2362,7 @@ function history_types($v) {
 		case 28: return 'Удаление файла '.$v['value'].' у заявки '.$v['zayav_link'].'.';
 
 		case 29: return 'Изменение расходов по заявке '.$v['zayav_link'].':<div class="changes">'.$v['value'].'</div>';
+		case 30: return 'Заявка '.$v['zayav_link'].' перенесена из <u>Заказов</u> в <u>Установки</u>. Указан адрес "'.$v['value'].'"';
 
 		case 501: return 'В установках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В установках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -2485,6 +2490,45 @@ function report_money_dopLinks($d1) {
 		'<a class="link'.($d1 == 'expense' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=expense">Расходы</a>'.
 	'</div>';
 }//report_money_dopLinks()
+
+function report_month() {
+	$sql = "SELECT SUBSTR(`dtime_add`, 1, 4) AS `year`,
+				   SUBSTR(`dtime_add`, 6, 2) AS `mon`
+	        FROM `zayav`
+	        GROUP BY SUBSTR(`dtime_add`, 1, 7)
+	        ORDER BY `dtime_add`";
+	$q = query($sql);
+	$years = array();
+	while($r = mysql_fetch_assoc($q))
+		$years[$r['year']][] = $r['mon'];
+
+	$curYear = strftime('%Y', time());
+	$spisok = '';
+	foreach($years as $y => $r) {
+		$months = '';
+		foreach($r as $mon)
+			$months .= '<tr><td><a href="'.URL.'&p=report&d=month&m='.$y.'-'.$mon.'">'._monthDef($mon).'</a>';
+		$spisok .= '<a class="yr">'.$y.'</a><table class="_spisok'.($curYear != $y ? ' dn' : '').'">'.$months.'</table>';
+	}
+	return
+	'<div id="report_month">'.
+		'<div class="headName">Формирование отчётов за месяц</div>'.
+		$spisok.
+	'</div>';
+}//report_month()
+function report_mon($m) {
+	$ex = explode('-', $m);
+	$year = $ex[0];
+	$mon = $ex[1];
+	return
+	'<div id="report_mon">'.
+		'<a href="'.URL.'&p=report&d=month"><< к списку отчётов</a>'.
+		'<div class="headName">Формирование отчёта за '._monthDef($mon).' '.$year.'</div>'.
+		'<a href="'.SITE.'/view/_report.php?'.VALUES.'&mon='.$m.'">Отчёт за месяц</a>'.
+	'</div>';
+
+}//report_month_mon()
+
 
 function income_insert($v) {//Внесение платежа
 	if(empty($v['from']))
