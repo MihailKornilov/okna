@@ -1136,7 +1136,7 @@ function zayav() {
 							   FROM `zayav`
 							   WHERE `deleted`=0
 							     AND `dogovor_require`=0
-							     AND (`zamer_status`=1 OR `zamer_status`=3)
+							     AND `zamer_status`=1
 							   LIMIT 1");
 	$dogovorCount = query_value("SELECT COUNT(`id`) AS `all`
 								 FROM `zayav`
@@ -1666,18 +1666,22 @@ function zayav_info($zayav_id) {
 		case 'zakaz':
 			$head = 'Заказ №'.$z['id'];
 			$status_name = _zakazStatus($z['zakaz_status']);
+			$status_id = $z['zakaz_status'];
 			break;
 		case 'zamer':
 			$head = 'Замер №'.$z['id'];
 			$status_name = _zamerStatus($z['zamer_status']);
+			$status_id = $z['zamer_status'];
 			break;
 		case 'dog':
 			$head = 'Ожидание заключения договора - '.($z['set_status'] ? 'установка' : ($z['zakaz_status'] ? 'заказ' : 'замер')).' №'.$z['id'];
 			$status_name = $z['zamer_status'] ? _zamerStatus($z['zamer_status']) : '';
+			$status_id = $z['zamer_status'];
 			break;
 		case 'set':
 			$head = 'Установка №'.$z['id'];
 			$status_name = _setStatus($z['set_status']);
+			$status_id = $z['set_status'];
 			break;
 	}
 
@@ -1701,6 +1705,8 @@ function zayav_info($zayav_id) {
 			'client_fio:"'.$client['fio'].'",'.
 			'client_adres:"'.addslashes(htmlspecialchars_decode($client['adres'])).'",'.
 			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
+			'status:'.$status_id.','.
+			($status_id == 2 ? 'status_day:"'.$z['status_day'].'",' : '').
 			'zakaz_txt:"'.$z['zakaz_txt'].'",'.
 			'adres:"'.$z['adres'].'",'.
 			'rashod:['.$rashod['json'].'],'.
@@ -1768,14 +1774,17 @@ function zayav_info($zayav_id) {
 
 (ZAKAZ || SET ?
 						'<tr><td class="label">Договор:<td>'.$dogSpisok.
-	  ($z['nomer_vg'] ? '<tr><td class="label">Номер ВГ:<td>'.$z['nomer_vg'].'&nbsp;&nbsp;&nbsp;'._attach('vg', $z['id'], 'Прикрепить документ') : '').
-	   ($z['nomer_g'] ? '<tr><td class="label">Номер Ж:<td>'.$z['nomer_g'].'&nbsp;&nbsp;&nbsp;'._attach('g', $z['id'], 'Прикрепить документ') : '').
-	   ($z['nomer_d'] ? '<tr><td class="label">Номер Д:<td>'.$z['nomer_d'].'&nbsp;&nbsp;&nbsp;'._attach('d', $z['id'], 'Прикрепить документ') : '').
-						'<tr><td class="label top">Файлы:<td>'._attach('files', $z['id'], 'Загрузить', 1)
+	  ($z['nomer_vg'] ? '<tr><td class="label top">Номер ВГ:<td>'._attach('vg', $z['id'], 'Прикрепить документ', $z['nomer_vg']) : '').
+	   ($z['nomer_g'] ? '<tr><td class="label top">Номер Ж:<td>'._attach('g', $z['id'], 'Прикрепить документ', $z['nomer_g']) : '').
+	   ($z['nomer_d'] ? '<tr><td class="label top">Номер Д:<td>'._attach('d', $z['id'], 'Прикрепить документ', $z['nomer_d']) : '').
+						'<tr><td class="label top">Файлы:<td>'._attach('files', $z['id'], 'Загрузить')
 : '').
 					($status_name ?
 						'<tr><td class="label">Статус'.($type == 'dog' ? ' замера' : '').':'.
-							'<td><div style="background-color:#'._statusColor($z[($type == 'dog' ? 'zamer' : $type).'_status']).'" class="status '.$type.'_status">'.$status_name.'</div>'
+							'<td><div style="background-color:#'._statusColor($z[($type == 'dog' ? 'zamer' : $type).'_status']).'" class="status '.$type.'_status">'.
+									$status_name.
+									($status_id == 2  && !DOG ? ' '.FullData($z['status_day'], 1) : '').
+								'</div>'
 					: '').
 					'</table>'.
 	(ZAKAZ || SET ?
@@ -1844,17 +1853,20 @@ function zayav_money($zayav_id) {
 		return '';
 	return '<table class="_spisok _money">'.implode('', $money).'</table>';
 }//zayav_money()
-function _attach($type, $zayav_id, $name='Обзор...', $files_block=false) {
+function _attach($type, $zayav_id, $name='Обзор...', $num='') {
 	return
 	'<div class="_attach">'.
-		'<div class="files'.($files_block ? ' block' : '').'">'._attach_files($type, $zayav_id).'</div>'.
-		'<div class="form">'.
-			'<form method="post" action="'.SITE.'/ajax/main.php?'.VALUES.'" enctype="multipart/form-data" target="'.$type.$zayav_id.'_frame">'.
-				_attach_form($type, $zayav_id).
-			'</form>'.
-			'<a class="attach_a">'.$name.'</a>'.
-		'</form>'.
-		'<iframe name="'.$type.$zayav_id.'_frame"></iframe>'.
+		'<table><tr>'.
+			($num ? '<td class="num">'.$num : '').
+			'<td><div class="files">'._attach_files($type, $zayav_id).'</div>'.
+				'<div class="form">'.
+					'<form method="post" action="'.SITE.'/ajax/main.php?'.VALUES.'" enctype="multipart/form-data" target="'.$type.$zayav_id.'_frame">'.
+						_attach_form($type, $zayav_id).
+					'</form>'.
+					'<a class="attach_a">'.$name.'</a>'.
+				'</div>'.
+				'<iframe name="'.$type.$zayav_id.'_frame"></iframe>'.
+		'</table>'.
 	'</div>';
 }
 function _attach_files($type, $zayav_id) {
@@ -1863,10 +1875,10 @@ function _attach_files($type, $zayav_id) {
 	$send = array();
 	while($r = mysql_fetch_assoc($q))
 		$send[] =
-			'<span>'.
+			'<div>'.
 				'<a href="'.$r['link'].'">'.$r['name'].'</a>'.
 				'<div class="img_minidel" val="'.$r['id'].'"></div>'.
-			'</span>';
+			'</div>';
 	return implode(' ', $send);
 }//_attach_files()
 function _attach_form($type, $zayav_id) {
@@ -2350,19 +2362,23 @@ function history_types($v) {
 		case 23: return 'Внесение нового заявки '.$v['zayav_link'].'<em>(заказ)</em> для клиента '.$v['client_link'].'.';
 		case 24: return 'Изменение данных заявки '.$v['zayav_link'].'<em>(заказ)</em>:<div class="changes">'.$v['value1'].'</div>';
 		case 25: return 'Изменение статуса заявки '.$v['zayav_link'].'<em>(заказ)</em>:<br />'.
-						'<span style="background-color:#'._statusColor($v['value']).'">'._zakazStatus($v['value']).'</span>'.
+						'<span style="background-color:#'._statusColor($v['value']).'" class="zstatus">'._zakazStatus($v['value']).'</span>'.
 						' » '.
-						'<span style="background-color:#'._statusColor($v['value1']).'">'._zakazStatus($v['value1']).'</span>';
+						'<span style="background-color:#'._statusColor($v['value1']).'" class="zstatus">'._zakazStatus($v['value1']).'</span>.'.
+						($v['value2'] ? ' Дата выполнения: <u>'.FullData($v['value2']).'</u>.' : '');
 		case 26: return 'Изменение статуса заявки '.$v['zayav_link'].'<em>(установка)</em>:<br />'.
-						'<span style="background-color:#'._statusColor($v['value']).'">'._setStatus($v['value']).'</span>'.
+						'<span style="background-color:#'._statusColor($v['value']).'" class="zstatus">'._setStatus($v['value']).'</span>'.
 						' » '.
-						'<span style="background-color:#'._statusColor($v['value1']).'">'._setStatus($v['value1']).'</span>';
+						'<span style="background-color:#'._statusColor($v['value1']).'" class="zstatus">'._setStatus($v['value1']).'</span>'.
+						($v['value2'] ? ' Дата выполнения: <u>'.FullData($v['value2']).'</u>.' : '');
 
 		case 27: return 'Загрузка файла '.$v['value'].' для заявки '.$v['zayav_link'].'.';
 		case 28: return 'Удаление файла '.$v['value'].' у заявки '.$v['zayav_link'].'.';
 
 		case 29: return 'Изменение расходов по заявке '.$v['zayav_link'].':<div class="changes">'.$v['value'].'</div>';
 		case 30: return 'Заявка '.$v['zayav_link'].' перенесена из <u>Заказов</u> в <u>Установки</u>. Указан адрес "'.$v['value'].'"';
+
+		case 31: return 'Указана новая дата выполнения заявки: <u>'.FullData($v['value']).'</u>.';
 
 		case 501: return 'В установках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В установках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';

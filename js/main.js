@@ -599,7 +599,7 @@ $(document)
 			}
 			f.removeClass('_busy');
 			f.next('.red').remove();
-			f.after('<span class="red">Некорректный файл.</span>');
+			f.after('<div class="red">Некорректный файл.</div>');
 			f.next('.red').fadeOut(4000);
 		}
 	})
@@ -909,41 +909,57 @@ $(document)
 	})
 	.on('click', '.zakaz_status', function() {
 		var t = $(this),
-			html = '<table class="zamer-status-edit">' +
-				'<tr><td class="label topi">Статус заказа:<td><INPUT type="hidden" id="edit_zakaz" value="' + ZAYAV.status + '">' +
-				'</table>',
+			html =
+				'<div class="zayav-status">' +
+					(ZAYAV.status != 1 ?
+						'<div class="st c1" val="1">' +
+							'Заказ ожидает выполнения' +
+							'<div class="about">Возобновление работы по заказу.</div>' +
+						'</div>'
+					: '') +
+						'<div class="st c2" val="2">' +
+							'Заказ выполнен' +
+							'<div class="about">Все начисления произведены, изделия переданы клиенту.</div>' +
+							'<div class="label">Уточните день выполнения заказа:</div>' +
+							'<input type="hidden" id="day" value="' + (ZAYAV.status_day || '') + '">' +
+						'</div>' +
+					(ZAYAV.status != 3 ?
+						'<div class="st c3" val="3">' +
+							'Заказ отменён' +
+							'<div class="about">Отмена заказа по какой-либо причине.</div>' +
+						'</div>'
+					: '') +
+				'</div>',
 			dialog = _dialog({
-				width:400,
 				top:30,
+				width:300,
 				head:'Изменение статуса заказа',
 				content:html,
-				butSubmit:'Применить',
-				submit:submit
+				butSubmit:'',
+				butCancel:'Закрыть'
 			});
-		$('#edit_zakaz')._radio({
-			bottom:20,
-			spisok:[
-				{uid:1,title:'Ожидает выполнения'},
-				{uid:2,title:'Выполнен'},
-				{uid:3,title:'Отменён'}
-			]
-		});
-		function submit() {
-			var	send = {
-				op:'zakaz_status',
-				zayav_id:ZAYAV.id,
-				status:$('#edit_zakaz').val()
-			};
-			dialog.process();
+		$('#day')._calendar({lost:1});
+		$('.st').click(function() {
+			var	t = $(this),
+				send = {
+					op:'zakaz_status',
+					zayav_id:ZAYAV.id,
+					status:t.attr('val'),
+					day:$('#day').val() || ''
+				},
+				p = t.parent();
+			if(p.hasClass('busy'))
+				return;
+			p.addClass('busy');
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success) {
 					dialog.close();
 					_msg('Данные изменены!');
 					document.location.reload();
 				} else
-					dialog.abort();
+					p.removeClass('busy');
 			}, 'json');
-		}
+		});
 	})
 
 	.on('click', '.zamer_table', function() {
@@ -1087,8 +1103,8 @@ $(document)
 				top:30,
 				head:'Изменение статуса замера',
 				load:1,
-				butSubmit:'Применить',
-				submit:submit
+				butSubmit:'',
+				butCancel:'Закрыть'
 			});
 		if(typeof ZAYAV == 'undefined')
 			$.post(AJAX_MAIN, {op:'zamer_info_get',zayav_id:id}, function(res) {
@@ -1100,63 +1116,74 @@ $(document)
 		else
 			info_get(ZAYAV);
 		function info_get(res) {
-			dialog.content.html('<table class="zamer-status-edit">' +
-				'<tr><td class="label topi">Результат замера:<td><INPUT type="hidden" id="edit_zamer" value="-1">' +
-				'<tr class="tr_data dn"><td class="label">Новое время:<td class="zayav-zamer-dtime">' +
-				'<tr class="tr_data dn"><td class="label">Длительность:' +
-				'   <td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
-				'<a class="zamer_table" val="' + id + '">Таблица замеров</a>' +
-				'<tr class="tr_prim dn"><td class="label top">Комментарий:<td><textarea id="prim"></textarea>' +
-				'</table>');
-			$('#edit_zamer')._radio({
-				bottom:20,
-				spisok:[
-					{uid:1,title:'Указать другое время<span>Замер будет перенесён на другое время.</span>'},
-					{uid:2,title:'Выполнен<span>Замер выполнен успешно. Заявка будет переведена на заключение договора.</span>'},
-					{uid:3,title:'Отмена<span>Отмена заявки по какой-либо причине.</span>'}
-				],
-				func:function(v) {
-					$('.tr_data')[(v == 1 ? 'remove' : 'add') + 'Class']('dn');
-					$('.tr_prim').removeClass('dn');
-				}
-			});
+			var html =
+				'<div class="zayav-status">' +
+					'<div class="st c1" val="1">' +
+						'Указать новое время' +
+						'<div class="about">Замер будет перенесён на другое время.</div>' +
+					'</div>' +
+					'<div class="st c2" val="2">' +
+						'Замер выполнен' +
+						'<div class="about">Замер выполнен успешно. Заявка будет переведена на заключение договора.</div>' +
+					'</div>' +
+					(res.status != 3 ?
+						'<div class="st c3" val="3">' +
+							'Отмена' +
+							'<div class="about">Отмена заявки по какой-либо причине.</div>' +
+						'</div>'
+					: '') +
+					'<table class="zstab">' +
+						'<tr><td class="label">Новое время:<td class="zayav-zamer-dtime">' +
+						'<tr><td class="label">Длительность:' +
+							'<td><INPUT TYPE="hidden" id="zamer_duration" value="' + res.dur + '" />' +
+								'<a class="zamer_table" val="' + id + '">Таблица замеров</a>' +
+						'<tr><td><td><div class="vkButton"><button>Сохранить</button></div>' +
+					'</table>' +
+				'</div>';
+			dialog.content.html(html);
 			zayavZamerDtime(res);
+			$('.st').click(function() {
+				var	t = $(this),
+					v = t.attr('val');
+				if(v == 1) {
+					$('.st').hide();
+					$('.zstab').show();
+				} else
+					submit(v);
+			});
+			$('.zayav-status .vkButton').click(function() {
+				var	t = $(this);
+				t.addClass('busy');
+				submit(1);
+			});
 		}
-		function submit() {
+		function submit(status) {
 			var send = {
 				op:'zamer_status',
 				zayav_id:id,
-				status:$('#edit_zamer').val(),
+				status:status,
 				zamer_day:$('#zamer_day').val(),
 				zamer_hour:$('#zamer_hour').val(),
 				zamer_min:$('#zamer_min').val(),
-				zamer_duration:$('#zamer_duration').val(),
-				prim:$('#prim').val()
+				zamer_duration:$('#zamer_duration').val()
 			};
-			if(send.status == -1) err('Выберите вариант.');
-			else {
-				dialog.process();
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success) {
-						dialog.close();
-						_msg('Данные изменены!');
-						document.location.reload();
-					} else {
-						dialog.abort();
-						err(res.text);
-					}
-				}, 'json');
-			}
-		}
-		function err(msg) {
-			$(this).vkHint({
-				msg:'<SPAN class="red">' + msg + '</SPAN>',
-				top:-58,
-				left:-5,
-				indent:40,
-				remove:1,
-				show:1
-			});
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					dialog.close();
+					_msg('Данные изменены!');
+					document.location.reload();
+				} else
+					$('.zayav-status .vkButton')
+						.removeClass('busy')
+						.vkHint({
+							msg:'<SPAN class="red">' + res.text + '</SPAN>',
+							top:-58,
+							left:-5,
+							indent:40,
+							remove:1,
+							show:1
+						});
+			}, 'json');
 		}
 	})
 	.on('click', '#zamer_next', function() {
@@ -1277,41 +1304,58 @@ $(document)
 	})
 	.on('click', '.set_status', function() {
 		var t = $(this),
-			html = '<table class="zamer-status-edit">' +
-				'<tr><td class="label topi">Статус установки:<td><INPUT type="hidden" id="edit_set" value="' + ZAYAV.status + '">' +
-				'</table>',
+			html =
+				'<div class="zayav-status">' +
+					(ZAYAV.status != 1 ?
+						'<div class="st c1" val="1">' +
+							'Ожидает установку' +
+							'<div class="about">Возобновление работы по заявке.</div>' +
+						'</div>'
+					: '') +
+						'<div class="st c2" val="2">' +
+							'Установка выполнена' +
+							'<div class="about">Произведена установка всех изделий. Не забудьте расписать расходы по заявке и проверьте начисления.</div>' +
+							'<div class="label">Уточните день выполнения установки:</div>' +
+							'<input type="hidden" id="day" value="' + (ZAYAV.status_day || '') + '">' +
+						'</div>' +
+					(ZAYAV.status != 3 ?
+						'<div class="st c3" val="3">' +
+							'Заявка отменена' +
+							'<div class="about">Отмена заявки по какой-либо причине.</div>' +
+						'</div>'
+					: '') +
+					'</div>',
+
 			dialog = _dialog({
-				width:400,
 				top:30,
+				width:360,
 				head:'Изменение статуса установки',
 				content:html,
-				butSubmit:'Применить',
-				submit:submit
+				butSubmit:'',
+				butCancel:'Закрыть'
 			});
-		$('#edit_set')._radio({
-			bottom:20,
-			spisok:[
-				{uid:1,title:'Ожидает выполнения'},
-				{uid:2,title:'Выполнена'},
-				{uid:3,title:'Отменена'}
-			]
-		});
-		function submit() {
-			var	send = {
-				op:'set_status',
-				zayav_id:ZAYAV.id,
-				status:$('#edit_set').val()
-			};
-			dialog.process();
+		$('#day')._calendar({lost:1});
+		$('.st').click(function() {
+			var	t = $(this),
+				send = {
+					op:'set_status',
+					zayav_id:ZAYAV.id,
+					status:t.attr('val'),
+					day:$('#day').val() || ''
+				},
+				p = t.parent();
+			if(p.hasClass('busy'))
+				return;
+			p.addClass('busy');
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success) {
 					dialog.close();
 					_msg('Данные изменены!');
 					document.location.reload();
 				} else
-					dialog.abort();
+					p.removeClass('busy');
 			}, 'json');
-		}
+		});
 	})
 	.on('click', '#set_next', function() {
 		var next = $(this);

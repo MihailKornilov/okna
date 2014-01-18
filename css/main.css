@@ -2,16 +2,11 @@
 ._moneysum{margin-bottom:7px}
 
 ._attach,
-._attach .files,
 ._attach .form,
 ._attach form{display:inline-block}
-._attach .files.block span{display:block}
-._attach .form{
-	position:relative;
-	top:2px;
-	min-width:100px;
-	overflow:hidden;
-}
+._attach td{vertical-align:top;padding:1px 0 2px}
+._attach .num{padding-right:6px;font-weight:bold}
+._attach .form{min-width:100px;overflow:hidden}
 ._attach form{position:absolute}
 ._attach input{
 	position:absolute;
@@ -26,7 +21,6 @@
 ._attach .form._busy{background-position:left 4px}
 ._attach .form._busy form,._attach iframe{display:none}
 ._attach .form._busy .attach_a{visibility:hidden}
-._attach .red{margin-left:10px}
 
 
 ._dialog-tab{border-spacing:8px}
@@ -293,12 +287,27 @@
 .accrual-add .label{width:120px;text-align:right}
 .accrual-add #prim{width:200px}
 
-.zamer-status-edit{border-spacing:10px}
-.zamer-status-edit .label{width:100px;text-align:right}
-.zamer-status-edit #prim{width:220px;height:40px}
-.zamer-status-edit #edit_zamer_radio span{display:block;width:220px;color:#888;margin:2px 0 12px 18px}
-.zamer-status-edit .zamer_table{position:relative;left:10px;top:-4px}
-
+/* Изменение статуса заявки */
+.zayav-status{margin:10px}
+.zayav-status .st{
+	padding:10px 15px;
+	font-size:13px;
+	font-weight:bold;
+	border:#ddd solid 1px;
+	color:#357;
+	cursor:pointer;
+	margin-bottom:10px;
+}
+.zayav-status .st:hover{border-color:#BBD}
+.zayav-status .about{color:#777;margin-top:3px}
+.zayav-status .label{color:#444;margin:10px 0 3px 20px}
+.zayav-status #day_calendar{color:#444;margin-left:20px}
+.zayav-status .c1{background-color:#E8E8FF}
+.zayav-status .c2{background-color:#CCFFCC}
+.zayav-status .c3{background-color:#FFDDDD}
+.zayav-status.busy *{color:#888;background-color:#EEE}
+.zayav-status .zstab{border-spacing:8px;display:none}
+.zayav-status .zamer_table{position:relative;top:-4px;left:10px}
 
 
 
@@ -350,6 +359,7 @@
 .history_unit a.deleted{color:#b66}
 .history_unit em{color:#707070;margin-left:3px}
 .history_unit .oplata{color:#770}
+.history_unit .zstatus{display:inline-block;padding:2px 5px;margin-top:3px}
 #invoice{margin:10px}
 #invoice pre{color:#777;font-size:10px;margin:3px 7px}
 #invoice .balans{text-align:right}

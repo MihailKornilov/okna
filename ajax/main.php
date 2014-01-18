@@ -530,6 +530,9 @@ switch(@$_POST['op']) {
 
 		$zayav_id = intval($_POST['zayav_id']);
 		$status = intval($_POST['status']);
+		$day = $_POST['day'];
+		if($status == 2 && !preg_match(REGEXP_DATE, $day))
+			jsonError();
 
 		$sql = "SELECT *
 				FROM `zayav`
@@ -540,14 +543,26 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		if($zayav['zakaz_status'] != $status) {
-			$sql = "UPDATE `zayav` SET `zakaz_status`=".$status." WHERE `id`=".$zayav_id;
+			$sql = "UPDATE `zayav`
+			        SET ".($status == 2 ? "`status_day`='".$day."'," : '')."
+			            `zakaz_status`=".$status."
+			        WHERE `id`=".$zayav_id;
 			query($sql);
 			history_insert(array(
 				'type' => 25,
 				'client_id' => $zayav['client_id'],
 				'zayav_id' => $zayav_id,
 				'value' => $zayav['zakaz_status'],
-				'value1' => $status
+				'value1' => $status,
+				'value2' => $status == 2 ? $day : ''
+			));
+		} elseif($status == 2 && $zayav['status_day'] != $day) {
+			query("UPDATE `zayav` SET `status_day`='".$day."' WHERE `id`=".$zayav_id);
+			history_insert(array(
+				'type' => 31,
+				'client_id' => $zayav['client_id'],
+				'zayav_id' => $zayav_id,
+				'value' => $day
 			));
 		}
 
@@ -712,7 +727,6 @@ switch(@$_POST['op']) {
 
 		$zayav_id = intval($_POST['zayav_id']);
 		$status = intval($_POST['status']);
-		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
 
 		$sql = "SELECT *
 				FROM `zayav`
@@ -789,8 +803,6 @@ switch(@$_POST['op']) {
 			default:
 				jsonError();
 		}
-
-		_vkCommentAdd('zayav', $zayav_id, $prim);
 
 		jsonSuccess();
 		break;
@@ -1076,6 +1088,9 @@ switch(@$_POST['op']) {
 
 		$zayav_id = intval($_POST['zayav_id']);
 		$status = intval($_POST['status']);
+		$day = $_POST['day'];
+		if($status == 2 && !preg_match(REGEXP_DATE, $day))
+			jsonError();
 
 		$sql = "SELECT *
 				FROM `zayav`
@@ -1086,14 +1101,26 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		if($zayav['set_status'] != $status) {
-			$sql = "UPDATE `zayav` SET `set_status`=".$status." WHERE `id`=".$zayav_id;
+			$sql = "UPDATE `zayav`
+					SET ".($status == 2 ? "`status_day`='".$day."'," : '')."
+						`set_status`=".$status."
+					WHERE `id`=".$zayav_id;
 			query($sql);
 			history_insert(array(
 				'type' => 26,
 				'client_id' => $zayav['client_id'],
 				'zayav_id' => $zayav_id,
 				'value' => $zayav['set_status'],
-				'value1' => $status
+				'value1' => $status,
+				'value2' => $status == 2 ? $day : ''
+			));
+		} elseif($status == 2 && $zayav['status_day'] != $day) {
+			query("UPDATE `zayav` SET `status_day`='".$day."' WHERE `id`=".$zayav_id);
+			history_insert(array(
+				'type' => 31,
+				'client_id' => $zayav['client_id'],
+				'zayav_id' => $zayav_id,
+				'value' => $day
 			));
 		}
 
