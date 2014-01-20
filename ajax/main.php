@@ -601,13 +601,6 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
-	case 'zakaz_next':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$data = zakaz_spisok(intval($_POST['page']), zakazFilter($_POST));
-		$send['html'] = utf8($data['spisok']);
-		jsonSuccess($send);
-		break;
 	case 'zamer_table_get':
 		if(!empty($_POST['mon']) && preg_match(REGEXP_DATE, $_POST['mon'].'-01'))
 			$send['html'] = utf8(zamer_table($_POST['mon']));
@@ -886,13 +879,6 @@ switch(@$_POST['op']) {
 			));
 		jsonSuccess();
 		break;
-	case 'zamer_next':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$data = zamer_spisok(intval($_POST['page']), zamerFilter($_POST));
-		$send['html'] = utf8($data['spisok']);
-		jsonSuccess($send);
-		break;
 	case 'dog_edit':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
@@ -950,13 +936,6 @@ switch(@$_POST['op']) {
 				'value' => '<table>'.$changes.'</table>'
 			));
 		jsonSuccess();
-		break;
-	case 'dog_next':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$data = dogovor_spisok(intval($_POST['page']), dogovorFilter($_POST));
-		$send['html'] = utf8($data['spisok']);
-		jsonSuccess($send);
 		break;
 	case 'set_add':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
@@ -1126,13 +1105,6 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
-	case 'set_next':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$data = set_spisok(intval($_POST['page']), setFilter($_POST));
-		$send['html'] = utf8($data['spisok']);
-		jsonSuccess($send);
-		break;
 	case 'zayav_rashod_edit':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
@@ -1189,11 +1161,26 @@ switch(@$_POST['op']) {
 		$send['array'] = $expense['array'];
 		jsonSuccess($send);
 		break;
-	case 'zayav_spisok_load':
-		$_POST['find'] = win1251($_POST['find']);
-		$data = zayav_data(1, zayavfilter($_POST));
-		$send['all'] = utf8(zayav_count($data['all']));
-		$send['html'] = utf8(zayav_spisok($data));
+	case 'zayav_spisok':
+		$data = zayav_spisok($_POST['category'], 1, zayavFilter($_POST));
+		$send['result'] = utf8($data['result']);
+		$send['spisok'] = utf8($data['spisok']);
+		jsonSuccess($send);
+		break;
+	case 'zayav_next':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
+			jsonError();
+		$data = zayav_spisok($_POST['category'], intval($_POST['page']), zayavFilter($_POST));
+		$send['html'] = utf8($data['spisok']);
+		jsonSuccess($send);
+		break;
+	case 'zayav_findfast':
+		$find = win1251(htmlspecialchars(trim($_POST['find'])));
+		if(empty($find))
+			jsonError();
+		$data = zayav_findfast(1, $find);
+		$send['result'] = utf8($data['result']);
+		$send['spisok'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
 	case 'zayav_delete':

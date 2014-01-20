@@ -182,14 +182,16 @@
 	box-shadow: 0 0 5px rgba(0,0,0,0.2);
 }
 .zayav_unit:hover{border:#bbb solid 1px;box-shadow: 0 0 5px rgba(0,0,0,0.4)}
+.zayav_unit em{background:#FFC;border-bottom:1px solid #FE2}
+.zayav_unit .name em{font-size:12px;font-weight:bold}
 .zayav_unit .name{display:block;font-size:12px;font-weight:700;margin:5px 0 0 8px}
 .zayav_unit .name span{color:#777;font-weight:normal;font-size:12px}
+.zayav_unit .name span em{font-weight:normal}
 .zayav_unit .dtime{float:right;text-align:right;font-size:10px;color:#777;padding:4px}
+.zayav_unit .dtime em{font-size:10px}
 .zayav_unit .ztab{border-spacing:2px;margin:4px 0 4px 8px}
 .zayav_unit .label{width:60px}
 .zayav_unit .product td{padding:1px 4px 3px 0}
-.zayav_unit em{background:#FFC;border-bottom:1px solid #FE2;font-size:12px}
-.zayav_unit b em{font-weight:bold}
 
 /* список заявок */
 #zayav ._search{float:right;margin:-3px -5px 0 0}

@@ -161,56 +161,43 @@ var hashLoc,
 		});
 
 	},
-	zakazFilter = function() {
-		var v = {
-				find:$.trim($('#find input').val())
-//				sort:$('#sort').val(),
-//				desc:$('#desc').val(),
-//				category:$('#category').val(),
-//				status:$('#status').val()
-			};
-/*
-			loc = '';
-		if(v.sort != '1') loc += '.sort=' + v.sort;
-		if(v.desc != '0') loc += '.desc=' + v.desc;
-		if(v.find) loc += '.find=' + escape(v.find);
-		else {
-			if(v.category > 0) loc += '.category=' + v.category;
-			if(v.status > 0) loc += '.status=' + v.status;
-		}
-		VK.callMethod('setLocation', hashLoc + loc);
-
-		setCookie('zayav_find', escape(v.find));
-	    setCookie('zayav_sort', v.sort);
-		setCookie('zayav_desc', v.desc);
-		setCookie('zayav_category', v.category);
-		setCookie('zayav_status', v.status);
-*/
-		return v;
-	},
-	zamerFilter = function() {
-		var v = {
+	zayavFindFast = function() {
+		var send = {
+			op:'zayav_findfast',
 			find:$.trim($('#find input').val())
 		};
-		return v;
-	},
-	zayavSpisokLoad = function() {
-		var send = zayavFilter();
-		$('.condLost')[(send.find ? 'add' : 'remove') + 'Class']('hide');
-		send.op = 'zayav_spisok_load';
-
+		if(!send.find) {
+			zayavSpisok();
+			return;
+		}
 		$('#mainLinks').addClass('busy');
 		$.post(AJAX_MAIN, send, function(res) {
-			$('#zayav .result').html(res.all);
-			$('#zayav #spisok').html(res.html);
 			$('#mainLinks').removeClass('busy');
+			if(res.success) {
+				$('#zayav .result').html(res.result);
+				$('#zayav #spisok').html(res.spisok);
+			}
 		}, 'json');
 	},
-	dogovorFilter = function() {
-		var v = {
-			find:$.trim($('#find input').val())
+	zayavFilter = function() {
+		return {
+			category:$('#zayav').attr('val'),
+			product:$('#product_id').val()
+				//			status:$('#status').val()
 		};
-		return v;
+	},
+	zayavSpisok = function() {
+		var send = zayavFilter();
+		//$('.condLost')[(send.find ? 'add' : 'remove') + 'Class']('hide');
+		send.op = 'zayav_spisok';
+		$('#mainLinks').addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			$('#mainLinks').removeClass('busy');
+			if(res.success) {
+				$('#zayav .result').html(res.result);
+				$('#zayav #spisok').html(res.spisok);
+			}
+		}, 'json');
 	},
 	dogovorCreate = function() {
 		var html = '<table class="zayav-dogovor">' +
@@ -320,12 +307,6 @@ var hashLoc,
 				}, 'json');
 			}
 		}
-	},
-	setFilter = function() {
-		var v = {
-			find:$.trim($('#find input').val())
-		};
-		return v;
 	},
 
 	setupRulesSet = function(action, value) {
@@ -639,7 +620,7 @@ $(document)
 		$('#sum,#prim').keyEnter(submit);
 		if(OPL.zayav_spisok)
 			$('#zayav_id')._select({
-				width:180,
+				width:210,
 				title0:'Не указана',
 				spisok:OPL.zayav_spisok
 			});
@@ -796,6 +777,7 @@ $(document)
 				next.removeClass('busy');
 		}, 'json');
 	})
+
 	.on('click', '.zayav_add', function() {
 		var html =
 			'<div class="zayav-add all">' +
@@ -811,18 +793,30 @@ $(document)
 				butSubmit:''
 			});
 	})
-
 	.on('click', '.zayav_unit', function() {
 		document.location.href = URL + '&p=zayav&d=info&id=' + $(this).attr('val');
 	})
-
-	.on('click', '#zayav #filter_break', function() {
-		zFind.clear();
-		//$('#sort')._radio(1);
-		$('#desc')._check(0);
-		$('#status').rightLink(0);
-		zayavSpisokLoad();
+	.on('click', '#zayav .ajaxNext', function() {
+		var next = $(this);
+		if(next.hasClass('busy'))
+			return;
+		var send = zayavFilter();
+		send.op = 'zayav_next';
+		send.page = next.attr('val');
+		next.addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				next.after(res.html).remove();
+			else
+				next.removeClass('busy');
+		}, 'json');
 	})
+	.on('click', '#zayav .filter_clear', function() {
+		window.zFind.clear();
+		$('#product_id')._select(0);
+		zayavSpisok();
+	})
+
 	.on('click', '.zakaz_add', function() {
 		if(typeof CLIENT == 'undefined')
 			CLIENT = {
@@ -891,21 +885,6 @@ $(document)
 					remove:1
 				});
 		}
-	})
-	.on('click', '#zakaz_next', function() {
-		var next = $(this);
-		if(next.hasClass('busy'))
-			return;
-		var send = zakazFilter();
-		send.op = 'zakaz_next';
-		send.page = next.attr('val');
-		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				next.after(res.html).remove();
-			else
-				next.removeClass('busy');
-		}, 'json');
 	})
 	.on('click', '.zakaz_status', function() {
 		var t = $(this),
@@ -1186,37 +1165,6 @@ $(document)
 			}, 'json');
 		}
 	})
-	.on('click', '#zamer_next', function() {
-		var next = $(this);
-		if(next.hasClass('busy'))
-			return;
-		var send = zamerFilter();
-		send.op = 'zamer_next';
-		send.page = next.attr('val');
-		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				next.after(res.html).remove();
-			else
-				next.removeClass('busy');
-		}, 'json');
-	})
-
-	.on('click', '#dog_next', function() {
-		var next = $(this);
-		if(next.hasClass('busy'))
-			return;
-		var send = dogovorFilter();
-		send.op = 'dog_next';
-		send.page = next.attr('val');
-		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				next.after(res.html).remove();
-			else
-				next.removeClass('busy');
-		}, 'json');
-	})
 
 	.on('click', '.set_add', function() {
 		if(typeof CLIENT == 'undefined')
@@ -1356,21 +1304,6 @@ $(document)
 					p.removeClass('busy');
 			}, 'json');
 		});
-	})
-	.on('click', '#set_next', function() {
-		var next = $(this);
-		if(next.hasClass('busy'))
-			return;
-		var send = setFilter();
-		send.op = 'set_next';
-		send.page = next.attr('val');
-		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				next.after(res.html).remove();
-			else
-				next.removeClass('busy');
-		}, 'json');
 	})
 
 	.on('click', '.remind_calendar .on', function() {
@@ -2468,12 +2401,14 @@ $(document)
 				focus:1,
 				txt:'Быстрый поиск...',
 				enter:1,
-				func:zayavSpisokLoad
+				func:zayavFindFast
 			});
-//			zFind.inp(ZAYAV.find);
-//			$('#desc')._check(zayavSpisokLoad);
-//			$('#category')._radio(zayavSpisokLoad);
-//			$('#status').rightLink(zayavSpisokLoad);
+			$('#product_id')._select({
+				width:155,
+				title0:'Любые изделия',
+				spisok:PRODUCT_SPISOK,
+				func:zayavSpisok
+			});
 		}
 		if($('.zayav-info').length > 0) {
 			$('.zinfo').click(function() {
