@@ -1419,51 +1419,7 @@ $(document)
 	})
 
 	.on('click', '.income_mon', function() {
-		var t = $(this),
-			html =
-				'<table style="border-spacing:10px">' +
-					'<tr><td class="label">Сумма:<td><INPUT type="text" class="money" id="sum" maxlength="7"> руб.' +
-				'</table>',
-			dialog = _dialog({
-				width:300,
-				top:60,
-				head:'Установка начального баланса счёта',
-				content:html,
-				butSubmit:'Установить',
-				submit:submit
-			});
-		$('#sum').focus().keyEnter(submit);
-		function submit() {
-			var send = {
-				op:'invoice_set',
-				invoice_id:t.attr('val'),
-				sum:$('#sum').val()
-			};
-			if(!REGEXP_NUMERIC.test(send.sum)) {
-				err('Некорректно указана сумма');
-				$('#sum').focus();
-			} else {
-				dialog.process();
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success) {
-						t.parent().html('<b>' + send.sum + '</b> руб.');
-						dialog.close();
-						_msg('Баланс установлен.');
-					} else
-						dialog.abort();
-				}, 'json');
-			}
-		}
-		function err(msg) {
-			dialog.bottom.vkHint({
-				msg:'<SPAN class="red">' + msg + '</SPAN>',
-				remove:1,
-				indent:40,
-				show:1,
-				top:-48,
-				left:62
-			});
-		}
+
 	})
 
 	.on('click', '#money_next', function() {

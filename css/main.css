@@ -384,7 +384,11 @@
 #invoice .balans{text-align:right}
 #invoice .setup{display:inline-block;float:right;margin-top:15px}
 #income{margin:10px}
+#income .inc-path{margin-bottom:10px}
 .income_data{margin:15px 0 3px;text-align:center}
+
+
+
 
 #report_month{margin:10px 15px}
 #report_month .yr{display:block;font:bold 13px Tahoma}

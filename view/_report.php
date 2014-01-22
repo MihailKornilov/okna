@@ -273,7 +273,7 @@ function contentShow() {
 
 require_once '../config.php';
 
-if(empty($_GET['mon']) || !preg_match(YEAR_MONTH, $_GET['mon']))
+if(empty($_GET['mon']) || !preg_match(REGEXP_YEARMONTH, $_GET['mon']))
 	die('Некорректный месяц');
 
 require_once VKPATH.'excel/PHPExcel.php';

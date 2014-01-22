@@ -2266,25 +2266,42 @@ function report() {
 			$left = RULES_HISTORYSHOW ? '<div id="report_history">'.history_spisok().'</div>' : _norules();
 			break;
 		case 'money':
-			$d1 = empty($_GET['d1']) ? 'invoice' : $_GET['d1'];
+			$d1 = empty($_GET['d1']) ? 'income' : $_GET['d1'];
 			switch($d1) {
 				default:
-				case 'invoice': $left = invoice(); break;
 				case 'income':
-					$data = income_spisok();
-					$left =
-						'<div id="income">'.
-							'<div class="headName">Список платежей</div>'.
-							'<div id="spisok">'.$data['spisok'].'</div>'.
-						'</div>';
+					switch(@$_GET['d2']) {
+						case 'all': $left = income_all(); break;
+						case 'year':
+							if(empty($_GET['year']) || !preg_match(REGEXP_YEAR, $_GET['year'])) {
+								$left = 'Указан некорректный год.';
+								break;
+							}
+							$left = income_year(intval($_GET['year']));
+							break;
+						case 'month':
+							if(empty($_GET['mon']) || !preg_match(REGEXP_YEARMONTH, $_GET['mon'])) {
+								$left = 'Указан некорректный месяц.';
+								break;
+							}
+							$left = income_month($_GET['mon']);
+							break;
+
+						default:
+							if(empty($_GET['day']) || !preg_match(REGEXP_DATE, $_GET['day']))
+								$_GET['day'] = strftime('%Y-%m-%d', time());
+							$left = income_day($_GET['day']);
+					}
+					$left = '<div id="income">'.$left.'</div>';
 					$right = income_right();
 					break;
 				case 'expense': $left = 'расходы'; break;
+				case 'invoice': $left = invoice(); break;
 			}
 			$left = report_money_dopLinks($d1).$left;
 			break;
 		case 'month':
-			$left = !empty($_GET['m']) && preg_match(YEAR_MONTH, $_GET['m']) ? report_mon($_GET['m']) : report_month();
+			$left = !empty($_GET['m']) && preg_match(REGEXP_YEARMONTH, $_GET['m']) ? report_mon($_GET['m']) : report_month();
 			break;
 	}
 	return
@@ -2522,50 +2539,176 @@ function invoice_spisok() {
 function report_money_dopLinks($d1) {
 	return
 	'<div id="dopLinks">'.
-		'<a class="link'.($d1 == 'invoice' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=invoice">Счета</a>'.
 		'<a class="link'.($d1 == 'income' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=income">Платежи</a>'.
 		'<a class="link'.($d1 == 'expense' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=expense">Расходы</a>'.
+		'<a class="link'.($d1 == 'invoice' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=invoice">Счета</a>'.
 	'</div>';
 }//report_money_dopLinks()
 
-function report_month() {
-	$sql = "SELECT SUBSTR(`dtime_add`, 1, 4) AS `year`,
-				   SUBSTR(`dtime_add`, 6, 2) AS `mon`
-	        FROM `zayav`
-	        GROUP BY SUBSTR(`dtime_add`, 1, 7)
-	        ORDER BY `dtime_add`";
+function income_all() {
+	$sql = "SELECT DATE_FORMAT(`dtime_add`,'%Y') AS `year`,
+				   SUM(`sum`) AS `sum`
+			FROM `money`
+			WHERE `deleted`=0
+			  AND `sum`>0
+			GROUP BY DATE_FORMAT(`dtime_add`,'%Y')
+			ORDER BY `dtime_add` ASC";
 	$q = query($sql);
-	$years = array();
+	$spisok = array();
 	while($r = mysql_fetch_assoc($q))
-		$years[$r['year']][] = $r['mon'];
+		$spisok[$r['year']] = '<tr>'.
+			'<td><a href="'.URL.'&p=report&d=money&d1=income&d2=year&year='.$r['year'].'">'.$r['year'].'</a>'.
+			'<td class="r"><b>'._sumSpace($r['sum']).'</b>';
 
-	$curYear = strftime('%Y', time());
-	$spisok = '';
-	foreach($years as $y => $r) {
-		$months = '';
-		foreach($r as $mon)
-			$months .= '<tr><td><a href="'.URL.'&p=report&d=month&m='.$y.'-'.$mon.'">'._monthDef($mon).'</a>';
-		$spisok .= '<a class="yr">'.$y.'</a><table class="_spisok'.($curYear != $y ? ' dn' : '').'">'.$months.'</table>';
+	$th = '';
+	foreach(_income() as $income_id => $i) {
+		$th .= '<th>'.$i['name'];
+		foreach($spisok as $y => $r)
+			$spisok[$y] .= '<td class="r">';
+		$sql = "SELECT DATE_FORMAT(`dtime_add`,'%Y') AS `year`,
+					   SUM(`sum`) AS `sum`
+				FROM `money`
+				WHERE `deleted`=0
+				  AND `sum`>0
+				  AND `income_id`=".$income_id."
+				GROUP BY DATE_FORMAT(`dtime_add`,'%Y')
+				ORDER BY `dtime_add` ASC";
+		$q = query($sql);
+		while($r = mysql_fetch_assoc($q))
+			$spisok[$r['year']] .= _sumSpace($r['sum']);
+	}
+
+	return
+	'<div class="headName">Суммы платежей по годам</div>'.
+	'<table class="_spisok">'.
+		'<tr><th>Год'.
+			'<th>Всего'.
+			$th.
+			implode('', $spisok).
+	'</table>';
+}//income_all()
+function income_year($year) {
+	$spisok = array();
+	for($n = 1; $n <= (strftime('%Y', time()) == $year ? intval(strftime('%m', time())) : 12); $n++)
+		$spisok[$n] =
+			'<tr><td class="r grey">'._monthDef($n, 1).
+				'<td class="r">';
+	$sql = "SELECT DATE_FORMAT(`dtime_add`,'%m') AS `mon`,
+				   SUM(`sum`) AS `sum`
+			FROM `money`
+			WHERE `deleted`=0
+			  AND `sum`>0
+			  AND `dtime_add` LIKE '".$year."%'
+			GROUP BY DATE_FORMAT(`dtime_add`,'%m')
+			ORDER BY `dtime_add` ASC";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$spisok[intval($r['mon'])] =
+			'<tr><td class="r"><a href="'.URL.'&p=report&d=money&d1=income&d2=month&mon='.$year.'-'.$r['mon'].'">'._monthDef($r['mon'], 1).'</a>'.
+				'<td class="r"><b>'._sumSpace($r['sum']).'</b>';
+
+	$th = '';
+	foreach(_income() as $income_id => $i) {
+		$th .= '<th>'.$i['name'];
+		foreach($spisok as $y => $r)
+			$spisok[$y] .= '<td class="r">';
+		$sql = "SELECT DATE_FORMAT(`dtime_add`,'%m') AS `mon`,
+					   SUM(`sum`) AS `sum`
+				FROM `money`
+				WHERE `deleted`=0
+				  AND `sum`>0
+				  AND `dtime_add` LIKE '".$year."%'
+				  AND `income_id`=".$income_id."
+				GROUP BY DATE_FORMAT(`dtime_add`,'%m')
+				ORDER BY `dtime_add` ASC";
+		$q = query($sql);
+		while($r = mysql_fetch_assoc($q))
+			$spisok[intval($r['mon'])] .= _sumSpace($r['sum']);
 	}
 	return
-	'<div id="report_month">'.
-		'<div class="headName">Формирование отчётов за месяц</div>'.
-		$spisok.
-	'</div>';
-}//report_month()
-function report_mon($m) {
-	$ex = explode('-', $m);
-	$year = $ex[0];
-	$mon = $ex[1];
+	'<div class="headName">Суммы платежей по месяцам за '.$year.' год</div>'.
+	'<div class="inc-path"><a href="'.URL.'&p=report&d=money&d1=income&d2=all">Год</a> » <b>'.$year.'</b></div>'.
+	'<table class="_spisok">'.
+		'<tr><th>Месяц'.
+			'<th>Всего'.
+			$th.
+			implode('', $spisok).
+	'</table>';
+}//income_year()
+function income_month($mon) {
+	$m = explode('-', $mon);
+	define('YEAR', $m[0]);
+	define('MON', $m[1]);
+
+	$spisok = array();
+	for($n = 1; $n <= (strftime('%Y', time()) == YEAR ? intval(strftime('%d', time())) : date('t', strtotime($mon.'-01'))); $n++)
+		$spisok[$n] =
+			'<tr><td class="r grey">'.$n.'.'.MON.'.'.YEAR.
+				'<td class="r">';
+	$sql = "SELECT DATE_FORMAT(`dtime_add`,'%d') AS `day`,
+				   SUM(`sum`) AS `sum`
+			FROM `money`
+			WHERE `deleted`=0
+			  AND `sum`>0
+			  AND `dtime_add` LIKE '".$mon."%'
+			GROUP BY DATE_FORMAT(`dtime_add`,'%d')
+			ORDER BY `dtime_add` ASC";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$spisok[intval($r['day'])] =
+			'<tr><td class="r"><a href="'.URL.'&p=report&d=money&d1=income&day='.$mon.'-'.$r['day'].'">'.intval($r['day']).'.'.MON.'.'.YEAR.'</a>'.
+			'<td class="r"><b>'._sumSpace($r['sum']).'</b>';
+
+	$th = '';
+	foreach(_income() as $income_id => $i) {
+		$th .= '<th>'.$i['name'];
+		foreach($spisok as $y => $r)
+			$spisok[$y] .= '<td class="r">';
+		$sql = "SELECT DATE_FORMAT(`dtime_add`,'%d') AS `day`,
+					   SUM(`sum`) AS `sum`
+				FROM `money`
+				WHERE `deleted`=0
+				  AND `sum`>0
+				  AND `dtime_add` LIKE '".$mon."%'
+				  AND `income_id`=".$income_id."
+				GROUP BY DATE_FORMAT(`dtime_add`,'%d')
+				ORDER BY `dtime_add` ASC";
+		$q = query($sql);
+		while($r = mysql_fetch_assoc($q))
+			$spisok[intval($r['day'])] .= _sumSpace($r['sum']);
+	}
 	return
-	'<div id="report_mon">'.
-		'<a href="'.URL.'&p=report&d=month"><< к списку отчётов</a>'.
-		'<div class="headName">Формирование отчёта за '._monthDef($mon).' '.$year.'</div>'.
-		'<a href="'.SITE.'/view/_report.php?'.VALUES.'&mon='.$m.'">Отчёт за месяц</a>'.
-	'</div>';
+	'<div class="headName">Суммы платежей по дням за '._monthDef(MON, 1).' '.YEAR.'</div>'.
+	'<div class="inc-path">'.
+		'<a href="'.URL.'&p=report&d=money&d1=income&d2=all">Год</a> » '.
+		'<a href="'.URL.'&p=report&d=money&d1=income&d2=year&year='.YEAR.'">'.YEAR.'</a> » '.
+		'<b>'._monthDef(MON, 1).'</b>'.
+	'</div>'.
+	'<table class="_spisok">'.
+		'<tr><th>Месяц'.
+			'<th>Всего'.
+			$th.
+			implode('', $spisok).
+	'</table>';
+}//income_month()
+function income_day($day) {
+	$d = explode('-', $day);
+	define('YEAR', $d[0]);
+	define('MON', $d[1]);
+	define('DAY', $d[2]);
 
-}//report_month_mon()
+	$data = income_spisok(1, array('day' => $day));
+	return
+	'<div class="headName">Список платежей</div>'.
+	'<div class="inc-path">'.
+		'<a href="'.URL.'&p=report&d=money&d1=income&d2=all">Год</a> » '.
+		'<a href="'.URL.'&p=report&d=money&d1=income&d2=year&year='.YEAR.'">'.YEAR.'</a> » '.
+		'<a href="'.URL.'&p=report&d=money&d1=income&d2=month&mon='.YEAR.'-'.MON.'">'._monthDef(MON, 1).'</a> » '.
+		'<b>'.intval(DAY).'</b>'.
+	'</div>'.
+	'<div id="spisok">'.$data['spisok'].'</div>';
 
+}//income_day()
 
 function income_insert($v) {//Внесение платежа
 	if(empty($v['from']))
@@ -2628,7 +2771,8 @@ function incomeFilter($v) {
 	$send = array(
 		'limit' => 30,
 		'client_id' => 0,
-		'zayav_id' => 0
+		'zayav_id' => 0,
+		'day' => ''
 	);
 	if(isset($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) && $v['limit'] > 0)
 		$send['limit'] = $v['limit'];
@@ -2636,6 +2780,8 @@ function incomeFilter($v) {
 		$send['client_id'] = $v['client_id'];
 	if(isset($v['zayav_id']) && preg_match(REGEXP_NUMERIC, $v['zayav_id']))
 		$send['zayav_id'] = $v['zayav_id'];
+	if(isset($v['day']) && preg_match(REGEXP_DATE, $v['day']))
+		$send['day'] = $v['day'];
 	return $send;
 }//incomeFilter()
 function income_spisok($page=1, $filter=array()) {
@@ -2646,6 +2792,8 @@ function income_spisok($page=1, $filter=array()) {
 		$cond .= " AND `client_id`=".$filter['client_id'];
 	if($filter['zayav_id'])
 		$cond .= " AND `zayav_id`=".$filter['zayav_id'];
+	if($filter['day'])
+		$cond .= " AND `dtime_add` LIKE '".$filter['day']."%'";
 
 	$sql = "SELECT
 	            COUNT(`id`) AS `all`,
@@ -2738,13 +2886,51 @@ function income_right() {
 	return
 		'<div class="income_data">'.
 			'<a class="income_mon" val="2014">'._monthDef(strftime('%m', time())).'</a> '.
-			'<a class="income_year">'.strftime('%Y', time()).'</a>'.
+			'<a href="'.URL.'&p=report&d=money&d1=income&d2=all" class="income_year">'.strftime('%Y', time()).'</a>'.
 		'</div>'.
 		_calendarFilter(array(
 			'days' => $days,
 			'year' => strftime('%Y')
 		));
 }//income_right()
+
+function report_month() {
+	$sql = "SELECT SUBSTR(`dtime_add`, 1, 4) AS `year`,
+				   SUBSTR(`dtime_add`, 6, 2) AS `mon`
+	        FROM `zayav`
+	        GROUP BY SUBSTR(`dtime_add`, 1, 7)
+	        ORDER BY `dtime_add`";
+	$q = query($sql);
+	$years = array();
+	while($r = mysql_fetch_assoc($q))
+		$years[$r['year']][] = $r['mon'];
+
+	$curYear = strftime('%Y', time());
+	$spisok = '';
+	foreach($years as $y => $r) {
+		$months = '';
+		foreach($r as $mon)
+			$months .= '<tr><td><a href="'.URL.'&p=report&d=month&m='.$y.'-'.$mon.'">'._monthDef($mon).'</a>';
+		$spisok .= '<a class="yr">'.$y.'</a><table class="_spisok'.($curYear != $y ? ' dn' : '').'">'.$months.'</table>';
+	}
+	return
+		'<div id="report_month">'.
+		'<div class="headName">Формирование отчётов за месяц</div>'.
+		$spisok.
+		'</div>';
+}//report_month()
+function report_mon($m) {
+	$ex = explode('-', $m);
+	$year = $ex[0];
+	$mon = $ex[1];
+	return
+		'<div id="report_mon">'.
+		'<a href="'.URL.'&p=report&d=month"><< к списку отчётов</a>'.
+		'<div class="headName">Формирование отчёта за '._monthDef($mon).' '.$year.'</div>'.
+		'<a href="'.SITE.'/view/_report.php?'.VALUES.'&mon='.$m.'">Отчёт за месяц</a>'.
+		'</div>';
+
+}//report_month_mon()
 
 
 // ---===! setup !===--- Секция настроек
