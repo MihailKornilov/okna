@@ -27,6 +27,24 @@ var hashLoc,
 		if(s)
 			VK.callMethod('setLocation', hashLoc);
 	},
+	pinEnter = function() {
+		var send = {
+			op:'pin_enter',
+			pin: $.trim($('#pin').val())
+		};
+		if(send.pin && send.pin.length > 2) {
+			$('.vkButton').addClass('busy');
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success)
+					document.location.href = URL;
+				else {
+					$('.vkButton').removeClass('busy');
+					$('#pin').val('');
+					$('.red').html(res.text);
+				}
+			}, 'json');
+		}
+	},
 	clientAdd = function(callback) {
 		var html = '<table class="client-add">' +
 				'<tr><td class="label">Имя:<td><input type="text" id="fio" maxlength="100">' +
@@ -166,6 +184,7 @@ var hashLoc,
 			op:'zayav_findfast',
 			find:$.trim($('#find input').val())
 		};
+		$('.find-hide')[(send.find ? 'add' : 'remove') + 'Class']('dn');
 		if(!send.find) {
 			zayavSpisok();
 			return;
@@ -182,8 +201,8 @@ var hashLoc,
 	zayavFilter = function() {
 		return {
 			category:$('#zayav').attr('val'),
-			product:$('#product_id').val()
-				//			status:$('#status').val()
+			product:$('#product_id').val(),
+			status:$('#status').val()
 		};
 	},
 	zayavSpisok = function() {
@@ -780,14 +799,14 @@ $(document)
 
 	.on('click', '.zayav_add', function() {
 		var html =
-			'<div class="zayav-add all">' +
-				'<div class="vkButton zakaz_add"><button>Новый заказ</button></div><br />' +
-				'<div class="vkButton zamer_add"><button>Новый замер</button></div><br />' +
-				'<div class="vkButton set_add"><button>Новая установка</button></div>' +
+			'<div class="zayav-add">' +
+				'<div class="item zakaz_add"><b>Заказ</b>Новый заказ для продажи изделий без установки.<br />При необходимости в будущем заказ можно будет перевести в Установку.</div>' +
+				'<div class="item zamer_add"><b>Замер</b>Новая заявка на замер. Указывается дата и время замера. Заявка автоматически попадает в напоминания. Успешный замер переносится на заключение договора.</div>' +
+				'<div class="item set_add"><b>Установка</b>Новая заявка на установку изделий.' +
 			'</div>',
 			dialog = _dialog({
-				width:220,
-				top:60,
+				width:370,
+				top:30,
 				head:'Выберите категорию заявки',
 				content:html,
 				butSubmit:''
@@ -812,6 +831,7 @@ $(document)
 		}, 'json');
 	})
 	.on('click', '#zayav .filter_clear', function() {
+		$('.find-hide').removeClass('dn');
 		window.zFind.clear();
 		$('#product_id')._select(0);
 		zayavSpisok();
@@ -1468,6 +1488,153 @@ $(document)
 
 	.on('click', '#report_month .yr', function() {
 		$(this).next().toggle();
+	})
+
+	.on('click', '#setup_my .pinset', function() {
+		var t = $(this),
+			html = '<table class="setup-tab">' +
+				'<tr><td class="label">Новый пин-код:<td><input id="pin" type="password" maxlength="10" />' +
+				'</table>',
+			dialog = _dialog({
+				width:300,
+				head:'Установка нового пин-кода',
+				content:html,
+				butSubmit:'Установить',
+				submit:submit
+			});
+		$('#pin').focus().keyEnter(submit);
+		function submit() {
+			var send = {
+				op:'setup_my_pinset',
+				pin: $.trim($('#pin').val())
+			};
+			if(!send.pin) {
+				err('Введите пин-код');
+				$('#pin').focus();
+			} else if(send.pin.length < 3) {
+				err('Длина пин-кода от 3 до 10 символов');
+				$('#pin').focus();
+			} else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Пин-код установлен.');
+						document.location.reload();
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<span class="red">' + msg + '</span>',
+				top:-47,
+				left:52,
+				indent:50,
+				show:1,
+				remove:1
+			});
+		}
+	})
+	.on('click', '#setup_my .pinchange', function() {
+		var t = $(this),
+			html = '<table class="setup-tab">' +
+				'<tr><td class="label">Текущий пин-код:<td><input id="oldpin" type="password" maxlength="10" />' +
+				'<tr><td class="label">Новый пин-код:<td><input id="pin" type="password" maxlength="10" />' +
+				'</table>',
+			dialog = _dialog({
+				width:300,
+				head:'Изменение пин-кода',
+				content:html,
+				butSubmit:'Изменить',
+				submit:submit
+			});
+		$('#oldpin').focus().keyEnter(submit);
+		$('#pin').keyEnter(submit);
+		function submit() {
+			var send = {
+				op:'setup_my_pinchange',
+				oldpin: $.trim($('#oldpin').val()),
+				pin: $.trim($('#pin').val())
+			};
+			if(!send.oldpin || !send.pin)
+				err('Заполните оба поля');
+			else if(send.oldpin.length < 3 || send.pin.length < 3)
+				err('Длина пин-кода от 3 до 10 символов');
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Пин-код изменён.');
+						document.location.reload();
+					} else {
+						dialog.abort();
+						err(res.text);
+					}
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<span class="red">' + msg + '</span>',
+				top:-47,
+				left:52,
+				indent:50,
+				show:1,
+				remove:1
+			});
+		}
+	})
+	.on('click', '#setup_my .pindel', function() {
+		var t = $(this),
+			html = '<table class="setup-tab">' +
+				'<tr><td class="label">Текущий пин-код:<td><input id="oldpin" type="password" maxlength="10" />' +
+				'</table>',
+			dialog = _dialog({
+				width:300,
+				head:'Удаление пин-кода',
+				content:html,
+				butSubmit:'Применить',
+				submit:submit
+			});
+		$('#oldpin').focus().keyEnter(submit);
+		function submit() {
+			var send = {
+				op:'setup_my_pindel',
+				oldpin:$.trim($('#oldpin').val())
+			};
+			if(!send.oldpin) {
+				err('Заполните оба поля');
+				$('#oldpin').focus();
+			} else if(send.oldpin.length < 3) {
+				err('Длина пин-кода от 3 до 10 символов');
+				$('#oldpin').focus();
+			} else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Пин-код удалён.');
+						document.location.reload();
+					} else {
+						dialog.abort();
+						err(res.text);
+					}
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<span class="red">' + msg + '</span>',
+				top:-47,
+				left:52,
+				indent:50,
+				show:1,
+				remove:1
+			});
+		}
 	})
 
 	.on('click', '#setup_worker .add', function() {
@@ -2262,6 +2429,15 @@ $(document)
 	})
 
 	.ready(function() {
+		if($('#pin-enter').length > 0) {
+			$('#pin')
+				.focus()
+				.keydown(function() {
+					$('.red').html('&nbsp;');
+				})
+				.keyEnter(pinEnter);
+			$('.vkButton').click(pinEnter);
+		}
 		if($('#client').length > 0) {
 			window.cFind = $('#find')._search({
 				width:602,
@@ -2403,10 +2579,16 @@ $(document)
 				enter:1,
 				func:zayavFindFast
 			});
+			$('#status').rightLink(zayavSpisok);
+			var spisok = [];
+			for(var n = 0; n < PRODUCT_IDS.length; n++) {
+				var uid = PRODUCT_IDS[n];
+				spisok.push({uid:uid, title:PRODUCT_ASS[uid]});
+			}
 			$('#product_id')._select({
 				width:155,
 				title0:'Любые изделия',
-				spisok:PRODUCT_SPISOK,
+				spisok:spisok,
 				func:zayavSpisok
 			});
 		}
@@ -2856,7 +3038,7 @@ $(document)
 		}
 
 		if($('#setup_rules').length > 0) {
-			$('#gtab_save').click(function() {
+			$('.gtab-save').click(function() {
 				var send = {
 					op:'setup_worker_save',
 					viewer_id:RULES_VIEWER_ID,
@@ -2864,7 +3046,7 @@ $(document)
 					last_name:$('#last_name').val(),
 					post:$('#post').val()
 				},
-					but = $(this).parent();
+					but = $(this);
 				if(!send.first_name) { err('Не указано имя'); $('#first_name').focus(); }
 				else if(!send.last_name) { err('Не указана фамилия'); $('#last_name').focus(); }
 				else {
@@ -2886,24 +3068,27 @@ $(document)
 					});
 				}
 			});
+			$('.pin-clear').click(function() {
+				var send = {
+						op:'setup_worker_pinclear',
+						viewer_id:RULES_VIEWER_ID
+					},
+					but = $(this);
+				but.addClass('busy');
+				$.post(AJAX_MAIN, send, function(res) {
+					but.removeClass('busy');
+					if(res.success)
+						_msg('Пин-код сброшен.');
+				}, 'json');
+			});
 			$('#rules_appenter')._check(function(v, id) {
 				$('.app-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
-				$('.setup-div').addClass('dn');
 				setupRulesSet(v, id);
-				$('#rules_setup')._check(0);
 				$('#rules_worker')._check(0);
 				$('#rules_product')._check(0);
 				$('#rules_income')._check(0);
 				$('#rules_zayavrashod')._check(0);
 				$('#rules_historyshow')._check(0);
-			});
-			$('#rules_setup')._check(function(v, id) {
-				$('.setup-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
-				setupRulesSet(v, id);
-				$('#rules_worker')._check(0);
-				$('#rules_product')._check(0);
-				$('#rules_income')._check(0);
-				$('#rules_zayavrashod')._check(0);
 			});
 			$('#rules_worker')._check(setupRulesSet);
 			$('#rules_rekvisit')._check(setupRulesSet);

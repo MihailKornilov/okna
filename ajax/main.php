@@ -166,6 +166,7 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		clientBalansUpdate($r['client_id']);
+		_zayavBalansUpdate($r['zayav_id']);
 
 		history_insert(array(
 			'type' => 11,
@@ -197,6 +198,7 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		clientBalansUpdate($r['client_id']);
+		_zayavBalansUpdate($r['zayav_id']);
 
 		history_insert(array(
 			'type' => 12,
@@ -1123,7 +1125,6 @@ switch(@$_POST['op']) {
 			$old = zayav_rashod_spisok($zayav_id);
 			$sql = "DELETE FROM `zayav_rashod` WHERE `zayav_id`=".$zayav_id;
 			query($sql);
-			$expense_sum = 0;
 			foreach($rashod as $r) {
 				$sql = "INSERT INTO `zayav_rashod` (
 							`zayav_id`,
@@ -1139,14 +1140,8 @@ switch(@$_POST['op']) {
 							".$r[2]."
 						)";
 				query($sql);
-				$expense_sum += $r[2];
 			}
-			$accSum = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE `deleted`=0 AND `zayav_id`=".$zayav_id);
-			$sql = "UPDATE `zayav`
-			        SET `expense_sum`=".$expense_sum.",
-			            `expense_left`=".($accSum - $expense_sum)."
-					WHERE `id`=".$zayav_id;
-			query($sql);
+			_zayavBalansUpdate($zayav_id);
 			$changes = '<tr><td>'.$old.'<td>»<td>'.zayav_rashod_spisok($zayav_id);
 			history_insert(array(
 				'type' => 29,
@@ -1237,6 +1232,7 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		clientBalansUpdate($zayav['client_id']);
+		_zayavBalansUpdate($zayav_id);
 
 		history_insert(array(
 			'type' => 7,
@@ -1273,6 +1269,7 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		clientBalansUpdate($r['client_id']);
+		_zayavBalansUpdate($r['zayav_id']);
 
 		history_insert(array(
 			'type' => 8,
@@ -1303,6 +1300,7 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		clientBalansUpdate($r['client_id']);
+		_zayavBalansUpdate($r['zayav_id']);
 
 		history_insert(array(
 			'type' => 9,
@@ -1566,6 +1564,7 @@ switch(@$_POST['op']) {
 		dogovor_print($dog_id);
 
 		clientBalansUpdate($zayav['client_id']);
+		_zayavBalansUpdate($zayav_id);
 
 		jsonSuccess();
 		break;
@@ -1651,6 +1650,63 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 
+	case 'pin_enter':
+		$key = CACHE_PREFIX.'pin_enter_count'.VIEWER_ID;
+		$count = xcache_get($key);
+		if(empty($count))
+			$count = 0;
+		if($count > 4)
+			jsonError('Превышено максимальное количество попыток ввода.<br />'.
+					  'Продолжить ввод можно будет через 30 минут.<br /><br />'.
+					  'Если вы забыли свой пин-код, обратитесь к руководителю для его сброса.');
+		xcache_set($key, ++$count, 1800);
+		$pin = win1251(htmlspecialchars(trim($_POST['pin'])));
+		if(!$pin || strlen($pin) < 3 || strlen($pin) > 10)
+			jsonError('Некорректный ввод пин-кода');
+		if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `pin`='".$pin."' AND `viewer_id`=".VIEWER_ID))
+			jsonError('Неверный пин-код');
+		xcache_unset(CACHE_PREFIX.'pin_enter_count'.VIEWER_ID);
+		xcache_set(PIN_TIME_KEY, time(), 10800);
+		jsonSuccess();
+		break;
+	case 'setup_my_pinset':
+		$pin = win1251(htmlspecialchars(trim($_POST['pin'])));
+		if(PIN || !$pin || strlen($pin) < 3 || strlen($pin) > 10)
+			jsonError();
+		query("UPDATE `vk_user` SET `pin`='".$pin."' WHERE `viewer_id`=".VIEWER_ID);
+		xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
+		xcache_unset(PIN_TIME_KEY);
+		jsonSuccess();
+		break;
+	case 'setup_my_pinchange':
+		if(!PIN)
+			jsonError();
+		$oldpin = win1251(htmlspecialchars(trim($_POST['oldpin'])));
+		$pin = win1251(htmlspecialchars(trim($_POST['pin'])));
+		if(!$oldpin || strlen($oldpin) < 3 || strlen($oldpin) > 10)
+			jsonError();
+		if(!$pin || strlen($pin) < 3 || strlen($pin) > 10)
+			jsonError();
+		if(_viewer(VIEWER_ID, 'pin') != $oldpin)
+			jsonError('Неверный старый пин-код');
+		query("UPDATE `vk_user` SET `pin`='".$pin."' WHERE `viewer_id`=".VIEWER_ID);
+		xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
+		xcache_unset(PIN_TIME_KEY);
+		jsonSuccess();
+		break;
+	case 'setup_my_pindel':
+		if(!PIN)
+			jsonError();
+		$oldpin = win1251(htmlspecialchars(trim($_POST['oldpin'])));
+		if(!$oldpin || strlen($oldpin) < 3 || strlen($oldpin) > 10)
+			jsonError();
+		if(_viewer(VIEWER_ID, 'pin') != $oldpin)
+			jsonError('Неверный старый пин-код');
+		query("UPDATE `vk_user` SET `pin`='' WHERE `viewer_id`=".VIEWER_ID);
+		xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
+		xcache_unset(PIN_TIME_KEY);
+		jsonSuccess();
+		break;
 	case 'setup_worker_add':
 		if(!RULES_WORKER)
 			jsonError();
@@ -1774,6 +1830,28 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
+	case 'setup_worker_pinclear':
+		if(!VIEWER_ADMIN)
+			jsonError();
+		if(!RULES_WORKER)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
+			jsonError();
+
+		$viewer_id = intval($_POST['viewer_id']);
+		$sql = "SELECT *
+				FROM `vk_user`
+				WHERE `worker`=1
+				  AND `admin`=0
+				  AND `pin`!=''
+				  AND `viewer_id`=".$viewer_id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		query("UPDATE `vk_user` SET `pin`='' WHERE `viewer_id`=".$viewer_id);
+		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+		jsonSuccess();
+		break;
 	case 'setup_rules_set':
 		if(!RULES_WORKER)
 			jsonError();
@@ -1799,12 +1877,6 @@ switch(@$_POST['op']) {
 		unset($rules[$value]);
 		if($value == 'RULES_APPENTER')
 			$rules = array();
-		if($value == 'RULES_SETUP') {
-			unset($rules['RULES_WORKER']);
-			unset($rules['RULES_PRODUCT']);
-			unset($rules['RULES_INCOME']);
-			unset($rules['RULES_ZAYAVRASHOD']);
-		}
 		if($action)
 			$rules[$value] = 1;
 		$sql = "UPDATE `vk_user` SET `rules`='".implode(',', array_keys($rules))."' WHERE `viewer_id`=".$viewer_id;
@@ -2043,8 +2115,8 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'setup_invoice_add':
-//		if(!RULES_INCOME)
-//			jsonError();
+		if(!RULES_INCOME)
+			jsonError();
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		$types = trim($_POST['types']);
@@ -2084,8 +2156,8 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'setup_invoice_edit':
-//		if(!RULES_INCOME)
-//			jsonError();
+		if(!RULES_INCOME)
+			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
 		$invoice_id = intval($_POST['id']);
@@ -2143,8 +2215,8 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'setup_invoice_del':
-//		if(!RULES_INCOME)
-//			jsonError();
+		if(!RULES_INCOME)
+			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
 		$invoice_id = intval($_POST['id']);

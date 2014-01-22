@@ -1,3 +1,8 @@
+#pin-enter{margin:80px;text-align:center}
+#pin-enter input{width:70px;padding:5px}
+#pin-enter .red{margin-top:10px}
+
+
 /* Итоговая сумма для списка платежей */
 ._moneysum{margin-bottom:7px}
 
@@ -155,7 +160,7 @@
 .zayav-rashod-spisok{width:222px;margin:5px 4px;border-collapse:collapse}
 .zayav-rashod-spisok td{border:#dee4e8 solid 1px;padding:2px 4px}
 .zayav-rashod-spisok .name{width:50px}
-.zayav-rashod-spisok .sum{text-align:right;width:40px}
+.zayav-rashod-spisok .sum{text-align:right;width:40px;white-space:nowrap}
 .zayav-rashod-spisok .itog{text-align:right}
 
 /* Внесение новой заявки */
@@ -166,8 +171,16 @@
 #homeadres_check{margin:0 0 -3px 6px}
 .zayav-add #zakaz_txt{width:260px}
 .zayav-add #comm{width:260px;height:40px}
-.zayav-add.all{text-align:center}
-.zayav-add .vkButton{margin-top:15px}
+.zayav-add .item{
+	border:#ddd solid 1px;
+	padding:10px;
+	background-color:#eef;
+	margin:15px 15px 0;
+	color:#555;
+	cursor:pointer;
+}
+.zayav-add .item:hover{background-color:#f5f5ff;}
+.zayav-add .item b{display:block;color:#357;margin-bottom:4px;font-size:14px}
 .zayav-zamer-dtime ._calendar{margin-right:8px}
 .zayav-zamer-dtime #zamer_hour_select{margin-right:2px}
 .zayav-zamer-dtime #zamer_min_select{margin-left:1px}
@@ -189,6 +202,10 @@
 .zayav_unit .name span em{font-weight:normal}
 .zayav_unit .dtime{float:right;text-align:right;font-size:10px;color:#777;padding:4px}
 .zayav_unit .dtime em{font-size:10px}
+.zayav_unit .balans{color:#777;margin-top:2px}
+.zayav_unit .acc{color:#07a;cursor:help;font-size:10px}
+.zayav_unit .opl{color:#090;cursor:help;font-size:10px}
+.zayav_unit .diff .acc,.zayav_unit .diff .opl{color:#b33}
 .zayav_unit .ztab{border-spacing:2px;margin:4px 0 4px 8px}
 .zayav_unit .label{width:60px}
 .zayav_unit .product td{padding:1px 4px 3px 0}
@@ -386,6 +403,9 @@
 .setup-tab #name{width:210px}
 .setup-tab textarea{width:210px;height:70px}
 
+#setup_my .pinset{margin-left:150px}
+#setup_my .pinchange{margin:0 10px 0 80px}
+
 #setup_worker .headName{margin-bottom:15px}
 #setup_worker .unit,#setup_worker_add .res{border-spacing:10px;border:#DDE solid 1px;width:300px;margin:6px 0 6px 20px}
 #setup_worker .unit td,#setup_worker_add .res td{vertical-align:top}
@@ -416,11 +436,11 @@
 #setup_rules .name{font-weight:bold;font-size:12px;color:#45688e}
 #setup_rules .gtab{border-spacing:8px;margin-left:20px}
 #setup_rules .gtab input{width:230px}
-#setup_rules .headName{margin-top:15px}
+#setup_rules .headName{margin:20px 0 10px}
+#setup_rules .pin-clear{margin-left:97px}
 #setup_rules .rtab{border-spacing:8px;margin-left:20px}
 #setup_rules .lab{width:200px;text-align:right}
-#setup_rules .setup-div{margin-top:-5px}
-#setup_rules .setup-div div{display:block;margin-top:5px;color:#555}
+#setup_rules .setup-div div{display:block;margin-bottom:5px;color:#555}
 
 #setup_rekvisit .t{border-spacing:10px;margin-left:10px}
 #setup_rekvisit input{width:240px}

@@ -1,12 +1,16 @@
 <?php
 require_once 'config.php';
 
-_hashRead();
 _header();
+_hashRead();
 
 if(!AUTH || !RULES_APPENTER)
 	$html .= _noauth();
-else {
+elseif(PIN_ENTER) {
+	xcache_unset(PIN_TIME_KEY);
+	$html .= pin_enter();
+} else {
+	xcache_set(PIN_TIME_KEY, time(), 10800);
 	_mainLinks();
 	switch($_GET['p']) {
 		case 'client':
@@ -42,38 +46,12 @@ else {
 					}
 					$html .= zayav_info(intval($_GET['id']));
 					break;
-				default:
-					$html .= zayav();
-/*					$values = array();
-					if(HASH_VALUES) {
-						$ex = explode('.', HASH_VALUES);
-						foreach($ex as $r) {
-							$arr = explode('=', $r);
-							$values[$arr[0]] = $arr[1];
-						}
-					} else {
-						foreach($_COOKIE as $k => $val) {
-							$arr = explode('zayav_', $k);
-							if(isset($arr[1]))
-								$values[$arr[1]] = $val;
-						}
-					}
-					$values = array(
-						'find' => isset($values['find']) ? unescape($values['find']) : '',
-						'sort' => isset($values['sort']) ? intval($values['sort']) : 1,
-						'desc' => isset($values['desc']) && intval($values['desc']) == 1 ? 1 : 0,
-						'category' => isset($values['category']) ? intval($values['category']) : 0,
-						'status' => isset($values['status']) ? intval($values['status']) : 0
-					);
-					$html .= zayav_list(zayav_data(1, zayavfilter($values)), $values);
-					*/
+				default: $html .= zayav();
 			}
 			break;
 		case 'remind': $html .= remind(); break;
 		case 'report': $html .= report(); break;
-		case 'setup':
-			$html .= RULES_SETUP ? setup() : _norules('Настройки');
-			break;
+		case 'setup': $html .= setup(); break;
 		default: header('Location:'.URL.'&p=zayav');
 	}
 }

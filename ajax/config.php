@@ -1,6 +1,11 @@
 <?php
 require_once('../config.php');
 
+if(PIN && PIN_TIME + 10800 < time() && $_POST['op'] != 'pin_enter')
+	jsonError();
+if($_POST['op'] != 'pin_enter')
+	xcache_set(PIN_TIME_KEY, time(), 10800);
+
 function jsonError($values=null) {
 	$send['error'] = 1;
 	if(empty($values))

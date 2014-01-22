@@ -1,8 +1,13 @@
 <?php
 function _hashRead() {
+	if(PIN_ENTER) { // Если требуется пин-код, hash сохраняется в cookie
+		setcookie('hash', empty($_GET['hash']) ? @$_COOKIE['hash'] : $_GET['hash'], time() + 2592000, '/');
+		return;
+	}
+	$_GET['hash'] = isset($_COOKIE['hash']) ? $_COOKIE['hash'] : @$_GET['hash'];
+	setcookie('hash', '', time() - 5, '/');
 	$_GET['p'] = isset($_GET['p']) ? $_GET['p'] : 'zayav';
 	if(empty($_GET['hash'])) {
-		define('HASH_VALUES', false);
 		if(isset($_GET['start'])) {// восстановление последней посещённой страницы
 			$_GET['p'] = isset($_COOKIE['p']) ? $_COOKIE['p'] : $_GET['p'];
 			$_GET['d'] = isset($_COOKIE['d']) ? $_COOKIE['d'] : '';
@@ -15,7 +20,6 @@ function _hashRead() {
 	$ex = explode('.', $_GET['hash']);
 	$r = explode('_', $ex[0]);
 	unset($ex[0]);
-	define('HASH_VALUES', empty($ex) ? false : implode('.', $ex));
 	$_GET['p'] = $r[0];
 	unset($_GET['d']);
 	unset($_GET['d1']);
@@ -49,10 +53,39 @@ function _hashRead() {
 	_hashCookieSet();
 }//_hashRead()
 function _hashCookieSet() {
+	global $html;
 	setcookie('p', $_GET['p'], time() + 2592000, '/');
 	setcookie('d', isset($_GET['d']) ? $_GET['d'] : '', time() + 2592000, '/');
 	setcookie('d1', isset($_GET['d1']) ? $_GET['d1'] : '', time() + 2592000, '/');
 	setcookie('id', isset($_GET['id']) ? $_GET['id'] : '', time() + 2592000, '/');
+	$getArr = array(
+		'start' => 1,
+		'api_url' => 1,
+		'api_id' => 1,
+		'api_settings' => 1,
+		'viewer_id' => 1,
+		'viewer_type' => 1,
+		'sid' => 1,
+		'secret' => 1,
+		'access_token' => 1,
+		'user_id' => 1,
+		'group_id' => 1,
+		'is_app_user' => 1,
+		'auth_key' => 1,
+		'language' => 1,
+		'parent_language' => 1,
+		'ad_info' => 1,
+		'is_secure' => 1,
+		'referrer' => 1,
+		'lc_name' => 1,
+		'hash' => 1
+	);
+	$gValues = array();
+	foreach($_GET as $k => $val) {
+		if(isset($getArr[$k]) || empty($_GET[$k])) continue;
+		$gValues[] = '"'.$k.'":"'.$val.'"';
+	}
+	$html .= '<script type="text/javascript">hashSet({'.implode(',', $gValues).'})</script>';
 }//_hashCookieSet()
 function _cacheClear() {
 	xcache_unset(CACHE_PREFIX.'setup_global');
@@ -60,6 +93,8 @@ function _cacheClear() {
 	xcache_unset(CACHE_PREFIX.'product_sub');
 	xcache_unset(CACHE_PREFIX.'income');
 	xcache_unset(CACHE_PREFIX.'zayavrashod');
+	xcache_unset(CACHE_PREFIX.'pin_enter_count'.VIEWER_ID);
+	xcache_unset(PIN_TIME_KEY);
 	GvaluesCreate();
 }//_cacheClear()
 
@@ -106,61 +141,29 @@ function _header() {
 }//_header()
 function _footer() {
 	global $html, $sqlQuery, $sqlCount, $sqlTime;
-	if(SA) {
-		$d = empty($_GET['d']) ? '' :'&pre_d='.$_GET['d'];
-		$d1 = empty($_GET['d1']) ? '' :'&pre_d1='.$_GET['d1'];
-		$id = empty($_GET['id']) ? '' :'&pre_id='.$_GET['id'];
-		$html .= '<div id="admin">'.
-		  //  ($_GET['p'] != 'sa' && !SA_VIEWER_ID ? '<a href="'.URL.'&p=sa&pre_p='.$_GET['p'].$d.$d1.$id.'">Admin</a> :: ' : '').
-			'<a class="debug_toggle'.(DEBUG ? ' on' : '').'">В'.(DEBUG ? 'ы' : '').'ключить Debug</a> :: '.
-			'<a id="cache_clear">Очисить кэш ('.VERSION.')</a> :: '.
-			'sql <b>'.$sqlCount.'</b> ('.round($sqlTime, 3).') :: '.
-			'php '.round(microtime(true) - TIME, 3).' :: '.
-			'js <EM></EM>'.
+	if(SA)
+		$html .=
+			'<div id="admin">'.
+				'<a class="debug_toggle'.(DEBUG ? ' on' : '').'">В'.(DEBUG ? 'ы' : '').'ключить Debug</a> :: '.
+				'<a id="cache_clear">Очисить кэш ('.VERSION.')</a> :: '.
+				'sql <b>'.$sqlCount.'</b> ('.round($sqlTime, 3).') :: '.
+				'php '.round(microtime(true) - TIME, 3).' :: '.
+				'js <em></em>'.
 			'</div>'
 			.(DEBUG ? $sqlQuery : '');
-	}
-	$getArr = array(
-		'start' => 1,
-		'api_url' => 1,
-		'api_id' => 1,
-		'api_settings' => 1,
-		'viewer_id' => 1,
-		'viewer_type' => 1,
-		'sid' => 1,
-		'secret' => 1,
-		'access_token' => 1,
-		'user_id' => 1,
-		'group_id' => 1,
-		'is_app_user' => 1,
-		'auth_key' => 1,
-		'language' => 1,
-		'parent_language' => 1,
-		'ad_info' => 1,
-		'is_secure' => 1,
-		'referrer' => 1,
-		'lc_name' => 1,
-		'hash' => 1
-	);
-	$gValues = array();
-	foreach($_GET as $k => $val) {
-		if(isset($getArr[$k]) || empty($_GET[$k])) continue;
-		$gValues[] = '"'.$k.'":"'.$val.'"';
-	}
-	$html .= '<script type="text/javascript">hashSet({'.implode(',', $gValues).'})</script>'.
-		'</div></body></html>';
+	$html .= '</div></body></html>';
 }//_footer()
 
 function GvaluesCreate() {//Составление файла G_values.js
 	$save = //'function _toSpisok(s){var a=[];for(k in s)a.push({uid:k,title:s[k]});return a}'.
-		//'function _toAss(s){var a=[];for(var n=0;n<s.length;a[s[n].uid]=s[n].title,n++);return a}'.
+		'function _toAss(s){var a=[];for(var n=0;n<s.length;a[s[n].uid]=s[n].title,n++);return a}'.
 		'var '.
 		"\n".'WORKER_SPISOK='.query_selJson("SELECT `viewer_id`,CONCAT(`first_name`,' ',`last_name`) FROM `vk_user`
 											 WHERE `worker`=1
 											   AND `viewer_id`!=982006
 											 ORDER BY `dtime_add`").','.
 		"\n".'PRODUCT_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_product` ORDER BY `name`").','.
-		 //"\n".'PRODUCT_ASS=_toSpisok(PRODUCT_ASS),'.
+		"\n".'PRODUCT_ASS=_toAss(PRODUCT_SPISOK),'.
 		"\n".'PRIHOD_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_income` ORDER BY `sort`").','.
 		"\n".'ZAYAVRASHOD_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_zayavrashod` ORDER BY `sort`").','.
 		"\n".'ZAYAVRASHOD_TXT_ASS='.query_ptpJson("SELECT `id`,`show_txt` FROM `setup_zayavrashod` WHERE `show_txt`=1").','.
@@ -354,7 +357,7 @@ function _mainLinks() {
 		array(
 			'name' => 'Настройки',
 			'page' => 'setup',
-			'show' => RULES_SETUP
+			'show' => 1
 		)
 	);
 
@@ -370,11 +373,10 @@ function _mainLinks() {
 function rulesList($v=false) {
 	$rules = array(
 		'RULES_APPENTER' => 1,      // Разрешать вход в приложение
-		'RULES_SETUP' => 1,         // Управление установками
 		'RULES_WORKER' => 1,	    // Сотрудники
 		'RULES_REKVISIT' => 1,      // Реквизиты организации
 		'RULES_PRODUCT' => 1,       // Виды изделий
-		'RULES_INCOME' => 1,        // Виды платежей
+		'RULES_INCOME' => 1,        // Счета или виды платежей
 		'RULES_ZAYAVRASHOD' => 1,   // Расходы по заявке
 		'RULES_HISTORYSHOW' => 1    // Может видеть историю действий
 	);
@@ -585,6 +587,17 @@ function _calendarFilter($data=array()) {
 
 	return $send;
 }//_calendarFilter()
+
+
+function pin_enter() {
+	return
+	'<div id="pin-enter">'.
+		'Пин: '.
+		'<input type="password" id="pin" maxlength="10"> '.
+		'<div class="vkButton"><button>Ok</button></div>'.
+		'<div class="red">&nbsp;</div>'.
+	'</div>';
+}//pin_enter()
 
 
 // ---===! client !===--- Секция клиентов
@@ -950,7 +963,7 @@ function _zayavStatus($id=false) {
 			'color' => 'ffffff'
 		),
 		'1' => array(
-			'name' => 'В процессе',
+			'name' => 'Ожидает выполнения',
 			'color' => 'E8E8FF'
 		),
 		'2' => array(
@@ -958,7 +971,7 @@ function _zayavStatus($id=false) {
 			'color' => 'CCFFCC'
 		),
 		'3' => array(
-			'name' => 'Отмена',
+			'name' => 'Отменено',
 			'color' => 'FFDDDD'
 		)
 	);
@@ -993,6 +1006,22 @@ function _zayavCategory($z) {// Определение категории заявки
 		return 'set';
 	return false;
 }//_zayavCategory()
+function _zayavBalansUpdate($zayav_id) {//Обновление начислений, суммы платежей, дохода заявки
+	if(!$zayav_id)
+		return 0;
+	$accrual_sum = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `accrual` WHERE `deleted`=0 AND `zayav_id`=".$zayav_id);
+	$oplata_sum = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `sum`>0 AND `zayav_id`=".$zayav_id);
+	$expense_sum = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `zayav_rashod` WHERE `zayav_id`=".$zayav_id);
+	$sql = "UPDATE `zayav`
+			SET `accrual_sum`=".$accrual_sum.",
+				`oplata_sum`=".$oplata_sum.",
+				`expense_sum`=".$expense_sum.",
+				`net_profit`=".($accrual_sum - $expense_sum)."
+			WHERE `id`=".$zayav_id;
+	query($sql);
+	return true;
+}//_zayavBalansUpdate()
+
 
 function zayav_product_test($product) {// Проверка корректности данных изделий при внесении в базу
 	if(empty($product))
@@ -1100,7 +1129,7 @@ function zayav_rashod_spisok($zayav_id, $type='html') {//Получение списка расход
 	if(!empty($arr)) {
 		$z = query_assoc("SELECT * FROM `zayav` WHERE `id`=".$zayav_id." LIMIT 1");
 		$send .= '<tr><td colspan="2" class="itog">Итог:<td class="sum"><b>'.$z['expense_sum'].'</b> р.'.
-				 '<tr><td colspan="2" class="itog">Остаток:<td class="sum">'.$z['expense_left'].' р.';
+				 '<tr><td colspan="2" class="itog">Остаток:<td class="sum">'.$z['net_profit'].' р.';
 	}
 	$send .= '</table>';
 	switch($type) {
@@ -1118,28 +1147,36 @@ function zayav_rashod_spisok($zayav_id, $type='html') {//Получение списка расход
 
 function zayav() {
 	if(empty($_GET['d']))
-		$_GET['d'] = empty($_COOKIE['zayav_dop']) ? 'zamer' : $_COOKIE['zayav_dop'];
+		$_GET['d'] = empty($_COOKIE['zayav_dop']) ? 'zakaz' : $_COOKIE['zayav_dop'];
 	setcookie('zayav_dop', $_GET['d'] , time() + 846000, "/");
-	switch(@$_GET['d']) {
-		default:
-			$_GET['d'] = 'zakaz';
+	switch($_GET['d']) {
 		case 'zakaz':
 			$right =
 				'<div id="buttonCreate" class="zakaz_add"><a>Новый заказ</a></div>';
 			$data = zayav_spisok('zakaz');
+			$status = '<div class="findHead">Статус заявки</div>'.
+					  _rightLink('status', _zayavStatusName());
 			break;
 		case 'zamer':
 			$right = '<div id="buttonCreate" class="zamer_add"><a>Новый замер</a></div>'.
 					 '<a class="zamer_table">Таблица замеров</a>';
 			$data = zayav_spisok('zamer');
+			$st = _zayavStatusName();
+			unset($st[2]);
+			$status = '<div class="findHead">Статус заявки</div>'.
+					  _rightLink('status', $st);
+
 			break;
 		case 'dog':
 			$right = '';
 			$data = zayav_spisok('dog');
+			$status = '';
 			break;
 		case 'set':
 			$right = '<div id="buttonCreate" class="set_add"><a>Новая заявка<br />на установку</a></div>';
 			$data = zayav_spisok('set');
+			$status = '<div class="findHead">Статус заявки</div>'.
+					  _rightLink('status', _zayavStatusName());
 			break;
 	}
 	$result = $data['result'];
@@ -1170,6 +1207,9 @@ function zayav() {
 	                           AND `set_status`=1
 							 LIMIT 1");
 	return
+	'<script type="text/javascript">'.
+		'var PRODUCT_IDS=['.$data['product_ids'].'];'.
+	'</script>'.
 	'<div id="zayav" val="'.$_GET['d'].'">'.
 		'<div id="dopLinks">'.
 			'<div id="find"></div>'.
@@ -1183,14 +1223,18 @@ function zayav() {
 			'<tr><td id="spisok">'.$spisok.
 				'<td class="right">'.
 					$right.
-					'<div class="findHead">Изделия</div>'.
-					'<input type="hidden" id="product_id">'.
+					'<div class="find-hide">'.
+						$status.
+						'<div class="findHead">Изделия</div>'.
+						'<input type="hidden" id="product_id">'.
+					'</div>'.
 		'</table>'.
 	'</div>';
 }//zayav()
 function zayavFilter($v) {
 	$filter = array(
-		'product' => intval($v['product'])
+		'product' => intval($v['product']),
+		'status' => intval($v['status'])
 	);
 	return $filter;
 }//zayavFilter()
@@ -1200,11 +1244,15 @@ function zayav_spisok($category, $page=1, $filter=array()) {
 			$cond = "`deleted`=0
 		         AND `dogovor_require`=0
 	 	         AND `zakaz_status`>0";
+			if(!empty($filter['status']))
+				$cond .= " AND `zakaz_status`=".$filter['status'];
 			break;
 		case 'zamer':
 			$cond = "`deleted`=0
 				 AND `dogovor_require`=0
 				 AND (`zamer_status`=1 OR `zamer_status`=3)";
+			if(!empty($filter['status']))
+				$cond .= " AND `zamer_status`=".$filter['status'];
 			break;
 		case 'dog':
 			$cond = "`deleted`=0
@@ -1215,6 +1263,8 @@ function zayav_spisok($category, $page=1, $filter=array()) {
 			$cond = "`deleted`=0
 			     AND `dogovor_require`=0
 	             AND `set_status`>0";
+			if(!empty($filter['status']))
+				$cond .= " AND `set_status`=".$filter['status'];
 			break;
 		default: return 'Неизвестная категория заявок';
 	}
@@ -1267,6 +1317,10 @@ function zayav_spisok($category, $page=1, $filter=array()) {
 				'<span>Показать ещё '.$c.' заяв'._end($c, 'ка', 'ки', 'ок').'</span>'.
 			'</div>';
 	}
+
+	$ids = query_ids("SELECT DISTINCT `id` FROM `zayav` WHERE ".$cond);
+	$send['product_ids'] = query_ids("SELECT DISTINCT `product_id` FROM `zayav_product` WHERE `zayav_id` IN (".$ids.")");
+
 	return $send;
 }//zayav_spisok()
 function zayav_findfast($page=1, $find) {
@@ -1361,9 +1415,19 @@ function zakaz_unit($r, $no_client=0) {
 	$dop = $r['nomer_vg'] ? ' ВГ'.$r['nomer_vg'] :
 		  ($r['nomer_g'] ? ' Ж'.$r['nomer_g'] :
 		  ($r['nomer_d'] ? ' Д'.$r['nomer_d'] : ''));
+	$diff = $r['accrual_sum'] - $r['oplata_sum'];
 	return
 		'<div class="zayav_unit" style="background-color:#'._statusColor($r['zakaz_status']).'" val="'.$r['id'].'">'.
-			'<div class="dtime">#'.(isset($r['find_id']) ? $r['find_id'] : $r['id']).'<br />'.FullData($r['dtime_add'], 1).'</div>'.
+			'<div class="dtime">'.
+				'#'.(isset($r['find_id']) ? $r['find_id'] : $r['id']).'<br />'.
+				FullData($r['dtime_add'], 1).
+				($r['accrual_sum'] || $r['oplata_sum'] ?
+					'<div class="balans'.($r['accrual_sum'] != $r['oplata_sum'] ? ' diff' : '').'">'.
+						'<span class="acc" title="Начислено">'.$r['accrual_sum'].'</span>/'.
+						'<span class="opl" title="'.($diff ? 'Недоплата '.$diff.' руб.' : 'Оплачено').'">'.$r['oplata_sum'].'</span>'.
+					'</div>'
+				: '').
+			'</div>'.
 			'<a class="name">Заказ'.$dop.($r['dogovor_id'] ? ' <span>(Договор '.$r['dogovor_nomer'].')</span>' : '').'</a>'.
 			'<table class="ztab">'.
 				($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
@@ -1569,9 +1633,19 @@ function set_unit($r, $no_client=0) {
 	$dop = $r['nomer_vg'] ? ' ВГ'.$r['nomer_vg'] :
 		  ($r['nomer_g'] ? ' Ж'.$r['nomer_g'] :
 		  ($r['nomer_d'] ? ' Д'.$r['nomer_d'] : ''));
+	$diff = $r['accrual_sum'] - $r['oplata_sum'];
 	return
 	'<div class="zayav_unit" style="background-color:#'._statusColor($r['set_status']).'" val="'.$r['id'].'">'.
-		'<div class="dtime">#'.(isset($r['find_id']) ? $r['find_id'] : $r['id']).'<br />'.FullData($r['dtime_add'], 1).'</div>'.
+		'<div class="dtime">'.
+			'#'.(isset($r['find_id']) ? $r['find_id'] : $r['id']).'<br />'.
+			FullData($r['dtime_add'], 1).
+	($r['accrual_sum'] || $r['oplata_sum'] ?
+			'<div class="balans'.($diff ? ' diff' : '').'">'.
+				'<span class="acc" title="Начислено">'.$r['accrual_sum'].'</span>/'.
+				'<span class="opl" title="'.($diff ? 'Недоплата '.$diff.' руб.' : 'Оплачено').'">'.$r['oplata_sum'].'</span>'.
+			'</div>'
+	: '').
+		'</div>'.
 		'<a class="name">Установка'.$dop.($r['dogovor_id'] ? ' <span>(Договор '.$r['dogovor_nomer'].')</span>' : '').'</a>'.
 		'<table class="ztab">'.
 			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
@@ -2531,6 +2605,8 @@ function income_insert($v) {//Внесение платежа
 	$insert_id = mysql_insert_id();
 
 	clientBalansUpdate($v['client_id']);
+	_zayavBalansUpdate($v['zayav_id']);
+
 	history_insert(array(
 		'type' => 10,
 		'zayav_id' => $v['zayav_id'],
@@ -2674,8 +2750,8 @@ function income_right() {
 // ---===! setup !===--- Секция настроек
 
 function setup() {
-	$pageDef = 'worker';
 	$pages = array(
+		'my' => 'Мои настройки',
 		'worker' => 'Сотрудники',
 		'rekvisit' => 'Реквизиты организации',
 		'product' => 'Виды изделий',
@@ -2690,21 +2766,18 @@ function setup() {
 		unset($pages['rekvisit']);
 	if(!RULES_PRODUCT)
 		unset($pages['product']);
-	if(!RULES_INCOME)
+	if(!RULES_INCOME) {
+		unset($pages['invoice']);
 		unset($pages['income']);
+	}
 	if(!RULES_ZAYAVRASHOD)
 		unset($pages['zayavrashod']);
 
-	$d = empty($_GET['d']) ? $pageDef : $_GET['d'];
-	if(empty($_GET['d']) && !empty($pages) && empty($pages[$d])) {
-		foreach($pages as $p => $name) {
-			$d = $p;
-			break;
-		}
-	}
+	$d = empty($_GET['d']) ? 'my' : $_GET['d'];
 
 	switch($d) {
-		default: $d = $pageDef;
+		default: $d = 'my';
+		case 'my': $left = setup_my(); break;
 		case 'worker':
 			if(preg_match(REGEXP_NUMERIC, @$_GET['id'])) {
 				$left = setup_worker_rules(intval($_GET['id']));
@@ -2725,9 +2798,8 @@ function setup() {
 		case 'zayavrashod': $left = setup_zayavrashod(); break;
 	}
 	$links = '';
-	if($pages)
-		foreach($pages as $p => $name)
-			$links .= '<a href="'.URL.'&p=setup&d='.$p.'"'.($d == $p ? ' class="sel"' : '').'>'.$name.'</a>';
+	foreach($pages as $p => $name)
+		$links .= '<a href="'.URL.'&p=setup&d='.$p.'"'.($d == $p ? ' class="sel"' : '').'>'.$name.'</a>';
 	return
 	'<div id="setup">'.
 		'<table class="tabLR">'.
@@ -2736,6 +2808,28 @@ function setup() {
 		'</table>'.
 	'</div>';
 }//setup()
+
+function setup_my() {
+	return
+	'<div id="setup_my">'.
+		'<div class="headName">Пин-код</div>'.
+		'<div class="_info">'.
+			'<p>Пин-код необходим для дополнительного подтверждения вашей личности, '.
+			'если другой пользователь получит доступ к вашей странице ВКонтакте.'.
+			'<br />'.
+			'<p>Пин-код нужно будет вводить каждом новом входе в приложение, '.
+			'а также при отсутсвии действий в программе в течение 3-х часов.'.
+			'<br />'.
+			'<p>Если вы забудете пин-код, обратитесь к руководителю, чтобы сбросить его.'.
+		'</div>'.
+	(PIN ?
+		'<div class="vkButton pinchange"><button>Изменить пин-код</button></div>'.
+		'<div class="vkButton pindel"><button>Удалить пин-код</button></div>'
+		 :
+		'<div class="vkButton pinset"><button>Установить пин-код</button></div>'
+	).
+	'</div>';
+}//setup_my()
 
 function setup_worker() {
 	if(!RULES_WORKER)
@@ -2788,8 +2882,13 @@ function setup_worker_rules($viewer_id) {
 			'<tr><td class="label">Имя:<td><input type="text" id="first_name" value="'.$u['first_name'].'" />'.
 			'<tr><td class="label">Фамилия:<td><input type="text" id="last_name" value="'.$u['last_name'].'" />'.
 			'<tr><td class="label">Должность:<td><input type="text" id="post" value="'.$u['post'].'" />'.
-			'<tr><td><td><div class="vkButton"><button id="gtab_save">Сохранить</button></div>'.
+			'<tr><td><td><div class="vkButton gtab-save"><button>Сохранить</button></div>'.
 		'</table>'.
+
+	(!$u['admin'] && $u['pin'] ?
+		'<div class="headName">Пин-код</div>'.
+		'<div class="vkButton pin-clear"><button>Сбросить пин-код</button></div>'
+	: '').
 
 	(!$u['admin'] && $viewer_id < VIEWER_MAX ?
 		'<div class="headName">Права</div>'.
@@ -2798,15 +2897,13 @@ function setup_worker_rules($viewer_id) {
 		'</table>'.
 		'<div class="app-div'.($rule['RULES_APPENTER'] ? '' : ' dn').'">'.
 			'<table class="rtab">'.
-				'<tr><td class="lab">Управление установками:<td>'._check('rules_setup', '', $rule['RULES_SETUP']).
-				'<tr><td class="lab"><td>'.
-					'<div class="setup-div'.($rule['RULES_SETUP'] ? '' : ' dn').'">'.
+				'<tr><td class="lab top">Управление установками:'.
+					'<td class="setup-div">'.
 						_check('rules_worker', 'Сотрудники', $rule['RULES_WORKER']).
 						_check('rules_rekvisit', 'Реквизиты организации', $rule['RULES_REKVISIT']).
 						_check('rules_product', 'Виды изделий', $rule['RULES_PRODUCT']).
-						_check('rules_income', 'Виды платежей', $rule['RULES_INCOME']).
+						_check('rules_income', 'Счета и виды платежей', $rule['RULES_INCOME']).
 						_check('rules_zayavrashod', 'Расходы по заявке', $rule['RULES_ZAYAVRASHOD']).
-					'</div>'.
 				'<tr><td class="lab">Может видеть историю действий:<td>'._check('rules_historyshow', '', $rule['RULES_HISTORYSHOW']).
 			'</table>'.
 		'</div>'
@@ -2929,8 +3026,8 @@ function setup_product_sub_spisok($product_id) {
 }//setup_product_sub_spisok()
 
 function setup_invoice() {
-//	if(!RULES_INCOME)
-//		return _norules('Настройки видов платежей');
+	if(!RULES_INCOME)
+		return _norules('Настройки счетов или видов платежей');
 	return
 	'<div id="setup_invoice">'.
 		'<div class="headName">Управление счетами<a class="add">Новый счёт</a></div>'.
@@ -2980,7 +3077,7 @@ function setup_invoice_spisok() {
 
 function setup_income() {
 	if(!RULES_INCOME)
-		return _norules('Настройки видов платежей');
+		return _norules('Настройки счетов или видов платежей');
 	return
 	'<div id="setup_income">'.
 		'<div class="headName">Настройки видов платежей<a class="add">Добавить</a></div>'.
@@ -3084,3 +3181,20 @@ function setup_zayavrashod_spisok() {
 	$send .= '</dl>';
 	return $send;
 }//setup_zayavrashod_spisok()
+
+/*
+// обновление балансов заявок
+insert into zayav (id,client_id,viewer_id_add,accrual_sum)
+	SELECT zayav_id,0,0,IFNULL(SUM(`sum`),0) FROM `accrual` WHERE `deleted`=0 group by zayav_id
+on duplicate key update accrual_sum=values(accrual_sum);
+
+insert into zayav (id,client_id,viewer_id_add,oplata_sum)
+	SELECT zayav_id,0,0,IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `sum`>0 group by zayav_id
+on duplicate key update oplata_sum=values(oplata_sum);
+
+insert into zayav (id,client_id,viewer_id_add,expense_sum)
+	SELECT zayav_id,0,0,IFNULL(SUM(`sum`),0) FROM `zayav_rashod` group by zayav_id
+on duplicate key update expense_sum=values(expense_sum);
+
+update zayav set `net_profit`=accrual_sum-expense_sum;
+*/
