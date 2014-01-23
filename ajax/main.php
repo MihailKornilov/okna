@@ -17,6 +17,22 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
+	case 'calendar_filter_ch':
+		if(!preg_match(REGEXP_YEARMONTH, $_POST['month']))
+			jsonError();
+
+		$days = array();
+		if(!empty($_POST['func']) && preg_match(REGEXP_MYSQLTABLE, $_POST['func']) && function_exists($_POST['func']))
+			$days = $_POST['func']($_POST['month']);
+
+		$send['html'] = utf8(_calendarFilter(array(
+			'upd' => 1,
+			'month' => $_POST['month'],
+			'days' => $days
+		)));
+		jsonSuccess($send);
+		break;
+
 	case 'attach_upload':
 		/*
 			Прикрепление файлов
@@ -1641,6 +1657,11 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
+	case 'income_get':
+		$data = income_spisok(1, array('day' => $_POST['day']));
+		$send['html'] = utf8($data['spisok']);
+		jsonSuccess($send);
+		break;
 	case 'money_next':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
 			jsonError();

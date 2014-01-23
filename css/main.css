@@ -333,14 +333,25 @@
 
 
 ._calendarFilter .week-name{border-spacing:5px}
+._calendarFilter .data{width:100%;text-align:center}
+._calendarFilter .ch{font-size:12px;cursor:pointer;color:#777;width:25px}
+._calendarFilter .ch:hover{color:#333}
+._calendarFilter .data a{display:inline-block;padding:3px 3px;text-decoration:none}
 ._calendarFilter .month td{width:22px;padding:4px 0;text-align:center}
-._calendarFilter .week-name{color:#777;background-color:#eee}
+._calendarFilter .week-name td{color:#777;background-color:#eee;border-bottom:#ddd solid 1px}
+._calendarFilter .week-num{cursor:pointer;color:#58a;background-color:#eee;border-right:#ddd solid 1px}
+._calendarFilter tr:not(.sel) .week-num:hover,
+._calendarFilter .data a:not(.sel):hover
+{background-color:#DEE3EF}
 ._calendarFilter .cur{font-weight:bold;color:#000}
-._calendarFilter .on{text-decoration:underline;color:#33d;cursor:pointer}
-._calendarFilter .on:hover{background-color:#eee}
-._calendarFilter .old{color:#888}
-._calendarFilter .old.on{color:#e44}
-._calendarFilter.busy{opacity:.4}
+._calendarFilter .on{text-decoration:underline;color:#3A617E;cursor:pointer}
+._calendarFilter tr:not(.sel) .on:not(.sel):hover{background-color:#DEE3EF}
+._calendarFilter .old:not(.on){color:#777}
+._calendarFilter a.sel,
+._calendarFilter .sel td,
+._calendarFilter .on.sel{background-color:#BCCEE2}
+/*._calendarFilter .old.on{color:#e44}*/
+._calendarFilter.busy{opacity:.5}
 
 #remind:not(.y) .full{display:none}
 #remind.y .tabLR{display:none}
@@ -364,6 +375,8 @@
 
 
 /* Îò÷¸òû */
+#report .right{width:160px}
+#report ._calendarFilter{margin-top:15px}
 #report .headName{margin:0 0 15px 0}
 #report_history{margin:10px}
 .history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
@@ -385,6 +398,8 @@
 #invoice .setup{display:inline-block;float:right;margin-top:15px}
 #income{margin:10px}
 #income .inc-path{margin-bottom:10px}
+#income .sums td{white-space:nowrap}
+#income ._empty{margin:0}
 .income_data{margin:15px 0 3px;text-align:center}
 
 

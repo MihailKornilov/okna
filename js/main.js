@@ -567,6 +567,37 @@ $.fn.zayavRashod = function(o) {
 };
 
 $(document)
+	.on('click', '._calendarFilter .week-num,._calendarFilter .on,._calendarFilter .data a', function() {
+		var t = $(this),
+			p = t.hasClass('week-num') ? t.parent() : t,
+			sel = p.hasClass('sel'),
+			cal = p;
+		while(!cal.hasClass('_calendarFilter'))
+			cal = cal.parent();
+		if(!sel)
+			cal.find('.sel').removeClass('sel');
+		p[(sel ? 'remove' : 'add') + 'Class']('sel');
+		if(window._calendarFilter)
+			_calendarFilter(sel ? '' : t.attr('val'));
+	})
+	.on('click', '._calendarFilter .ch', function() {
+		var t = $(this),
+			send = {
+				op:'calendar_filter_ch',
+				month: t.attr('val')
+			};
+		while(!t.hasClass('_calendarFilter'))
+			t = t.parent();
+		if(t.hasClass('busy'))
+			return;
+		t.addClass('busy');
+		send.func = t.find('.func').val();
+		$.post(AJAX_MAIN, send, function(res) {
+			t.removeClass('busy');
+			if(res.success)
+				t.find('.content').html(res.html);
+		}, 'json');
+	})
 	.on('change', '._attach input', function() {
 		setCookie('_attached', 0);
 		var t = $(this), att = t;
@@ -2991,6 +3022,19 @@ $(document)
 			$('.goyear').click(function() {
 				$('#remind').addClass('y');
 			});
+		}
+
+		if($('#income').length > 0) {
+			window._calendarFilter = function(day) {
+				send = {
+					op:'income_get',
+					day:day
+				};
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success)
+						$('#income #spisok').html(res.html);
+				}, 'json');
+			};
 		}
 
 		if($('#setup_rules').length > 0) {

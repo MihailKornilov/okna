@@ -550,15 +550,43 @@ function translit($str) {
 }
 
 function _calendarFilter($data=array()) {
-	$year = empty($data['year']) ? strftime('%Y') : $data['year'];
-	$month = empty($data['month']) ? strftime('%m') : ($data['month'] < 10 ? 0 : '').$data['month'];
-	$days = empty($data['days']) ? array() : $data['days'];
+	$data = array(
+		'upd' => empty($data['upd']), // Обновлять существующий календать? (при перемотке масяцев)
+		'month' => empty($data['month']) ? strftime('%Y-%m') : $data['month'],
+		'sel' => empty($data['sel']) ? '' : $data['sel'],
+		'days' => empty($data['days']) ? array() : $data['days'],
+		'func' => empty($data['func']) ? '' : $data['func']
+	);
+	define('UPD', $data['upd']);
+	define('SHOW_MONTH', $data['month']);
+	define('CUR_MONTH', SHOW_MONTH == strftime('%Y-%m'));
+	define('CUR_DAY', intval(strftime('%d')));
+	$ex = explode('-', SHOW_MONTH);
+	define('SHOW_YEAR', $ex[0]);
+	define('SHOW_MON', $ex[1]);
+	$days = $data['days'];
 
-	$send = '<div class="_calendarFilter">'.
+	$back = SHOW_MON - 1;
+	$back = !$back ? (SHOW_YEAR - 1).'-12' : SHOW_YEAR.'-'.($back < 10 ? 0 : '').$back;
+	$next = SHOW_MON + 1;
+	$next = $next > 12 ? (SHOW_YEAR + 1).'-01' : SHOW_YEAR.'-'.($next < 10 ? 0 : '').$next;
+
+	$send =
+	(UPD ?
+		'<div class="_calendarFilter">'.
+			'<input type="hidden" class="func" value="'.$data['func'].'" />'.
+			'<div class="content">'
+	: '').
+				'<table class="data">'.
+					'<tr><td class="ch" val="'.$back.'">&laquo;'.
+						'<td><a val="'.SHOW_MONTH.'">'._monthDef(SHOW_MON).'</a> '.
+							'<a val="'.SHOW_YEAR.'">'.SHOW_YEAR.'</a>'.
+						'<td class="ch" val="'.$next.'">&raquo;'.
+				'</table>'.
 				'<table class="month">'.
-					'<tr class="week-name"><td>пн<td>вт<td>ср<td>чт<td>пт<td>сб<td>вс';
+					'<tr class="week-name"><th>&nbsp;<td>пн<td>вт<td>ср<td>чт<td>пт<td>сб<td>вс';
 
-	$unix = strtotime($year.'-'.$month.'-01');
+	$unix = strtotime(SHOW_MONTH.'-01');
 	$dayCount = date('t', $unix);   // Количество дней в месяце
 	$week = date('w', $unix);       // Номер первого дня недели
 	if(!$week)
@@ -566,24 +594,32 @@ function _calendarFilter($data=array()) {
 
 	$curUnix = strtotime(strftime('%Y-%m-%d')); // Текущий день для выделения прошедших дней
 
-	$curMonth = $year == strftime('%Y') && $month == strftime('%m');
-	$curDay = round(strftime('%d'));
-
-	$send .= '<tr>';
+	$weekNum = intval(date('W', $unix));    // Номер недели с начала месяца
+	$send .= '<tr><td class="week-num">'.$weekNum;
 	for($n = $week; $n > 1; $n--, $send .= '<td>'); // Вставка пустых полей, если первый день недели не понедельник
 	for($n = 1; $n <= $dayCount; $n++) {
-		$cur = $curMonth && $curDay == $n ? ' cur' : '';
-		$on = empty($days[$year.'-'.$month.'-'.($n < 10 ? '0' : '').$n]) ? '' : ' on';
+		$day = SHOW_MONTH.'-'.($n < 10 ? '0' : '').$n;
+		$cur = CUR_MONTH && CUR_DAY == $n ? ' cur' : '';
+		$on = empty($days[$day]) ? '' : ' on';
 		$old = $unix + $n * 86400 <= $curUnix ? ' old' : '';
-		$val = $on ? ' val="'.$year.'-'.$month.'-'.($n < 10 ? '0' : '').$n.'"' : '';
+		$val = $on ? ' val="'.$day.'"' : '';
 		$send .= '<td class="d '.$cur.$on.$old.'"'.$val.'>'.$n;
 		$week++;
 		if($week > 7)
 			$week = 1;
-		if($week == 1)
-			$send .= '<tr>';
+		if($week == 1 && $n < $dayCount) {
+			$start = $n + 1;
+			$end = $start + 6;
+			$start = SHOW_MONTH.'-'.($start < 10 ? '0' : '').$start;
+			$m = $end > $dayCount ? $next : SHOW_MONTH;
+			$end = $end > $dayCount ? $end - $dayCount : $end;
+			$end = $m.'-'.($end < 10 ? '0' : '').$end;
+			$send .= '<tr><td class="week-num" val="'.$start.':'.$end.'">'.(++$weekNum);
+		}
 	}
-	$send .= '</table></div>';
+	if($week > 1)
+		for($n = $week; $n <= 7; $n++, $send .= '<td>'); // Вставка пустых полей, если день заканчивается не воскресеньем
+	$send .= '</table>'.(UPD ? '</div></div>' : '');
 
 	return $send;
 }//_calendarFilter()
@@ -2580,7 +2616,7 @@ function income_all() {
 
 	return
 	'<div class="headName">Суммы платежей по годам</div>'.
-	'<table class="_spisok">'.
+	'<table class="_spisok sums">'.
 		'<tr><th>Год'.
 			'<th>Всего'.
 			$th.
@@ -2628,7 +2664,7 @@ function income_year($year) {
 	return
 	'<div class="headName">Суммы платежей по месяцам за '.$year.' год</div>'.
 	'<div class="inc-path"><a href="'.URL.'&p=report&d=money&d1=income&d2=all">Год</a> » <b>'.$year.'</b></div>'.
-	'<table class="_spisok">'.
+	'<table class="_spisok sums">'.
 		'<tr><th>Месяц'.
 			'<th>Всего'.
 			$th.
@@ -2684,7 +2720,7 @@ function income_month($mon) {
 		'<a href="'.URL.'&p=report&d=money&d1=income&d2=year&year='.YEAR.'">'.YEAR.'</a> » '.
 		'<b>'._monthDef(MON, 1).'</b>'.
 	'</div>'.
-	'<table class="_spisok">'.
+	'<table class="_spisok sums">'.
 		'<tr><th>Месяц'.
 			'<th>Всего'.
 			$th.
@@ -2772,7 +2808,9 @@ function incomeFilter($v) {
 		'limit' => 30,
 		'client_id' => 0,
 		'zayav_id' => 0,
-		'day' => ''
+		'day' => '',
+		'from' => '',
+		'to' => ''
 	);
 	if(isset($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) && $v['limit'] > 0)
 		$send['limit'] = $v['limit'];
@@ -2780,8 +2818,17 @@ function incomeFilter($v) {
 		$send['client_id'] = $v['client_id'];
 	if(isset($v['zayav_id']) && preg_match(REGEXP_NUMERIC, $v['zayav_id']))
 		$send['zayav_id'] = $v['zayav_id'];
-	if(isset($v['day']) && preg_match(REGEXP_DATE, $v['day']))
-		$send['day'] = $v['day'];
+	if(isset($v['day'])) {
+		if((preg_match(REGEXP_DATE, $v['day']) || preg_match(REGEXP_YEARMONTH, $v['day']) || preg_match(REGEXP_YEAR, $v['day'])))
+			$send['day'] = $v['day'];
+		else {
+			$ex = explode(':', $v['day']);
+			if(preg_match(REGEXP_DATE, $ex[0]) && preg_match(REGEXP_DATE, @$ex[1])) {
+				$send['from'] = $ex[0];
+				$send['to'] = $ex[1];
+			}
+		}
+	}
 	return $send;
 }//incomeFilter()
 function income_spisok($page=1, $filter=array()) {
@@ -2794,6 +2841,8 @@ function income_spisok($page=1, $filter=array()) {
 		$cond .= " AND `zayav_id`=".$filter['zayav_id'];
 	if($filter['day'])
 		$cond .= " AND `dtime_add` LIKE '".$filter['day']."%'";
+	if($filter['from'])
+		$cond .= " AND `dtime_add`>='".$filter['from']." 00:00:00' AND `dtime_add`<='".$filter['to']." 23:59:59'";
 
 	$sql = "SELECT
 	            COUNT(`id`) AS `all`,
@@ -2872,25 +2921,24 @@ function income_unit($r, $filter=array()) {
 				(!$r['dogovor_id'] ? '<div class="img_del oplata-del"></div>' : '');
 }//income_unit()
 
-function income_right() {
+function income_days($month=0) {
 	$sql = "SELECT DATE_FORMAT(`dtime_add`,'%Y-%m-%d') AS `day`
 			FROM `money`
 			WHERE `deleted`=0
 			  AND `sum`>0
-			  AND `dtime_add` LIKE ('".strftime('%Y-%m-')."%')
-			GROUP BY DATE_FORMAT(`dtime_add`,'%Y-%m-%d')";
+			  AND `dtime_add` LIKE ('".($month ? $month : strftime('%Y-%m'))."%')
+			GROUP BY DATE_FORMAT(`dtime_add`,'%d')";
 	$q = query($sql);
 	$days = array();
 	while($r = mysql_fetch_assoc($q))
 		$days[$r['day']] = 1;
+	return $days;
+}//income_days()
+function income_right() {
 	return
-		'<div class="income_data">'.
-			'<a class="income_mon" val="2014">'._monthDef(strftime('%m', time())).'</a> '.
-			'<a href="'.URL.'&p=report&d=money&d1=income&d2=all" class="income_year">'.strftime('%Y', time()).'</a>'.
-		'</div>'.
 		_calendarFilter(array(
-			'days' => $days,
-			'year' => strftime('%Y')
+			'days' => income_days(),
+			'func' => 'income_days'
 		));
 }//income_right()
 
