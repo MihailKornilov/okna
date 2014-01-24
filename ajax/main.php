@@ -17,22 +17,6 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
-	case 'calendar_filter_ch':
-		if(!preg_match(REGEXP_YEARMONTH, $_POST['month']))
-			jsonError();
-
-		$days = array();
-		if(!empty($_POST['func']) && preg_match(REGEXP_MYSQLTABLE, $_POST['func']) && function_exists($_POST['func']))
-			$days = $_POST['func']($_POST['month']);
-
-		$send['html'] = utf8(_calendarFilter(array(
-			'upd' => 1,
-			'month' => $_POST['month'],
-			'days' => $days
-		)));
-		jsonSuccess($send);
-		break;
-
 	case 'attach_upload':
 		/*
 			Прикрепление файлов
@@ -1622,9 +1606,15 @@ switch(@$_POST['op']) {
 		break;
 
 	case 'remind_day':
-		if(!preg_match(REGEXP_DATE, $_POST['day']))
+		if(!empty($_POST['day']) && !_calendarDataCheck($_POST['day']))
 			jsonError();
 		$send['html'] = utf8(remind_spisok(1, $_POST));
+		$send['cal'] = utf8(_calendarFilter(array(
+			'month' => $_POST['day'],
+			'days' => remind_days(),
+			'noweek' => 1,
+			'func' => 'remind_days'
+		)));
 		jsonSuccess($send);
 		break;
 
@@ -1659,10 +1649,11 @@ switch(@$_POST['op']) {
 
 	case 'income_get':
 		$data = income_spisok(1, array('day' => $_POST['day']));
+		$send['path'] = utf8(income_path($_POST['day']));
 		$send['html'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
-	case 'money_next':
+	case 'income_next':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
 			jsonError();
 		$page = intval($_POST['page']);

@@ -567,37 +567,6 @@ $.fn.zayavRashod = function(o) {
 };
 
 $(document)
-	.on('click', '._calendarFilter .week-num,._calendarFilter .on,._calendarFilter .data a', function() {
-		var t = $(this),
-			p = t.hasClass('week-num') ? t.parent() : t,
-			sel = p.hasClass('sel'),
-			cal = p;
-		while(!cal.hasClass('_calendarFilter'))
-			cal = cal.parent();
-		if(!sel)
-			cal.find('.sel').removeClass('sel');
-		p[(sel ? 'remove' : 'add') + 'Class']('sel');
-		if(window._calendarFilter)
-			_calendarFilter(sel ? '' : t.attr('val'));
-	})
-	.on('click', '._calendarFilter .ch', function() {
-		var t = $(this),
-			send = {
-				op:'calendar_filter_ch',
-				month: t.attr('val')
-			};
-		while(!t.hasClass('_calendarFilter'))
-			t = t.parent();
-		if(t.hasClass('busy'))
-			return;
-		t.addClass('busy');
-		send.func = t.find('.func').val();
-		$.post(AJAX_MAIN, send, function(res) {
-			t.removeClass('busy');
-			if(res.success)
-				t.find('.content').html(res.html);
-		}, 'json');
-	})
 	.on('change', '._attach input', function() {
 		setCookie('_attached', 0);
 		var t = $(this), att = t;
@@ -1357,31 +1326,6 @@ $(document)
 		});
 	})
 
-	.on('click', '.remind_calendar .on', function() {
-		var t = $(this),
-			cal = t.parent().parent(),
-			send = {
-				op:'remind_day',
-				day:t.attr('val')
-			};
-		if(cal.hasClass('busy'))
-			return;
-		cal.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success) {
-				$('#remind .left').html(res.html);
-				$('#remind').removeClass('y');
-			}
-			cal.removeClass('busy');
-		}, 'json');
-	})
-	.on('click', '#remind .fmon', function() {
-		var t = $(this);
-		$('.right .remind_calendar').html(t.next().html());
-		$('.goyear span').html(t.html());
-		$('#remind').removeClass('y');
-	})
-
 	.on('click', '#history_next', function() {
 		if($(this).hasClass('busy'))
 			return;
@@ -1458,11 +1402,12 @@ $(document)
 			return;
 		var next = $(this),
 			send = {
-				op:'money_next',
+				op:'income_next',
 				page:$(this).attr('val'),
 				limit:$('#money_limit').val(),
 				client_id:$('#money_client_id').val(),
-				zayav_id:$('#money_zayav_id').val()
+				zayav_id:$('#money_zayav_id').val(),
+				day:$('._calendarFilter .selected').val() || ''
 			};
 		next.addClass('busy');
 		$.post(AJAX_MAIN, send, function(res) {
@@ -3022,6 +2967,23 @@ $(document)
 			$('.goyear').click(function() {
 				$('#remind').addClass('y');
 			});
+			window._calendarFilter = function(day) {
+				var y = $('#remind').hasClass('y'),
+					cal = $('#remind .right ._calendarFilter'),
+					send = {
+						op:'remind_day',
+						day:day
+					};
+				if(y)
+					$('#remind').removeClass('y');
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						$('#remind .left').html(res.html);
+						if(y)
+							cal.html(res.cal);
+					}
+				}, 'json');
+			};
 		}
 
 		if($('#income').length > 0) {
@@ -3031,8 +2993,10 @@ $(document)
 					day:day
 				};
 				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success)
+					if(res.success) {
+						$('#income .inc-path').html(res.path);
 						$('#income #spisok').html(res.html);
+					}
 				}, 'json');
 			};
 		}
