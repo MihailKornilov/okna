@@ -769,7 +769,7 @@ function client_info($client_id) {
 						'<a class="sel">Информация</a>'.
 						'<a class="cedit">Редактировать</a>'.
 						'<a class="zayav_add"><b>Новая заявка</b></a>'.
-						'<a class="oplata-add">Внести платёж</a>'.
+						'<a class="income-add">Внести платёж</a>'.
 						'<a class="cdel">Удалить клиента</a>'.
 					'</div>'.
 		'</table>'.
@@ -1658,7 +1658,7 @@ function zayav_info($zayav_id) {
 			'<a class="link '.$type.'_edit">Редактирование</a>'.
 (ZAKAZ || SET ?
 			'<a class="link acc-add">Начислить</a>'.
-			'<a class="link oplata-add">Внести платёж</a>'
+			'<a class="link income-add">Внести платёж</a>'
 : '').
 			(RULES_HISTORYSHOW ? '<a class="link hist">История</a>' : '').
 		'</div>'.
@@ -1716,7 +1716,7 @@ function zayav_info($zayav_id) {
 			'</div>'.
 
 	(!DOG ?	'<div class="headBlue mon">Начисления и платежи'.
-				'<a class="add oplata-add">Внести платёж</a>'.
+				'<a class="add income-add">Внести платёж</a>'.
 				'<em>::</em>'.
 				'<a class="add acc-add">Начислить</a>'.
 			'</div>'.
@@ -2191,7 +2191,13 @@ function report() {
 				case 'expense': $left = 'расходы'; break;
 				case 'invoice': $left = invoice(); break;
 			}
-			$left = report_money_dopLinks($d1).$left;
+			$left =
+				'<div id="dopLinks">'.
+					'<a class="link'.($d1 == 'income' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=income">Платежи</a>'.
+					'<a class="link'.($d1 == 'expense' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=expense">Расходы</a>'.
+					'<a class="link'.($d1 == 'invoice' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=invoice">Счета</a>'.
+				'</div>'.
+				$left;
 			break;
 		case 'month':
 			$left = !empty($_GET['m']) && preg_match(REGEXP_YEARMONTH, $_GET['m']) ? report_mon($_GET['m']) : report_month();
@@ -2428,15 +2434,6 @@ function invoice_spisok() {
 	$send .= '</table>';
 	return $send;
 }//invoice_spisok()
-
-function report_money_dopLinks($d1) {
-	return
-	'<div id="dopLinks">'.
-		'<a class="link'.($d1 == 'income' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=income">Платежи</a>'.
-		'<a class="link'.($d1 == 'expense' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=expense">Расходы</a>'.
-		'<a class="link'.($d1 == 'invoice' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=invoice">Счета</a>'.
-	'</div>';
-}//report_money_dopLinks()
 
 function income_path($data) {
 	$ex = explode(':', $data);
@@ -2703,9 +2700,10 @@ function incomeFilter($v) {
 	return $send;
 }//incomeFilter()
 function income_spisok($page=1, $filter=array()) {
+	$filter = incomeFilter($filter);
+
 	$cond = '`deleted`=0 AND `sum`>0';
 
-	$filter = incomeFilter($filter);
 	if($filter['client_id'])
 		$cond .= " AND `client_id`=".$filter['client_id'];
 	if($filter['zayav_id'])
@@ -2789,7 +2787,10 @@ function income_unit($r, $filter=array()) {
 			'<td><span class="type">'._income($r['income_id']).(empty($about) ? '' : ':').'</span> '.$about.
 			'<td class="dtime" title="Вн'.(_viewer($r['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']).
 			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" class="img_doc" target="_blank"></a>'.
-				(!$r['dogovor_id'] ? '<div class="img_del oplata-del"></div>' : '');
+				(!$r['dogovor_id'] ?
+					'<div class="img_del income-del" title="Удалить платёж"></div>'.
+					'<div class="img_rest income-rest" title="Восстановить платёж"></div>'
+				: '');
 }//income_unit()
 
 

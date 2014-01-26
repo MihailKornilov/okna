@@ -617,9 +617,9 @@ $(document)
 		}, 'json');
 	})
 
-	.on('click', '.oplata-add', function() {
+	.on('click', '.income-add', function() {
 		var html =
-			'<table class="oplata-add-tab">' +
+			'<table class="income-add-tab">' +
 				'<tr><td class="label">Клиент:<td>' + OPL.client_fio +
 				'<tr><td class="label">Заявка:<td><input type="hidden" id="zayav_id" value="' + (OPL.zayav_id ? OPL.zayav_id : 0) + '">' +
 						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '') +
@@ -653,7 +653,7 @@ $(document)
 		});
 		function submit() {
 			var send = {
-				op:'oplata_add',
+				op:'income_add',
 				from:OPL.from,
 				type:$('#income_id').val(),
 				sum:$('#sum').val(),
@@ -699,7 +699,7 @@ $(document)
 			});
 		}
 	})
-	.on('click', '.oplata-del', function() {
+	.on('click', '.income-del', function() {
 		var t = $(this);
 		while(t[0].tagName != 'TR')
 			t = t.parent();
@@ -707,36 +707,26 @@ $(document)
 			return;
 		t.addClass('deleting');
 		var send = {
-			op:'oplata_del',
+			op:'income_del',
 			id:t.attr('val')
 		};
 		$.post(AJAX_MAIN, send, function(res) {
 			t.removeClass('deleting');
-			if(res.success) {
-				t.after('<tr class="deleted" val="' + send.id + '">' +
-							'<td colspan="4"><div>Платёж удалён. <a class="oplata-rest">Восстановить</a></div>');
-				t.addClass('dn');
-			}
+			if(res.success)
+				t.addClass('deleted');
 		}, 'json');
 	})
-	.on('click', '.oplata-rest', function() {
+	.on('click', '.income-rest', function() {
 		var t = $(this);
 		while(t[0].tagName != 'TR')
 			t = t.parent();
 		var send = {
-				op:'oplata_rest',
+				op:'income_rest',
 				id:t.attr('val')
-			},
-			div = t.find('div');
-		if(div.hasClass('_busy'))
-			return;
-		div.addClass('_busy');
+			};
 		$.post(AJAX_MAIN, send, function(res) {
-			div.removeClass('busy');
-			if(res.success) {
-				t.prev().removeClass('dn');
-				t.remove();
-			}
+			if(res.success)
+				t.removeClass('deleted');
 		}, 'json');
 	})
 	.on('click', '.accrual-del', function() {

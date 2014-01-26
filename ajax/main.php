@@ -117,7 +117,7 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
-	case 'oplata_add':
+	case 'income_add':
 		$v = array(
 			'from' => trim($_POST['from']),
 			'prim' => win1251(htmlspecialchars(trim($_POST['prim'])))
@@ -144,7 +144,7 @@ switch(@$_POST['op']) {
 		}
 		jsonSuccess($send);
 		break;
-	case 'oplata_del':
+	case 'income_del':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
 		$id = intval($_POST['id']);
@@ -179,7 +179,7 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
-	case 'oplata_rest':
+	case 'income_rest':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
 		$id = intval($_POST['id']);

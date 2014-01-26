@@ -33,10 +33,10 @@
 
 
 /* Таблица для внесения платежа */
-.oplata-add-tab{border-spacing:8px}
-.oplata-add-tab .label{width:150px;text-align:right}
-.oplata-add-tab .img_edit{position:relative;top:-3px;left:4px}
-.oplata-add-tab #prim{width:220px}
+.income-add-tab{border-spacing:8px}
+.income-add-tab .label{width:150px;text-align:right}
+.income-add-tab .img_edit{position:relative;top:-3px;left:4px}
+.income-add-tab #prim{width:220px}
 
 
 /* Таблица замеров */
