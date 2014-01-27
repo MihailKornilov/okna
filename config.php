@@ -20,8 +20,8 @@ $SA[982006] = 1; // Корнилов Михаил
 define('SA', isset($SA[VIEWER_ID]));
 if(SA) {
 	error_reporting(E_ALL);
-	ini_set('display_errors', TRUE);
-	ini_set('display_startup_errors', TRUE);
+	ini_set('display_errors', true);
+	ini_set('display_startup_errors', true);
 }
 
 setlocale(LC_ALL, 'ru_RU.CP1251');

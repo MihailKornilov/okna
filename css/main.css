@@ -119,7 +119,7 @@
 #client .unit.i{
 	background:url("data:image/gif;base64,R0lGODlhDgAOAKIAAAAAAP///9Pd6GuNsf///wAAAAAAAAAAACH5BAEAAAQALAAAAAAOAA4AAAMiSLoi+681CKWjyk68d+0eA17iSBJWJpVairraC7d0K9dOAgA7") no-repeat 428px 21px;
 }
-#client .ajaxNext{margin:0 10px}
+#client ._next{margin:0 10px}
 
 /* Информация о клиенте */
 #clientInfo .left{padding-bottom:10px}
@@ -134,7 +134,7 @@
 #clientInfo #dopLinks.busy{background-position:right center}
 #clientInfo #zayav_result{color:#777;text-align:center}
 #clientInfo .zayav_unit{margin-right:10px}
-#clientInfo .ajaxNext{margin:5px 10px 0 10px}
+#clientInfo ._next{margin:5px 10px 0 10px}
 #clientInfo #income_spisok,#clientInfo #histories{margin:10px;display:none}
 #clientInfo #income_spisok ._empty{margin:0;padding:60px 10px}
 #clientInfo #comments,#clientInfo #remind_spisok{margin:0 10px;display:none}
@@ -217,7 +217,7 @@
 #zayav .right{border:0;width:155px;padding-bottom:300px}
 #zayav .zamer_table{display:inline-block;margin-top:15px}
 #zayav .condLost.hide{display:none}
-#zayav .ajaxNext{margin:6px 5px 0 8px}
+#zayav ._next{margin:6px 5px 0 8px}
 #zayav #desc_check{margin-top:10px}
 #zayav ._empty{margin-right:6px;}
 
@@ -357,7 +357,7 @@
 #report .right{width:160px}
 #report ._calendarFilter{margin-top:15px}
 #report .headName{margin:0 0 15px 0}
-#report_history{margin:10px}
+.history .left{padding:10px}
 .history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
 .history_unit .head{font-size:10px;color:#777}
 .history_unit .head a{font-size:10px;margin-left:10px}
@@ -368,7 +368,7 @@
 .history_unit .changes td{padding:0 3px;vertical-align:top}
 .history_unit .changes .zayav-rashod-spisok{width:auto}
 .history_unit a.deleted{color:#b66}
-.history_unit em{color:#707070;margin-left:3px}
+.history_unit em{color:#707070}
 .history_unit .oplata{color:#770}
 .history_unit .zstatus{display:inline-block;padding:2px 5px;margin-top:3px}
 #invoice{margin:10px}
@@ -380,8 +380,15 @@
 #income .sums td{white-space:nowrap}
 #income ._empty{margin:0}
 .income_data{margin:15px 0 3px;text-align:center}
-
-
+.expense#report .headName{margin:10px}
+.expense #spisok{margin:15px 10px}
+.expense .years{margin-top:20px}
+.expense #monthSum_radio .sum{float:right}
+.expense #monthSum_radio .off .sum{color:#888}
+.expense ._empty{margin:0}
+#expense-add-tab{border-spacing:8px}
+#expense-add-tab .label{width:80px;text-align:right}
+#expense-add-tab #about{width:230px}
 
 
 #report_month{margin:10px 15px}
@@ -461,6 +468,12 @@
 #setup_income .money{width:60px;text-align:center}
 #setup_income .del{color:#888;cursor:help}
 #setup_income .set{width:40px}
+
+#setup_expense .name{width:180px}
+#setup_expense td.name{cursor:move}
+#setup_expense .worker{width:80px;text-align:center}
+#setup_expense .use{width:55px;text-align:center}
+#setup_expense .set{width:35px}
 
 #setup_zayavrashod .name{width:110px}
 #setup_zayavrashod td.name{cursor:move}
