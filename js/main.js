@@ -328,6 +328,19 @@ var hashLoc,
 		}
 	},
 
+	incomeSpisok = function() {
+		send = {
+			op:'income_spisok',
+			income_id:$('#income_id').val(),
+			day:$('.selected').val()
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success) {
+				$('.inc-path').html(res.path);
+				$('#spisok').html(res.html);
+			}
+		}, 'json');
+	},
 	expenseSpisok = function() {
 		var send = {
 			op:'expense_spisok',
@@ -2814,12 +2827,13 @@ $(document)
 						document.location.reload();
 				}, 'json');
 			});
-			$('#dogovor_action').linkMenu({
+			$('#dogovor_action')._dropdown({
 				head:'Не заключен',
 				spisok:[
 					{uid:1, title:'Заключить договор'},
 					{uid:2, title:'Перевести заявку в категорию "Требуется договор"'}
 				],
+				nosel:1,
 				func:function(v) {
 					if(v == 1)
 						dogovorCreate();
@@ -2833,8 +2847,7 @@ $(document)
 								document.location.reload();
 						}, 'json');
 					}
-				},
-				nosel:1
+				}
 			});
 			$('.reneg').click(dogovorCreate);
 			$('.zakaz_edit').click(function() {
@@ -3254,28 +3267,25 @@ $(document)
 			};
 		}
 
-		if($('#income').length) {
-			window._calendarFilter = function(day) {
-				send = {
-					op:'income_get',
-					day:day
-				};
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success) {
-						$('#income .inc-path').html(res.path);
-						$('#income #spisok').html(res.html);
-					}
-				}, 'json');
-			};
+		if($('#report.income').length) {
+			window._calendarFilter = incomeSpisok;
+			$('#income_id')._select({
+				width:155,
+				title0:'Любые платежи',
+				spisok:INCOME_SPISOK,
+				func:incomeSpisok
+			});
 		}
 		if($('#report.expense').length) {
 			$('.add').click(function() {
 				var html =
 						'<table id="expense-add-tab">' +
 							'<tr><td class="label">Категория:<TD><INPUT type="hidden" id="cat">' +
+								'<a href="' + URL + '&p=setup&d=expense" class="img_edit" title="Перейти к настройке категорий расходов"></a>' +
 							'<tr class="tr-work dn"><td class="label">Сотрудник:<TD><INPUT type="hidden" id="work">' +
 							'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
 							'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice">' +
+								'<a href="' + URL + '&p=setup&d=invoice" class="img_edit" title="Перейти к настройке счетов"></a>' +
 							'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
 						'</table>',
 					dialog = _dialog({

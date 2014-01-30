@@ -85,9 +85,9 @@
 	z-index:1000;
 	margin:5px 0 -11px;
 }
-
 #zamer-table .ztu:hover{background-color:#6d6}
 #zamer-table .ztu:hover .title{display:block}
+
 /* Внесение и редактирование клиента */
 .client-add{border-spacing:10px}
 .client-add td.label{width:75px;text-align:right}
@@ -98,9 +98,9 @@
 .client-add #pasp_ovd
 {width:240px}
 .client-add .tr_pasp{text-align:center}
-.client-add span.label{color:#888;margin:0 8px 0 30px}
+.client-add span.label{color:#777;margin:0 8px 0 30px}
 .client-add #pasp_seria{width:55px}
-.client-add #pasp_nomer{width:100px}
+.client-add #pasp_nomer{width:104px}
 .client-add #pasp_data{width:180px}
 
 /* Список клиентов */
@@ -110,9 +110,9 @@
 #client .dolg_sum b{color:#922;font-size:10px}
 #client #dolg_check{margin-top:20px}
 #client .left{padding-bottom:10px}
-#client .unit{margin:5px 10px 0 10px;border-bottom:#dae1e8 solid 1px;padding:5px}
-#client .unit table{border-spacing:1px}
-#client .label{width:70px}
+#client .unit{margin:5px 10px 0 10px;border-bottom:#dae1e8 solid 1px;padding:3px}
+#client .unit table{border-spacing:3px}
+#client .label{width:60px}
 #client .balans{float:right;width:90px;color:#888}
 #client .balans b{float:right}
 #client .unit em{background-color:#FFC;border-bottom:#FE2 solid 1px}
@@ -124,10 +124,10 @@
 /* Информация о клиенте */
 #clientInfo .left{padding-bottom:10px}
 #clientInfo .fio{color:#31618C;font-size:12px;font-weight:bold;margin:15px 5px 5px 20px}
-#clientInfo .cinf{border-spacing:2px;margin:0 10px 0 28px}
+#clientInfo .cinf{border-spacing:4px;margin:0 10px 0 26px}
 #clientInfo .cinf .label{width:60px}
 #clientInfo .pasp-head{margin:8px 0 3px 20px;color:#31618C}
-#clientInfo .pasp{margin-left:30px}
+#clientInfo .pasp{border-spacing:2px;margin-left:28px}
 #clientInfo .pasp .label{width:85px}
 #clientInfo .dtime_add{font-size:10px;color:#999;text-align:right;margin:10px}
 #clientInfo #dopLinks{border-top:#dae1e8 solid 1px}
@@ -355,7 +355,6 @@
 
 /* Отчёты */
 #report .right{width:160px}
-#report ._calendarFilter{margin-top:15px}
 #report .headName{margin:0 0 15px 0}
 .history .left{padding:10px}
 .history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
@@ -375,10 +374,12 @@
 #invoice pre{color:#777;font-size:10px;margin:3px 7px}
 #invoice .balans{text-align:right}
 #invoice .setup{display:inline-block;float:right;margin-top:15px}
-#income{margin:10px}
-#income .inc-path{margin-bottom:10px}
-#income .sums td{white-space:nowrap}
-#income ._empty{margin:0}
+.income#report .headName{margin:10px}
+.income .inc-path{margin:15px 10px}
+.income ._calendarFilter{margin:15px 0 10px}
+.income .sums td{white-space:nowrap}
+.income #spisok{margin:15px 10px}
+.income ._empty{margin:0}
 .income_data{margin:15px 0 3px;text-align:center}
 .expense#report .headName{margin:10px}
 .expense #spisok{margin:15px 10px}
@@ -389,6 +390,8 @@
 #expense-add-tab{border-spacing:8px}
 #expense-add-tab .label{width:80px;text-align:right}
 #expense-add-tab #about{width:230px}
+#expense-add-tab .img_edit{position:relative;top:-2px;left:4px}
+
 
 
 #report_month{margin:10px 15px}

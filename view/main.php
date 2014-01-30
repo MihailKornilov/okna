@@ -554,11 +554,11 @@ function _clientLink($arr, $fio=0) {//Добавление имени и ссылки клиента в массив
 	$clientArr = array(is_array($arr) ? 0 : $arr);
 	if(is_array($arr)) {
 		$ass = array();
-		foreach($arr as $r) {
-			$clientArr[$r['client_id']] = $r['client_id'];
-			if($r['client_id'])
+		foreach($arr as $r)
+			if(!empty($r['client_id'])) {
+				$clientArr[$r['client_id']] = $r['client_id'];
 				$ass[$r['client_id']][] = $r['id'];
-		}
+			}
 		unset($clientArr[0]);
 	}
 	if(!empty($clientArr)) {
@@ -754,7 +754,7 @@ function client_info($client_id) {
 								AND `table_name`='client'
 								AND `table_id`=".$client_id);
 
-	$money = income_spisok(1, array('client_id'=>$client_id,'limit'=>15));
+	$money = income_spisok(array('client_id'=>$client_id,'limit'=>15));
 
    // $remindData = remind_data(1, array('client'=>$client_id));
 
@@ -2239,7 +2239,6 @@ function report() {
 							$left = income_day($_GET['day']);
 							$right = income_right($_GET['day']);
 					}
-					$left = '<div id="income">'.$left.'</div>';
 					break;
 				case 'expense':
 					$left = expense();
@@ -2678,7 +2677,7 @@ function income_month($mon) {
 	'</table>';
 }//income_month()
 function income_day($day) {
-	$data = income_spisok(1, array('day' => $day));
+	$data = income_spisok(array('day' => $day));
 	return
 	'<div class="headName">Список платежей</div>'.
 	'<div class="inc-path">'.income_path($day).'</div>'.
@@ -2704,7 +2703,9 @@ function income_right($sel) {
 			'days' => income_days(),
 			'func' => 'income_days',
 			'sel' => $sel
-		));
+		)).
+		'<div class="findHead">Виды платежей</div>'.
+		'<input type="hidden" id="income_id">';
 }//income_right()
 
 function income_insert($v) {//Внесение платежа
@@ -2758,7 +2759,7 @@ function income_insert($v) {//Внесение платежа
 
 	switch($v['from']) {
 		case 'client':
-			$data = income_spisok(1, array('client_id'=>$v['client_id'],'limit'=>15));
+			$data = income_spisok(array('client_id'=>$v['client_id'],'limit'=>15));
 			return $data['spisok'];
 		case 'zayav': return zayav_money($v['zayav_id']);
 		default: return $insert_id;
@@ -2766,27 +2767,25 @@ function income_insert($v) {//Внесение платежа
 }//income_insert()
 function incomeFilter($v) {
 	$send = array(
-		'limit' => 30,
-		'client_id' => 0,
-		'zayav_id' => 0,
+		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
+		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 30,
+		'income_id' => !empty($v['income_id']) && preg_match(REGEXP_NUMERIC, $v['income_id']) ? $v['income_id'] : 0,
+		'client_id' => !empty($v['client_id']) && preg_match(REGEXP_NUMERIC, $v['client_id']) ? $v['client_id'] : 0,
+		'zayav_id' => !empty($v['zayav_id']) && preg_match(REGEXP_NUMERIC, $v['zayav_id']) ? $v['zayav_id'] : 0,
 		'day' => '',
 		'from' => '',
 		'to' => ''
 	);
-	if(isset($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) && $v['limit'] > 0)
-		$send['limit'] = $v['limit'];
-	if(isset($v['client_id']) && preg_match(REGEXP_NUMERIC, $v['client_id']))
-		$send['client_id'] = $v['client_id'];
-	if(isset($v['zayav_id']) && preg_match(REGEXP_NUMERIC, $v['zayav_id']))
-		$send['zayav_id'] = $v['zayav_id'];
 	$send = _calendarPeriod(@$v['day']) + $send;
 	return $send;
 }//incomeFilter()
-function income_spisok($page=1, $filter=array()) {
+function income_spisok($filter=array()) {
 	$filter = incomeFilter($filter);
 
 	$cond = '`deleted`=0 AND `sum`>0';
 
+	if($filter['income_id'])
+		$cond .= " AND `income_id`=".$filter['income_id'];
 	if($filter['client_id'])
 		$cond .= " AND `client_id`=".$filter['client_id'];
 	if($filter['zayav_id'])
@@ -2809,6 +2808,7 @@ function income_spisok($page=1, $filter=array()) {
 			'spisok' => '<div class="_empty">Платежей нет.</div>'
 		);
 
+	$page = $filter['page'];
 	$start = ($page - 1) * $filter['limit'];
 	$sql = "SELECT *
 			FROM `money`

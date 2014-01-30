@@ -1552,17 +1552,14 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
-	case 'income_get':
-		$data = income_spisok(1, array('day' => $_POST['day']));
+	case 'income_spisok':
+		$data = income_spisok($_POST);
 		$send['path'] = utf8(income_path($_POST['day']));
 		$send['html'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
 	case 'income_next':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$page = intval($_POST['page']);
-		$data = income_spisok($page, $_POST);
+		$data = income_spisok($_POST);
 		$send['html'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
