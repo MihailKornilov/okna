@@ -1578,6 +1578,126 @@ $(document)
 		$(this).next().toggle();
 	})
 
+	.on('click', '.salary .up', function() {
+		var html =
+				'<table class="salary-tab">' +
+					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
+					'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="50">' +
+				'</table>',
+			dialog = _dialog({
+				head:'Внесение начисления для сотрудника',
+				content:html,
+				submit:submit
+			});
+
+		$('#sum').focus();
+		$('#sum,#about').keyEnter(submit);
+		function submit() {
+			var send = {
+				op:'salary_up',
+				worker:WORKER_ID,
+				sum:$('#sum').val(),
+				about:$('#about').val()
+			};
+			if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Начислние произведено.');
+						$('#spisok').html(res.html);
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:40,
+				show:1,
+				top:-47,
+				left:101
+			});
+		}
+	})
+	.on('click', '.salary .down', function() {
+		var html =
+				'<table class="salary-tab">' +
+					'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice">' +
+						'<a href="' + URL + '&p=setup&d=invoice" class="img_edit" title="Перейти к настройке счетов"></a>' +
+					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
+					'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
+				'</table>',
+			dialog = _dialog({
+				head:'Выдача зарплаты сотруднику',
+				content:html,
+				submit:submit
+			});
+
+		$('#sum').focus();
+		$('#invoice')._select({
+			title0:'Не выбран',
+			spisok:INVOICE_SPISOK,
+			func:function() {
+				$('#sum').focus();
+			}
+		});
+		$('#sum,#about').keyEnter(submit);
+
+		function submit() {
+			var send = {
+				op:'salary_down',
+				worker:WORKER_ID,
+				invoice:$('#invoice').val() * 1,
+				sum:$('#sum').val(),
+				about:$('#about').val()
+			};
+			if(!send.invoice) err('Укажите с какого счёта производится выдача.');
+			else if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function (res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Выдача зарплаты произведена.');
+						$('#spisok').html(res.html);
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:40,
+				show:1,
+				top:-47,
+				left:101
+			});
+		}
+	})
+	.on('click', '.salary ._next', function() {
+		var next = $(this),
+			send = {
+				op:'salary_spisok',
+				page:$(this).attr('val'),
+				worker_id:WORKER_ID
+			};
+		if(next.hasClass('busy'))
+			return;
+		next.addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				next.after(res.html).remove();
+			else
+				next.removeClass('busy');
+		}, 'json');
+	})
+
 	.on('click', '#setup_my .pinset', function() {
 		var t = $(this),
 			html = '<table class="setup-tab">' +
@@ -3152,7 +3272,7 @@ $(document)
 				$('#zrs').zayavRashod(ZAYAV.rashod);
 				function submit() {
 					var send = {
-						op:'zayav_rashod_edit',
+						op:'zayav_expense_edit',
 						zayav_id:ZAYAV.id,
 						rashod:$('#zrs').zayavRashod('get')
 					};
@@ -3316,6 +3436,7 @@ $(document)
 						$('#sum').focus();
 					}
 				});
+				$('#sum,#about').keyEnter(submit);
 
 				function submit() {
 					var send = {

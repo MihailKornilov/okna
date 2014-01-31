@@ -1012,7 +1012,7 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
-	case 'zayav_rashod_edit':
+	case 'zayav_expense_edit':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
 
@@ -1028,10 +1028,10 @@ switch(@$_POST['op']) {
 		$rashodOld = zayav_rashod_spisok($zayav_id, 'array');
 		if($rashod != $rashodOld) {
 			$old = zayav_rashod_spisok($zayav_id);
-			$sql = "DELETE FROM `zayav_rashod` WHERE `zayav_id`=".$zayav_id;
+			$sql = "DELETE FROM `zayav_expense` WHERE `zayav_id`=".$zayav_id;
 			query($sql);
 			foreach($rashod as $r) {
-				$sql = "INSERT INTO `zayav_rashod` (
+				$sql = "INSERT INTO `zayav_expense` (
 							`zayav_id`,
 							`category_id`,
 							`txt`,
@@ -1047,6 +1047,7 @@ switch(@$_POST['op']) {
 				query($sql);
 			}
 			_zayavBalansUpdate($zayav_id);
+			_salaryBalansUpdate();
 			$changes = '<tr><td>'.$old.'<td>»<td>'.zayav_rashod_spisok($zayav_id);
 			history_insert(array(
 				'type' => 29,
@@ -1695,6 +1696,10 @@ switch(@$_POST['op']) {
 					".VIEWER_ID."
 				)";
 		query($sql);
+
+		if($worker)
+			_salaryBalansUpdate();
+
 		history_insert(array(
 			'type' => 32,
 			'value' => abs($sum),
@@ -1724,6 +1729,9 @@ switch(@$_POST['op']) {
 				WHERE `id`=".$id;
 		query($sql);
 
+		if($r['worker_id'])
+			_salaryBalansUpdate();
+
 		history_insert(array(
 			'type' => 33,
 			'value' => abs($r['sum']),
@@ -1752,6 +1760,9 @@ switch(@$_POST['op']) {
 					`dtime_del`='0000-00-00 00:00:00'
 				WHERE `id`=".$id;
 		query($sql);
+
+		if($r['worker_id'])
+			_salaryBalansUpdate();
 
 		history_insert(array(
 			'type' => 34,
@@ -1811,6 +1822,7 @@ switch(@$_POST['op']) {
 		$invoice = intval($_POST['invoice']);
 		$sum = intval($_POST['sum']) * -1;
 
+
 		if($r['expense_id'] != $category ||
 		   $r['worker_id'] != $worker ||
 		   $r['prim'] != $about ||
@@ -1824,6 +1836,8 @@ switch(@$_POST['op']) {
 						`worker_id`=".$worker."
 					WHERE `id`=".$id;
 			query($sql);
+
+			_salaryBalansUpdate();
 
 			history_insert(array(
 				'type' => 35,
@@ -1841,6 +1855,82 @@ switch(@$_POST['op']) {
 		}
 
 		jsonSuccess();
+		break;
+
+	case 'salary_up':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
+			jsonError();
+		if(empty($_POST['sum']) && !preg_match(REGEXP_NUMERIC, $_POST['sum']))
+			jsonError();
+		$about = win1251(htmlspecialchars(trim($_POST['about'])));
+		$worker = intval($_POST['worker']);
+		$sum = intval($_POST['sum']);
+		$sql = "INSERT INTO `zayav_expense` (
+					`worker_id`,
+					`sum`,
+					`txt`
+				) VALUES (
+					".$worker.",
+					".$sum.",
+					'".addslashes($about)."'
+				)";
+		query($sql);
+
+		_salaryBalansUpdate();
+
+		history_insert(array(
+			'type' => 36,
+			'value' => abs($sum),
+			'value1' => $about,
+			'value2' => $worker
+		));
+
+		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
+		jsonSuccess($send);
+		break;
+	case 'salary_down':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
+			jsonError();
+		if(empty($_POST['sum']) && !preg_match(REGEXP_NUMERIC, $_POST['sum']))
+			jsonError();
+		if(empty($_POST['invoice']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice']))
+			jsonError();
+		$about = win1251(htmlspecialchars(trim($_POST['about'])));
+		$worker = intval($_POST['worker']);
+		$invoice = intval($_POST['invoice']);
+		$sum = intval($_POST['sum']) * -1;
+		$sql = "INSERT INTO `money` (
+					`sum`,
+					`prim`,
+					`invoice_id`,
+					`expense_id`,
+					`worker_id`,
+					`viewer_id_add`
+				) VALUES (
+					".$sum.",
+					'".addslashes($about)."',
+					".$invoice.",
+					1,
+					".$worker.",
+					".VIEWER_ID."
+				)";
+		query($sql);
+
+		_salaryBalansUpdate();
+
+		history_insert(array(
+			'type' => 37,
+			'value' => abs($sum),
+			'value1' => $about,
+			'value2' => $worker
+		));
+
+		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
+		jsonSuccess($send);
+		break;
+	case 'salary_spisok':
+		$send['html'] = utf8(salary_worker_spisok($_POST));
+		jsonSuccess($send);
 		break;
 
 	case 'pin_enter':
@@ -2736,7 +2826,7 @@ switch(@$_POST['op']) {
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-		if(query_value("SELECT COUNT(`id`) FROM `zayav_rashod` WHERE `category_id`=".$id))
+		if(query_value("SELECT COUNT(`id`) FROM `zayav_expense` WHERE `category_id`=".$id))
 			jsonError();
 		$sql = "DELETE FROM `setup_zayavrashod` WHERE `id`=".$id;
 		query($sql);
