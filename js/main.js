@@ -1255,34 +1255,78 @@ $(document)
 	})
 
 	.on('click', '.invoice_set', function() {
+		if(!window.CASH)
+			window.CASH = [];
 		var t = $(this),
-			html =
-				'<table style="border-spacing:10px">' +
-					'<tr><td class="label">Сумма:<td><INPUT type="text" class="money" id="sum" maxlength="7"> руб.' +
-				'</table>',
-			dialog = _dialog({
-				width:300,
-				top:60,
+			invoice_id = t.attr('val'),
+			html = '<table class="_dialog-tab">',
+			len = CASH.length,
+			nal = invoice_id == '1' && !!len;
+
+		if(nal) {
+			for(n = 0; n < len; n++)
+				html +=
+					'<tr><td class="label">' + CASH[n].name + ':' +
+						'<td><INPUT type="text" class="money" maxlength="11" value="' + CASH[n].sum + '"> руб.';
+			html += '<tr><td class="label">Счёт <b>' + INVOICE_NAME + '</b>:<td><b id="summa">0</b> руб.';
+		} else
+			html += '<tr><td class="label">Сумма:<td><INPUT type="text" class="money" id="sum" maxlength="11"> руб.';
+
+		html += '</table>';
+		var dialog = _dialog({
+				width:320,
 				head:'Установка начального баланса счёта',
 				content:html,
 				butSubmit:'Установить',
 				submit:submit
+			}),
+			inp = dialog.content.find('input');
+
+		inp.eq(0).focus();
+		inp.keyEnter(submit);
+		if(nal) {
+			inp.keyup(function() {
+				var summa = 0;
+				for(n = 0; n < len; n++) {
+					var sum = inp.eq(n).val();
+					if(REGEXP_CENA.test(sum))
+						summa += sum.replace(',', '.') * 1;
+					else {
+						summa = 0;
+						break;
+					}
+				}
+				$('#summa').html(summa);
 			});
-		$('#sum').focus().keyEnter(submit);
+		}
 		function submit() {
+			var cash = [];
+			if(nal)
+				for(n = 0; n < len; n++) {
+					var sum = inp.eq(n).val();
+					if(REGEXP_CENA.test(sum))
+						cash.push(CASH[n].id + '=' + sum.replace(',', '.') * 1);
+					else {
+						err('Некорректно указана сумма');
+						inp.eq(n).focus();
+						return;
+					}
+				}
 			var send = {
 				op:'invoice_set',
-				invoice_id:t.attr('val'),
-				sum:$('#sum').val()
+				invoice_id:invoice_id,
+				sum:nal ? 0 : $('#sum').val(),
+				cash:cash.join(':')
 			};
-			if(!REGEXP_NUMERIC.test(send.sum)) {
+			if(!nal && !REGEXP_CENA.test(send.sum)) {
 				err('Некорректно указана сумма');
 				$('#sum').focus();
 			} else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
-						t.parent().html('<b>' + send.sum + '</b> руб.');
+						$('#cash-spisok').html(res.c);
+						$('#invoice-spisok').html(res.i);
 						dialog.close();
 						_msg('Баланс установлен.');
 					} else
@@ -1297,7 +1341,7 @@ $(document)
 				indent:40,
 				show:1,
 				top:-48,
-				left:62
+				left:72
 			});
 		}
 	})
@@ -1311,7 +1355,7 @@ $(document)
 						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '') +
 				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="income_id" value="0">' +
 					'<a href="' + URL + '&p=setup&d=income" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
-				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="7"> руб.' +
+				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="11"> руб.' +
 				'<tr><td class="label">Примечание:<em>(не обязательно)</em><td><input type="text" id="prim">' +
 			'</table>';
 		var dialog = _dialog({
@@ -1348,7 +1392,7 @@ $(document)
 				prim:$.trim($('#prim').val())
 			};
 			if(send.type == 0) err('Не указан вид платежа');
-			else if(!REGEXP_NUMERIC.test(send.sum)) {
+			else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) {
 				err('Некорректно указана сумма.');
 				$('#sum').focus();
 			} else if(send.zayav_id == 0 && !send.prim)
@@ -1578,6 +1622,62 @@ $(document)
 		$(this).next().toggle();
 	})
 
+	.on('click', '.salary .rate-set', function() {
+		var html =
+				'<div class="_info">' +
+					'После установки ставки сотруднику указанная сумма будет автоматически начисляться ' +
+					'на его баланс ежемесячно в определённый день. ' +
+					'День начисления может быть выбран в промежутке от 1-го до 28 числа.' +
+				'</div>' +
+				'<table class="salary-tab">' +
+					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="11" value="' + (RATE ? RATE : '') + '" /> руб.' +
+					'<tr><td class="label">День начисления:<TD><INPUT type="text" id="day" maxlength="2" value="' + (RATE ? RATE_DAY : '') + '" />' +
+				'</table>',
+			dialog = _dialog({
+				top:30,
+				width:320,
+				head:'Установка ставки з/п для сотрудника',
+				content:html,
+				butSubmit:'Установить',
+				submit:submit
+			});
+
+		$('#sum').focus();
+		$('#sum,#day').keyEnter(submit);
+		function submit() {
+			var send = {
+				op:'salary_rate_set',
+				worker:WORKER_ID,
+				sum:$('#sum').val(),
+				day:$('#day').val() * 1
+			};
+			if(!REGEXP_CENA.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+			else if(!REGEXP_NUMERIC.test(send.day) || !send.day || send.day > 28) { err('Некорректно указан день.'); $('#day').focus(); }
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						RATE = send.sum;
+						RATE_DAY = send.day;
+						dialog.close();
+						_msg('Установка ставки произведена.');
+						$('#spisok').html(res.html);
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:40,
+				show:1,
+				top:-47,
+				left:74
+			});
+		}
+	})
 	.on('click', '.salary .up', function() {
 		var html =
 				'<table class="salary-tab">' +
@@ -1605,7 +1705,7 @@ $(document)
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
 						dialog.close();
-						_msg('Начислние произведено.');
+						_msg('Начисление произведено.');
 						$('#spisok').html(res.html);
 					} else
 						dialog.abort();
@@ -2292,7 +2392,7 @@ $(document)
 			dialog = _dialog({
 				top:60,
 				width:400,
-				head:'Редактирование данный счёта',
+				head:'Редактирование данных счёта',
 				content:html,
 				butSubmit:'Сохранить',
 				submit:submit
@@ -3406,7 +3506,7 @@ $(document)
 							'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
 							'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice">' +
 								'<a href="' + URL + '&p=setup&d=invoice" class="img_edit" title="Перейти к настройке счетов"></a>' +
-							'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
+							'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="11"> руб.' +
 						'</table>',
 					dialog = _dialog({
 						width:380,
@@ -3449,7 +3549,7 @@ $(document)
 					};
 					if(!send.category && !send.about) { err('Выберите категорию или укажите описание.'); $('#about').focus(); }
 					else if(!send.invoice) err('Укажите с какого счёта производится оплата.');
-					else if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+					else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) { err('Некорректно указана сумма.'); $('#sum').focus(); }
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function (res) {
@@ -3487,6 +3587,85 @@ $(document)
 			});
 			$('#year').years({func:expenseSpisok});
 			$('#monthSum')._radio(expenseSpisok)
+		}
+		if($('#report.invoice').length) {
+			$('.transfer').click(function() {
+				var t = $(this),
+					html = '<table class="invoice-transfer">' +
+						'<tr><td class="label">Со счёта:<td><input type="hidden" id="from" />' +
+						'<tr><td class="label">На счёт:<td><input type="hidden" id="to" />' +
+						'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" /> руб.' +
+						'<tr><td class="label">Комментарий:<td><input type="text" id="prim" maxlength="50" />' +
+						'</table>',
+					dialog = _dialog({
+						head:'Перевод между счетами',
+						content:html,
+						butSubmit:'Применить',
+						submit:submit
+					});
+				if(window.CASH_SPISOK && !window.CSMOVE) {
+					for(n = 0; n < INVOICE_SPISOK.length; n++)
+						if(INVOICE_SPISOK[n].uid != 1)
+							CASH_SPISOK.push(INVOICE_SPISOK[n]);
+					INVOICE_SPISOK = CASH_SPISOK;
+					window.CSMOVE = 1;
+				}
+				$('#from')._select({
+					width:230,
+					title0:'Не выбран',
+					spisok:INVOICE_SPISOK,
+					func:function() {
+						$('#sum').focus();
+					}
+				});
+				$('#to')._select({
+					width:230,
+					title0:'Не выбран',
+					spisok:INVOICE_SPISOK,
+					func:function() {
+						$('#sum').focus();
+					}
+				});
+				$('#sum').focus();
+				$('#sum,#prim').keyEnter(submit);
+				function submit() {
+					var send = {
+						op:'invoice_transfer',
+						from:$('#from').val() * 1,
+						to:$('#to').val() * 1,
+						sum:$('#sum').val(),
+						cash:window.CASH_SPISOK ? 1 : 0,
+						prim:$('#prim').val()
+					};
+					if(!send.from) err('Выберите счёт-отправитель');
+					else if(!send.to) err('Выберите счёт-получатель');
+					else if(send.from == send.to) err('Выберите другой счёт');
+					else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) { err('Некорректно введена сумма'); $('#sum').focus(); }
+					else {
+						dialog.process();
+						$.post(AJAX_MAIN, send, function(res) {
+							if(res.success) {
+								$('#cash-spisok').html(res.c);
+								$('#invoice-spisok').html(res.i);
+								$('#transfer-spisok').html(res.t);
+								dialog.close();
+								_msg('Перевод произведён.');
+							} else
+								dialog.abort();
+						}, 'json');
+					}
+				}
+				function err(msg) {
+					dialog.bottom.vkHint({
+						msg:'<span class="red">' + msg + '</span>',
+						top:-47,
+						left:82,
+						indent:50,
+						show:1,
+						remove:1
+					});
+				}
+			});
 		}
 
 		if($('#setup_rules').length) {
@@ -3541,6 +3720,7 @@ $(document)
 				$('#rules_income')._check(0);
 				$('#rules_zayavrashod')._check(0);
 				$('#rules_historyshow')._check(0);
+				$('#rules_cash')._check(0);
 			});
 			$('#rules_worker')._check(setupRulesSet);
 			$('#rules_rekvisit')._check(setupRulesSet);
@@ -3548,6 +3728,7 @@ $(document)
 			$('#rules_income')._check(setupRulesSet);
 			$('#rules_zayavrashod')._check(setupRulesSet);
 			$('#rules_historyshow')._check(setupRulesSet);
+			$('#rules_cash')._check(setupRulesSet);
 		}
 		if($('#setup_rekvisit').length) {
 			$('.vkButton').click(function() {

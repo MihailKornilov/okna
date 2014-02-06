@@ -1541,16 +1541,108 @@ switch(@$_POST['op']) {
 	case 'invoice_set':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']))
+		if(!preg_match(REGEXP_CENA, $_POST['sum']))
 			jsonError();
+
 		$invoice_id = intval($_POST['invoice_id']);
-		$sum = intval($_POST['sum']);
+
 		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
-		$income = query_value("SELECT SUM(`sum`) FROM `money` WHERE `deleted`=0 AND `invoice_id`=".$invoice_id);
-		query("UPDATE `invoice` SET `start`=".($income - $sum)." WHERE `id`=".$invoice_id);
-		jsonSuccess();
+
+		$cash = array();
+		if($invoice_id != 1 || empty($_POST['cash']))
+			$sum = str_replace(',', '.', $_POST['sum']);
+		else {
+			$sum = 0;
+			$ex = explode(':', $_POST['cash']);
+			foreach($ex as $x) {
+				$r = explode('=', $x);
+				if(!preg_match(REGEXP_NUMERIC, $r[0]))
+					jsonError();
+				if(!preg_match(REGEXP_CENA, $r[1]))
+					jsonError();
+				$id = intval($r[0]);
+				$sql = "SELECT COUNT(`viewer_id`)
+				        FROM `vk_user`
+				        WHERE `viewer_id`=".$id."
+				          AND `worker`=1
+						  AND `admin`=0
+						  AND `rules` LIKE '%RULES_CASH%'";
+				if(!query_value($sql))
+					jsonError();
+				$s = str_replace(',', '.', $r[1]);
+				$sum += $s;
+				$cash[$id] = $s;
+			}
+		}
+
+		if(!empty($cash))
+			foreach($cash as $id => $s)
+				query("UPDATE `vk_user` SET `cash`="._invoiceBalans($invoice_id, $s, $id)." WHERE `viewer_id`=".$id);
+
+		query("UPDATE `invoice` SET `start`="._invoiceBalans($invoice_id, $sum)." WHERE `id`=".$invoice_id);
+
+		history_insert(array(
+			'type' => 38,
+			'value' => $sum,
+			'value1' => $invoice_id
+		));
+
+		$send['c'] = utf8(cash_spisok());
+		$send['i'] = utf8(invoice_spisok());
+		jsonSuccess($send);
+		break;
+	case 'invoice_transfer':
+		if(empty($_POST['from']) || !preg_match(REGEXP_NUMERIC, $_POST['from']))
+			jsonError();
+		if(empty($_POST['to']) || !preg_match(REGEXP_NUMERIC, $_POST['to']))
+			jsonError();
+		if(!preg_match(REGEXP_CENA, $_POST['sum']) || $_POST['sum'] == 0)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['cash']))
+			jsonError();
+
+		$from = intval($_POST['from']);
+		$to = intval($_POST['to']);
+		$sum = str_replace(',', '.', $_POST['sum']);
+		$cash = intval($_POST['cash']);
+		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
+
+		if($from == $to)
+			jsonError();
+
+		$sql = "INSERT INTO `invoice_transfer` (
+					`invoice_from`,
+					`invoice_to`,
+					`worker_from`,
+					`worker_to`,
+					`sum`,
+					`prim`,
+					`viewer_id_add`
+				) VALUES (
+					".($cash && $from > 100 ? 1 : $from).",
+					".($cash && $to > 100  ? 1 : $to).",
+					".($cash && $from > 100 ? $from : 0).",
+					".($cash && $to > 100  ? $to : 0).",
+					".$sum.",
+					'".addslashes($prim)."',
+					".VIEWER_ID."
+				)";
+		query($sql);
+
+		history_insert(array(
+			'type' => 39,
+			'value' => $sum,
+			'value1' => $from,
+			'value2' => $to,
+			'value3' => $prim
+		));
+
+		$send['c'] = utf8(cash_spisok());
+		$send['i'] = utf8(invoice_spisok());
+		$send['t'] = utf8(transfer_spisok());
+		jsonSuccess($send);
 		break;
 
 	case 'income_spisok':
@@ -1569,9 +1661,9 @@ switch(@$_POST['op']) {
 			'from' => trim($_POST['from']),
 			'prim' => win1251(htmlspecialchars(trim($_POST['prim'])))
 		);
-		if(!preg_match(REGEXP_NUMERIC, $_POST['type']) || $_POST['type'] == 0)
+		if(!preg_match(REGEXP_NUMERIC, $_POST['type']) || !$_POST['type'])
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) || $_POST['sum'] == 0)
+		if(!preg_match(REGEXP_CENA, $_POST['sum']) || !$_POST['sum'])
 			jsonError();
 		if(preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
 			$v['zayav_id'] = intval($_POST['zayav_id']);
@@ -1579,7 +1671,7 @@ switch(@$_POST['op']) {
 			$v['client_id'] = intval($_POST['client_id']);
 
 		$v['type'] = intval($_POST['type']);
-		$v['sum'] = intval($_POST['sum']);
+		$v['sum'] = str_replace(',', '.', $_POST['sum']);
 
 		$send['html'] = utf8(income_insert($v));
 		if(empty($send))
@@ -1670,7 +1762,7 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
 			jsonError();
-		if(empty($_POST['sum']) && !preg_match(REGEXP_NUMERIC, $_POST['sum']))
+		if(empty($_POST['sum']) && !preg_match(REGEXP_CENA, $_POST['sum']))
 			jsonError();
 		if(empty($_POST['invoice']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice']))
 			jsonError();
@@ -1680,7 +1772,7 @@ switch(@$_POST['op']) {
 			jsonError();
 		$worker = intval($_POST['worker']);
 		$invoice = intval($_POST['invoice']);
-		$sum = intval($_POST['sum']) * -1;
+		$sum = str_replace(',', '.', $_POST['sum']);
 		$sql = "INSERT INTO `money` (
 					`sum`,
 					`prim`,
@@ -1688,7 +1780,7 @@ switch(@$_POST['op']) {
 					`expense_id`,
 					`worker_id`,`viewer_id_add`
 				) VALUES (
-					".$sum.",
+					-".$sum.",
 					'".addslashes($about)."',
 					".$invoice.",
 					".$category.",
@@ -1791,6 +1883,7 @@ switch(@$_POST['op']) {
 		if(!$send = mysql_fetch_assoc(query($sql)))
 			jsonError();
 		$send['about'] = utf8($send['about']);
+		$send['sum'] = round($send['sum'], 2);
 		jsonSuccess($send);
 		break;
 	case 'expense_edit':
@@ -1857,10 +1950,52 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
+	case 'salary_rate_set':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
+			jsonError();
+		if(!preg_match(REGEXP_CENA, $_POST['sum']))
+			jsonError();
+		if(empty($_POST['day']) || !preg_match(REGEXP_NUMERIC, $_POST['day']) || $_POST['day'] > 28)
+			jsonError();
+
+		$worker = intval($_POST['worker']);
+		$sum = str_replace(',', '.', $_POST['sum']);
+		$day = $sum == 0 ? 0 : intval($_POST['day']);
+
+		$sql = "SELECT * FROM `vk_user` WHERE `worker`=1 AND `viewer_id`=".$worker;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		if($r['rate'] != $sum || $r['rate_day'] != $day) {
+			$sql = "UPDATE `vk_user`
+			        SET `rate`=".$sum.",
+			            `rate_day`=".$day."
+					WHERE `viewer_id`=".$worker;
+			query($sql);
+
+			xcache_unset(CACHE_PREFIX.'viewer_'.$worker);
+
+			if($sum)
+				history_insert(array(
+					'type' => 40,
+					'value' => $worker,
+					'value1' => $sum,
+					'value2' => $day
+				));
+			else
+				history_insert(array(
+					'type' => 41,
+					'value' => $worker
+				));
+		}
+
+		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
+		jsonSuccess($send);
+		break;
 	case 'salary_up':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
 			jsonError();
-		if(empty($_POST['sum']) && !preg_match(REGEXP_NUMERIC, $_POST['sum']))
+		if(empty($_POST['sum']) || !preg_match(REGEXP_NUMERIC, $_POST['sum']))
 			jsonError();
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		$worker = intval($_POST['worker']);

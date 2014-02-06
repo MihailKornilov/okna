@@ -188,7 +188,7 @@ function contentShow() {
 	$zayav_ids = implode(',', array_keys($zayav));
 
 	//Номер договора и сумма. Берутся из расходов по заявке.
-	$sql = "SELECT * FROM `zayav_rashod` WHERE `zayav_id` IN (".$zayav_ids.")";
+	$sql = "SELECT * FROM `zayav_expense` WHERE `zayav_id` IN (".$zayav_ids.")";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
 		switch($r['category_id']) {
@@ -318,7 +318,7 @@ function zarplata() {
 	$line++;
 
 	//Список зп сотрудников. Берётся из расходов по заявке.
-	$sql = "SELECT * FROM `zayav_rashod` WHERE `zayav_id` IN (".$zayav_ids.") AND `category_id`=2";
+	$sql = "SELECT * FROM `zayav_expense` WHERE `zayav_id` IN (".$zayav_ids.") AND `category_id`=2";
 	$q = query($sql);
 	$zp = array();
 	while($r = mysql_fetch_assoc($q))

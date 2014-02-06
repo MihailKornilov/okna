@@ -25,6 +25,7 @@ if(SA) {
 }
 
 setlocale(LC_ALL, 'ru_RU.CP1251');
+setlocale(LC_NUMERIC, 'en_US');
 
 require_once(DOCUMENT_ROOT.'/syncro.php');
 require_once(VKPATH.'/vk.php');

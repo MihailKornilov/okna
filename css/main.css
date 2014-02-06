@@ -29,7 +29,8 @@
 
 
 ._dialog-tab{border-spacing:8px}
-._dialog-tab input[type="text"]{width:210px}
+._dialog-tab input[type="text"]:not(.money){width:210px}
+._dialog-tab .label{text-align:right}
 
 
 /* Таблица для внесения платежа */
@@ -370,13 +371,21 @@
 .history_unit em{color:#707070}
 .history_unit .oplata{color:#770}
 .history_unit .zstatus{display:inline-block;padding:2px 5px;margin-top:3px}
-#invoice{margin:10px}
-#invoice pre{color:#777;font-size:10px;margin:3px 7px}
-#invoice .balans{text-align:right}
-#invoice .setup{display:inline-block;float:right;margin-top:15px}
+.invoice#report .headName{margin:10px}
+.invoice#report .headName span{display:inline-block;float:right;margin:0 6px}
+.invoice#report .transfer{color:#d33}
+.invoice pre{color:#777;font-size:10px;margin:3px 7px}
+.invoice .balans{text-align:right}
+.invoice #cash-spisok{margin:15px 10px}
+.invoice #cash-spisok span{color:#770}
+.invoice #invoice-spisok{margin:10px 10px 25px}
+.invoice #transfer-spisok{margin:10px}
+.invoice-transfer{border-spacing:10px}
+.invoice-transfer #prim{width:222px}
 .income#report .headName{margin:10px}
 .income .inc-path{margin:15px 10px}
 .income ._calendarFilter{margin:15px 0 10px}
+.income .sums{margin:10px}
 .income .sums td{white-space:nowrap}
 .income #spisok{margin:15px 10px}
 .income ._empty{margin:0}
@@ -394,14 +403,20 @@
 .salary#report .headName{margin:10px}
 .salary #spisok{margin:10px}
 .salary .fio{width:150px}
+.salary .rate{text-align:right}
 .salary .balans{text-align:right}
 .salary .type{width:60px}
-.salary .uhead{margin:20px 0 10px}
-.salary .uhead div{float:right}
+.salary .uhead{margin:10px 0}
+.salary h1{margin-bottom:5px}
+.salary .uhead .a{float:right}
 .salary .uhead a{color:#68A;}
 .salary .uhead a:hover{color:#357}
+.salary a.rate-set{color:#d33;float:right}
+.salary a.rate-set:hover{color:#d33}
+.salary .uhead span{color:#888;margin-left:8px}
 .salary-tab{border-spacing:8px}
 .salary-tab #about{width:230px}
+.salary-tab #day{width:30px}
 .salary-tab .img_edit{position:relative;top:-2px;left:4px}
 
 #report_month{margin:10px 15px}
@@ -431,7 +446,8 @@
 #setup_worker .photo img,#setup_worker_add .photo img{width:50px;height:50px}
 #setup_worker .img_del{float:right;margin-top:2px}
 #setup_worker .name,#setup_worker_add .name{font-weight:bold;font-size:12px;color:#45688e}
-#setup_worker .post{margin-top:15px}
+#setup_worker .post{margin-top:5px}
+#setup_worker .activity{margin-top:5px;color:#888;font-size:10px}
 #setup_worker_add h1{font-weight:bold;color:#31618C}
 #setup_worker_add h2{
 	border:#ddd solid 1px;
