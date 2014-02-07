@@ -329,28 +329,39 @@ var hashLoc,
 	},
 
 	incomeSpisok = function() {
-		send = {
+		var send = {
 			op:'income_spisok',
+			day:$('.selected').val(),
 			income_id:$('#income_id').val(),
-			day:$('.selected').val()
+			worker_id:$('#worker_id').val()
 		};
+		$('.inc-path').addClass('_busy');
 		$.post(AJAX_MAIN, send, function(res) {
+			$('.inc-path').removeClass('_busy');
 			if(res.success) {
 				$('.inc-path').html(res.path);
 				$('#spisok').html(res.html);
 			}
 		}, 'json');
 	},
-	expenseSpisok = function() {
-		var send = {
+	expenseFilter = function() {
+		var arr = [],
+			inp = $('#monthList input');
+		for(var n = 1; n <= 12; n++)
+			if(inp.eq(n - 1).val() == 1)
+				arr.push(n);
+		return {
 			op:'expense_spisok',
 			category:$('#category').val(),
 			worker:$('#worker').val(),
+			invoice_id:$('#invoice_id').val(),
 			year:$('#year').val(),
-			month:$('#monthSum').val()
+			month:arr.join()
 		};
+	},
+	expenseSpisok = function() {
 		$('#mainLinks').addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
+		$.post(AJAX_MAIN, expenseFilter(), function(res) {
 			$('#mainLinks').removeClass('busy');
 			if(res.success) {
 				$('#spisok').html(res.html);
@@ -1349,14 +1360,16 @@ $(document)
 	.on('click', '.income-add', function() {
 		var html =
 			'<table class="income-add-tab">' +
-				'<tr><td class="label">Клиент:<td>' + OPL.client_fio +
+  (OPL.from != 'income' ?
+	            '<tr><td class="label">Клиент:<td>' + OPL.client_fio +
 				'<tr><td class="label">Заявка:' +
 					'<td><input type="hidden" id="zayav_id" value="' + (OPL.zayav_id ? OPL.zayav_id : 0) + '">' +
-						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '') +
-				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="income_id" value="0">' +
+						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '')
+  : '') +
+				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="income_opl">' +
 					'<a href="' + URL + '&p=setup&d=income" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
 				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="11"> руб.' +
-				'<tr><td class="label">Примечание:<em>(не обязательно)</em><td><input type="text" id="prim">' +
+				'<tr><td class="label">Комментарий:<td><input type="text" id="prim" maxlength="100">' +
 			'</table>';
 		var dialog = _dialog({
 			top:60,
@@ -1373,7 +1386,7 @@ $(document)
 				title0:'Не указана',
 				spisok:OPL.zayav_spisok
 			});
-		$('#income_id')._select({
+		$('#income_opl')._select({
 			width:180,
 			title0:'Не указан',
 			spisok:INCOME_SPISOK,
@@ -1385,19 +1398,23 @@ $(document)
 			var send = {
 				op:'income_add',
 				from:OPL.from,
-				type:$('#income_id').val(),
+				type:$('#income_opl').val(),
 				sum:$('#sum').val(),
-				zayav_id:$('#zayav_id').val(),
-				client_id:OPL.client_id,
+				zayav_id:$('#zayav_id').val() || 0,
+				client_id:OPL.client_id || 0,
 				prim:$.trim($('#prim').val())
 			};
 			if(send.type == 0) err('Не указан вид платежа');
 			else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) {
 				err('Некорректно указана сумма.');
 				$('#sum').focus();
-			} else if(send.zayav_id == 0 && !send.prim)
-				err('Если не выбрана заявка, необходимо указать примечание');
-			else {
+			} else if($('#zayav_id').length && send.zayav_id == 0 && !send.prim) {
+				err('Если не выбрана заявка, необходимо указать комментарий');
+				$('#prim').focus();
+			} else if(!$('#zayav_id').length && !send.prim) {
+				err('Необходимо указать комментарий');
+				$('#prim').focus();
+			} else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
@@ -1410,6 +1427,9 @@ $(document)
 								break;
 							case 'zayav':
 								$('#income_spisok').html(res.html);
+								break;
+							case 'income':
+								incomeSpisok();
 								break;
 							default: break;
 						}
@@ -1480,16 +1500,11 @@ $(document)
 		}, 'json');
 	})
 
+	.on('click', '.expense #monthList div', expenseSpisok)
 	.on('click', '.expense ._next', function() {
 		var next = $(this),
-			send = {
-				op:'expense_spisok',
-				page:$(this).attr('val'),
-				category:$('#category').val(),
-				worker:$('#worker').val(),
-				year:$('#year').val(),
-				month:$('#monthSum').val()
-			};
+			send = expenseFilter();
+		send.page = next.attr('val');
 		if(next.hasClass('busy'))
 			return;
 		next.addClass('busy');
@@ -3490,11 +3505,18 @@ $(document)
 		if($('#report.income').length) {
 			window._calendarFilter = incomeSpisok;
 			$('#income_id')._select({
-				width:155,
+				width:160,
 				title0:'Любые платежи',
 				spisok:INCOME_SPISOK,
 				func:incomeSpisok
 			});
+			if(window.WORKERS)
+				$('#worker_id')._select({
+					width:160,
+					title0:'Все сотрудники',
+					spisok:WORKERS,
+					func:incomeSpisok
+				});
 		}
 		if($('#report.expense').length) {
 			$('.add').click(function() {
@@ -3585,8 +3607,28 @@ $(document)
 				spisok:WORKERS,
 				func:expenseSpisok
 			});
-			$('#year').years({func:expenseSpisok});
-			$('#monthSum')._radio(expenseSpisok)
+			$('#invoice_id')._select({
+				width:160,
+				title0:'Любой счёт',
+				spisok:INVOICE_SPISOK,
+				func:expenseSpisok
+			});
+			$('#year').years({
+				func:expenseSpisok,
+				center:function() {
+					var arr = [],
+						inp = $('#monthList input'),
+						all = 0;
+					for(n = 1; n <= 12; n++)
+						if(inp.eq(n - 1).val() == 0) {
+							all = 1;
+							break;
+						}
+					for(n = 1; n <= 12; n++)
+						$('#c' + n)._check(all);
+					expenseSpisok();
+				}
+			});
 		}
 		if($('#report.invoice').length) {
 			$('.transfer').click(function() {
@@ -3720,6 +3762,7 @@ $(document)
 				$('#rules_income')._check(0);
 				$('#rules_zayavrashod')._check(0);
 				$('#rules_historyshow')._check(0);
+				$('#rules_money')._check(0);
 				$('#rules_cash')._check(0);
 			});
 			$('#rules_worker')._check(setupRulesSet);
@@ -3728,6 +3771,7 @@ $(document)
 			$('#rules_income')._check(setupRulesSet);
 			$('#rules_zayavrashod')._check(setupRulesSet);
 			$('#rules_historyshow')._check(setupRulesSet);
+			$('#rules_money')._check(setupRulesSet);
 			$('#rules_cash')._check(setupRulesSet);
 		}
 		if($('#setup_rekvisit').length) {

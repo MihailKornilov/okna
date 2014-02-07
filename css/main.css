@@ -355,7 +355,7 @@
 
 
 /* Îò÷¸òû */
-#report .right{width:160px}
+#report .right{width:160px;padding-bottom:200px}
 #report .headName{margin:0 0 15px 0}
 .history .left{padding:10px}
 .history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
@@ -384,6 +384,7 @@
 .invoice-transfer #prim{width:222px}
 .income#report .headName{margin:10px}
 .income .inc-path{margin:15px 10px}
+.income .inc-path._busy{background-position:right center}
 .income ._calendarFilter{margin:15px 0 10px}
 .income .sums{margin:10px}
 .income .sums td{white-space:nowrap}
@@ -393,8 +394,8 @@
 .expense#report .headName{margin:10px}
 .expense #spisok{margin:15px 10px}
 .expense .years{margin-top:20px}
-.expense #monthSum_radio .sum{float:right}
-.expense #monthSum_radio .off .sum{color:#888}
+.expense #monthList div{display:block;margin-bottom:5px}
+.expense #monthList .sum{float:right}
 .expense ._empty{margin:0}
 #expense-add-tab{border-spacing:8px}
 #expense-add-tab .label{width:80px;text-align:right}

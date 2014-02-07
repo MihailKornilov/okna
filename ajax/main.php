@@ -1663,7 +1663,7 @@ switch(@$_POST['op']) {
 		);
 		if(!preg_match(REGEXP_NUMERIC, $_POST['type']) || !$_POST['type'])
 			jsonError();
-		if(!preg_match(REGEXP_CENA, $_POST['sum']) || !$_POST['sum'])
+		if(!preg_match(REGEXP_CENA, $_POST['sum']) || $_POST['sum'] == 0)
 			jsonError();
 		if(preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
 			$v['zayav_id'] = intval($_POST['zayav_id']);
