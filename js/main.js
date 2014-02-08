@@ -218,45 +218,45 @@ var hashLoc,
 			}
 		}, 'json');
 	},
-	dogovorCreate = function() {
+	dogovorCreate = function(v) {
+		var head = 'Заключение',
+			but = 'Заключить договор';
+		switch(v) {
+			default: v = 'create';
+			case 'create': break;
+			case 'edit':
+				head = 'Изменение данных';
+				but = 'Применить';
+				break;
+			case 'reneg':
+				head = 'Перезаключение';
+				but = 'Перезаключить договор';
+				break;
+		}
 		var html = '<table class="zayav-dogovor">' +
-				'<tr><td colspan="2">' +
-		(DOG.id ? '<div class="i per">' +
-						'При <b>перезаключении договора</b> удаляются сумма старого договора и авансовый платёж. ' +
-						'Применятся данные нового договора. Также будет обновлён баланс клиента.' +
-					'</div>'
-		: '') +
-				'<tr><td class="label r">Фио клиента:<td><input type="text" id="fio" value="' + DOG.fio + '" />' +
-				'<tr><td class="label r">Адрес:<td><input type="text" id="adres" value="' + DOG.adres + '" />' +
-				'<tr><td class="label r">Паспорт:' +
+				'<tr><td class="label">Фио клиента:<td><input type="text" id="fio" value="' + DOG.fio + '" />' +
+				'<tr><td class="label">Адрес:<td><input type="text" id="adres" value="' + DOG.adres + '" />' +
+				'<tr><td class="label">Паспорт:' +
 					'<td>Серия:<input type="text" id="pasp_seria" maxlength="8" value="' + DOG.pasp_seria + '" />' +
 						'Номер:<input type="text" id="pasp_nomer" maxlength="10" value="' + DOG.pasp_nomer + '" />' +
 				'<tr><td><td><span class="l">Прописка:</span><input type="text" id="pasp_adres" maxlength="100" value="' + DOG.pasp_adres + '" />' +
 				'<tr><td><td><span class="l">Кем выдан:</span><input type="text" id="pasp_ovd" maxlength="100" value="' + DOG.pasp_ovd + '" />' +
 				'<tr><td><td><span class="l">Когда выдан:</span><input type="text" id="pasp_data" maxlength="100" value="' + DOG.pasp_data + '" />' +
-				'<tr><td class="label r">Номер договора:<td><input type="text" id="nomer" maxlength="6" value="' + DOG.nomer + '" />' +
-				'<tr><td class="label r">Дата заключения:<td><input type="hidden" id="data_create" value="' + (DOG.data_create ? DOG.data_create : '') + '" />' +
-				'<tr><td class="label r">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="6" value="' + (DOG.sum ? DOG.sum : '') + '" /> руб.' +
-				'<tr><td class="label r">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="6" value="' + (DOG.avans ? DOG.avans : '') + '" /> руб. <span class="prim">(не обязательно)</span>' +
-	  (DOG.id ? '<tr><td class="label" colspan="2">Причина перезаключения договора:<textarea id="reason"></textarea>' : '') +
-				'<tr><td colspan="2">' +
-					'<div class="i">' +
-						'<h1>Внимание!</h1>' +
-						'Внимательно проверьте правильность всех введённых данных. ' +
-						'После нажатия кнопки "Заключить договор" операцию отменить будет невозможно.<br />' +
-						'<b>Сумма по договору</b> является окончательной суммой и при заключении договора на эту сумму будет изменён баланс клиента в минус.<br />' +
-						'<b>Авансовый платёж</b> указывать не обязательно. При указании авансового платёжа автоматически будет внесён платёж на данную заявку.' +
-					'</div>' +
+				'<tr><td class="label">Номер договора:<td><input type="text" id="nomer" maxlength="6" value="' + DOG.nomer + '" />' +
+				'<tr><td class="label">Дата заключения:<td><input type="hidden" id="data_create" value="' + (DOG.data_create ? DOG.data_create : '') + '" />' +
+				'<tr><td class="label">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="11" value="' + (DOG.sum ? DOG.sum : '') + '" /> руб.' +
+				'<tr><td class="label">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="11" value="' + (DOG.avans ? DOG.avans : '') + '" /> руб. <span class="prim">(не обязательно)</span>' +
+(v == 'reneg' ? '<tr><td class="label">Причина перезаключения:<td><input type="text" id="reason" />' : '') +
 				'<tr><td colspan="2">' +
 					'<a id="preview">Предварительный просмотр</a>' +
 					'<form action="' + AJAX_MAIN + '" method="post" id="preview-form" target="_blank"></form>' +
 				'</table>',
 			dialog = _dialog({
-				width:426,
+				width:480,
 				top:10,
-				head:(DOG.id ? 'Перез' : 'З') + 'аключение договора',
+				head:head + ' договора',
 				content:html,
-				butSubmit:(DOG.id ? 'Перез' : 'З') + 'аключить договор',
+				butSubmit:but,
 				submit:submit
 			});
 		$('#data_create')._calendar({lost:1});
@@ -286,14 +286,13 @@ var hashLoc,
 				data_create:$('#data_create').val(),
 				sum:$('#sum').val(),
 				avans:$('#avans').val(),
-				reason:DOG.id ? $('#reason').val() : ''
+				reason:v == 'reneg' ? $('#reason').val() : ''
 			};
 			if(!send.fio) err('Не указано Фио клиента', 'fio', type);
-			else if(!send.adres) err('Не указан адрес', 'adres', type);
 			else if(!REGEXP_NUMERIC.test(send.nomer) || send.nomer == 0) err('Некорректно указан номер договора', 'nomer', type);
-			else if(!REGEXP_NUMERIC.test(send.sum) || send.sum == 0) err('Некорректно указана сумма по договору', 'sum', type);
-			else if(send.avans && !REGEXP_NUMERIC.test(send.avans)) err('Некорректно указан авансовый платёж', 'avans', type);
-			else if(DOG.id && !send.reason) err('Не указана причина перезаключения договора', 'reason', type);
+			else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) err('Некорректно указана сумма по договору', 'sum', type);
+			else if(send.avans && !REGEXP_CENA.test(send.avans)) err('Некорректно указан авансовый платёж', 'avans', type);
+			else if(v == 'reneg' && !send.reason) err('Не указана причина перезаключения договора', 'reason', type);
 			else return send;
 			return false;
 		}
@@ -301,7 +300,7 @@ var hashLoc,
 			dialog.bottom.vkHint({
 				msg:'<span class="red">' + msg + '</span>',
 				top:type ? -86 : -47,
-				left:type ? 141 : 110,
+				left:type ? 173 : 142,
 				indent:50,
 				show:1,
 				remove:1
@@ -312,7 +311,7 @@ var hashLoc,
 		function submit() {
 			var send = valuesTest();
 			if(send) {
-				send.op = 'dogovor_create';
+				send.op = 'dogovor_' + v;
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
@@ -328,6 +327,26 @@ var hashLoc,
 		}
 	},
 
+	historyFilter = function() {
+		return {
+			op:'history_spisok',
+			limit:$('#history_limit').val(),
+			worker_id:$('#history_worker_id').val(),
+			cat_id:$('#history_cat_id').val(),
+			client_id:$('#history_client_id').val(),
+			zayav_id:$('#history_zayav_id').val()
+		};
+	},
+	historySpisok = function(v, id) {
+		var send = historyFilter();
+		send[id] = v;
+		$('#mainLinks').addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			$('#mainLinks').removeClass('busy');
+			if(res.success)
+				$('.left').html(res.html);
+		}, 'json');
+	},
 	incomeSpisok = function() {
 		var send = {
 			op:'income_spisok',
@@ -1247,21 +1266,17 @@ $(document)
 	})
 
 	.on('click', '#history_next', function() {
-		if($(this).hasClass('busy'))
+		var t = $(this),
+			send = historyFilter();
+		if(t.hasClass('busy'))
 			return;
-		var next = $(this),
-			send = {
-				op:'history_next',
-				page:$(this).attr('val')
-//				worker:$('#report_history_worker').val(),
-//				action:$('#report_history_action').val(),
-			};
-		next.addClass('busy');
+		send.page = $(this).attr('val');
+		t.addClass('busy');
 		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success)
-				next.after(res.html).remove();
+				t.after(res.html).remove();
 			else
-				next.removeClass('busy');
+				t.removeClass('busy');
 		}, 'json');
 	})
 
@@ -3084,7 +3099,23 @@ $(document)
 					}
 				}
 			});
-			$('.reneg').click(dogovorCreate);
+			$('#dogovor_reaction')._dropdown({
+				head:'Действие',
+				headgrey:1,
+				spisok:[
+					{uid:1, title:'Изменение данных договора'},
+					{uid:2, title:'Перезаключение'},
+					{uid:3, title:'Расторжение'}
+				],
+				nosel:1,
+				func:function(v) {
+					if(v == 1)
+						dogovorCreate('edit');
+					if(v == 2)
+						dogovorCreate('reneg');
+				}
+			});
+
 			$('.zakaz_edit').click(function() {
 				var html = '<table class="zayav-info-edit">' +
 						'<tr><td class="label">Клиент:      <td>' + ZAYAV.client_fio +
@@ -3324,7 +3355,7 @@ $(document)
 							sum:$('#sum').val(),
 							prim:$('#prim').val()
 						};
-					if(!REGEXP_NUMERIC.test(send.sum)) {
+					if(!REGEXP_CENA.test(send.sum)) {
 						msg = 'Некорректно указана сумма.';
 						$('#sum').focus();
 					} else {
@@ -3502,6 +3533,20 @@ $(document)
 			};
 		}
 
+		if($('#report.history').length) {
+			$('#worker_id')._select({
+				width:160,
+				title0:'Все сотрудники',
+				spisok:WORKERS,
+				func:historySpisok
+			});
+			$('#cat_id')._select({
+				width:160,
+				title0:'Любая категория',
+				spisok:HISTORY_GROUP,
+				func:historySpisok
+			});
+		}
 		if($('#report.income').length) {
 			window._calendarFilter = incomeSpisok;
 			$('#income_id')._select({

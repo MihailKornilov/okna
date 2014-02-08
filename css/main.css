@@ -230,6 +230,7 @@
 .zayav-info .tabmain{width:100%}
 .zayav-info .mainleft{vertical-align:top}
 .zayav-info .tabInfo{width:100%;margin:0 10px;border-spacing:7px}
+.zayav-info ._dropdown{display:inline-block}
 .zayav-info.zakaz .label{width:60px}
 .zayav-info.zamer .label{width:80px}
 .zayav-info.dog .label{width:100px}
@@ -254,7 +255,6 @@
 .zayav-info .dogn{cursor:help}
 .zayav-info .dogn.d{color:#aaa;font-weight:normal}
 .zayav-info .img_word{margin:0 15px -4px -2px}
-.zayav-info .reneg{color:#888}
 .zayav-info .mainright{vertical-align:top;width:230px;border-left:#E9EDF1 solid 1px}
 .zayav-info .mainright .headBlue{margin:0}
 .zayav-info .acc-sum{margin:7px}
@@ -265,7 +265,6 @@
 .zayav-info .vkComment{margin-bottom:15px}
 .zayav-info .histories{min-height:210px;margin:12px 15px}
 .zayav-info .histories .headName{margin:0 0 10px}
-/*.zayav-info .status_dtime{display:inline-block;color:#AAA;font-size:10px;margin-left:10px}*/
 
 .zayav-info-edit{border-spacing:8px}
 .zayav-info-edit .label{width:120px;text-align:right}
@@ -278,27 +277,20 @@
 .zayav-info-edit .zamer_table{position:relative;left:10px;top:-3px}
 
 .zayav-dogovor{border-spacing:8px}
-.zayav-dogovor .label{width:110px}
-.zayav-dogovor #fio,.zayav-dogovor #adres{width:258px}
-.zayav-dogovor #pasp_seria{width:55px;margin:0 15px 0 3px}
-.zayav-dogovor #pasp_nomer{width:100px;margin-left:3px}
+.zayav-dogovor .label{width:140px;text-align:right}
+.zayav-dogovor #fio,
+.zayav-dogovor #adres,
+.zayav-dogovor #reason
+{width:280px}
+.zayav-dogovor #pasp_seria{width:60px;margin:0 15px 0 3px}
+.zayav-dogovor #pasp_nomer{width:121px;margin-left:3px}
 .zayav-dogovor .l{display:inline-block;width:74px}
 .zayav-dogovor #pasp_adres,
 .zayav-dogovor #pasp_ovd,
-.zayav-dogovor #pasp_data{width:184px}
+.zayav-dogovor #pasp_data{width:206px}
 .zayav-dogovor #nomer{width:40px}
 .zayav-dogovor .prim{font-size:10px;color:#999}
-.zayav-dogovor .i{
-	margin-top:10px;
-	border:#ddd solid 1px;
-	background-color:#ffd;
-	padding:6px 10px;
-	color:#444;
-	text-align:justify;
-}
-.zayav-dogovor .per{margin:-5px 0 5px}
 .zayav-dogovor h1{display:block;font-weight:bold;text-align:center;margin-bottom:3px;color:#444}
-.zayav-dogovor #reason{width:376px;height:30px}
 .zayav-dogovor #preview{display:block;text-align:center;margin-top:10px}
 
 .zayav-rashod-edit{border-spacing:8px}

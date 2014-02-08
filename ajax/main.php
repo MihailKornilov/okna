@@ -238,7 +238,7 @@ switch(@$_POST['op']) {
 		if($client['fio'] != $fio)
 			$changes .= '<tr><th>Фио:<td>'.$client['fio'].'<td>»<td>'.$fio;
 		if($client['telefon'] != $telefon)
-			$changes .= '<tr><th>Телефон.:<td>'.$client['telefon'].'<td>»<td>'.$telefon;
+			$changes .= '<tr><th>Телефон:<td>'.$client['telefon'].'<td>»<td>'.$telefon;
 		if($client['adres'] != $adres)
 			$changes .= '<tr><th>Адрес:<td>'.$client['adres'].'<td>»<td>'.$adres;
 		if($client['pasp_seria'] != $pasp_seria)
@@ -1111,11 +1111,11 @@ switch(@$_POST['op']) {
 	case 'accrual_add':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) || $_POST['zayav_id'] == 0)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) || $_POST['sum'] == 0)
+		if(!preg_match(REGEXP_CENA, $_POST['sum']) || $_POST['sum'] == 0)
 			jsonError();
 
 		$zayav_id = intval($_POST['zayav_id']);
-		$sum = intval($_POST['sum']);
+		$sum = str_replace(',', '.', $_POST['sum']);
 		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
 
 		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id;
@@ -1144,7 +1144,7 @@ switch(@$_POST['op']) {
 			'type' => 7,
 			'zayav_id' => $zayav_id,
 			'client_id' => $zayav['client_id'],
-			'value' => $sum,
+			'value' => round($sum, 2),
 			'value1' => $prim
 		));
 
@@ -1218,127 +1218,22 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'dogovor_preview':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id'])) {
-			echo 'Ошибка: некорректный идентификатор договора.';
-			exit;
-		}
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id']) {
-			echo 'Ошибка: неверный номер заявки.';
-			exit;
-		}
-		if(!preg_match(REGEXP_NUMERIC, $_POST['nomer']) && !$_POST['nomer']) {
-			echo 'Ошибка: некорректно указан номер договора.';
-			exit;
-		}
-		if(!preg_match(REGEXP_DATE, $_POST['data_create'])) {
-			echo 'Ошибка: некорректно указана дата заключения договора.';
-			exit;
-		}
-		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) && !$_POST['sum']) {
-			echo 'Ошибка: некорректно указана сумма по договору.';
-			exit;
-		}
-		if(!empty($_POST['avans']) && !preg_match(REGEXP_NUMERIC, $_POST['avans'])) {
-			echo 'Ошибка: некорректно указан авансовый платёж.';
-			exit;
-		}
-		$id = intval($_POST['id']);
-		$zayav_id = intval($_POST['zayav_id']);
-		$v = array(
-			'nomer' => intval($_POST['nomer']),
-			'fio' => htmlspecialchars(trim($_POST['fio'])),
-			'adres' => htmlspecialchars(trim($_POST['adres'])),
-			'sum' => intval($_POST['sum']),
-			'avans' => intval($_POST['avans']),
-			'data_create' => $_POST['data_create'],
-			'link' => time().'_dogovor_'.intval($_POST['nomer']).'_'.$_POST['data_create'],
-			'pasp_seria' => htmlspecialchars(trim($_POST['pasp_seria'])),
-			'pasp_nomer' => htmlspecialchars(trim($_POST['pasp_nomer'])),
-			'pasp_adres' => htmlspecialchars(trim($_POST['pasp_adres'])),
-			'pasp_ovd' => htmlspecialchars(trim($_POST['pasp_ovd'])),
-			'pasp_data' => htmlspecialchars(trim($_POST['pasp_data']))
-		);
-
-		if(query_value("SELECT COUNT(`id`) FROM `zayav_dogovor` WHERE `deleted`=0 AND `id`!=".$id." AND `nomer`=".$v['nomer'])) {
-			echo 'Ошибка: договор с номером <b>'.$v['nomer'].'</b> уже был заключен.';
-			exit;
-		}
-		if(empty($v['fio'])) {
-			echo 'Ошибка: не указано Фио клиента.';
-			exit;
-		}
-		if(empty($v['adres'])) {
-			echo 'Ошибка: не указан адрес.';
-			exit;
-		}
-		if($v['sum'] < $v['avans']) {
-			echo 'Ошибка: авансовый платёж не может быть больше суммы договора.';
-			exit;
-		}
-
-		$sql = "SELECT *
-				FROM `zayav`
-				WHERE `id`=".$zayav_id."
-				  AND `zamer_status`!=1
-				  AND `zamer_status`!=3
-				LIMIT 1";
-		if(!$zayav = mysql_fetch_assoc(query($sql))) {
-			echo 'Ошибка: заявки id = '.$zayav_id.' не существует.';
-			exit;
-		}
-		$v['zayav_id'] = $zayav_id;
+		$v = dogovorFilter($_POST);
+		if(!is_array($v))
+			die($v);
 		dogovor_print($v);
 		exit;
 	case 'dogovor_create':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['nomer']) && !$_POST['nomer'])
-			jsonError();
-		if(!preg_match(REGEXP_DATE, $_POST['data_create']))
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['sum']) && !$_POST['sum'])
-			jsonError();
-		if(!empty($_POST['avans']) && !preg_match(REGEXP_NUMERIC, $_POST['avans']))
-			jsonError();
+		$v = dogovorFilter($_POST);
+		if(!is_array($v))
+			jsonError($v);
 
-		$id = intval($_POST['id']);
-		$zayav_id = intval($_POST['zayav_id']);
-		$nomer = intval($_POST['nomer']);
-		$data_create = $_POST['data_create'];
-		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
-		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
-		$reason = win1251(htmlspecialchars(trim($_POST['reason'])));
-		$pasp_seria = win1251(htmlspecialchars(trim($_POST['pasp_seria'])));
-		$pasp_nomer = win1251(htmlspecialchars(trim($_POST['pasp_nomer'])));
-		$pasp_adres = win1251(htmlspecialchars(trim($_POST['pasp_adres'])));
-		$pasp_ovd = win1251(htmlspecialchars(trim($_POST['pasp_ovd'])));
-		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
-		$sum = intval($_POST['sum']);
-		$avans = intval($_POST['avans']);
-		if(empty($fio) || empty($adres))
-			jsonError();
+		if(query_value("SELECT COUNT(`id`) FROM `zayav_dogovor` WHERE `deleted`=0 AND `zayav_id`=".$v['zayav_id']))
+			jsonError('Ошибка: на эту заявку уже заключён договор.');
 
-		if(query_value("SELECT COUNT(`id`) FROM `zayav_dogovor` WHERE `deleted`=0 AND `id`!=".$id." AND `nomer`=".$nomer))
-			jsonError('Договор с номером <b>'.$nomer.'</b> уже был заключен.');
+		foreach($v as $k => $r)
+			$v[$k] = win1251($r);
 
-		if($sum < $avans)
-			jsonError();
-
-		$sql = "SELECT *
-				FROM `zayav`
-				WHERE `id`=".$zayav_id."
-				  AND `deleted`=0
-				LIMIT 1";
-		if(!$zayav = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		$sql = "SELECT * FROM `zayav_dogovor` WHERE `deleted`=0 AND `zayav_id`=".$zayav_id;
-		if($dog = mysql_fetch_assoc(query($sql))) {
-			query("UPDATE `zayav_dogovor` SET `deleted`=1 WHERE `id`=".$dog['id']);
-			query("UPDATE `money` SET `deleted`=1 WHERE `dogovor_id`=".$dog['id']);
-		}
 		$sql = "INSERT INTO `zayav_dogovor` (
 					`nomer`,
 					`data_create`,
@@ -1354,30 +1249,28 @@ switch(@$_POST['op']) {
 					`sum`,
 					`avans`,
 					`link`,
-					`reason`,
 					`viewer_id_add`
 				) VALUES (
-					".$nomer.",
-					'".$data_create."',
-					".$zayav_id.",
-					".$zayav['client_id'].",
-					'".addslashes($fio)."',
-					'".addslashes($adres)."',
-					'".addslashes($pasp_seria)."',
-					'".addslashes($pasp_nomer)."',
-					'".addslashes($pasp_adres)."',
-					'".addslashes($pasp_ovd)."',
-					'".addslashes($pasp_data)."',
-					".$sum.",
-					".$avans.",
-					'".time().'_dogovor_'.$nomer.'_'.$data_create."',
-					'".addslashes($reason)."',
+					".$v['nomer'].",
+					'".$v['data_create']."',
+					".$v['zayav_id'].",
+					".$v['client_id'].",
+					'".addslashes($v['fio'])."',
+					'".addslashes($v['adres'])."',
+					'".addslashes($v['pasp_seria'])."',
+					'".addslashes($v['pasp_nomer'])."',
+					'".addslashes($v['pasp_adres'])."',
+					'".addslashes($v['pasp_ovd'])."',
+					'".addslashes($v['pasp_data'])."',
+					".$v['sum'].",
+					".$v['avans'].",
+					'".time().'_dogovor_'.$v['nomer'].'_'.$v['data_create']."',
 					".VIEWER_ID."
 				)";
 		query($sql);
 
 		$dog_id = mysql_insert_id();
-
+/*
 		//Удаление начислений и платежей по предыдущим договорам
 		$sql = "UPDATE `accrual`
 				SET `deleted`=1,
@@ -1385,7 +1278,7 @@ switch(@$_POST['op']) {
 					`dtime_del`=CURRENT_TIMESTAMP
 				WHERE `deleted`=0
 				  AND `dogovor_id`>0
-				  AND `zayav_id`=".$zayav_id;
+				  AND `zayav_id`=".$v['zayav_id'];
 		query($sql);
 		$sql = "UPDATE `money`
 				SET `deleted`=1,
@@ -1393,9 +1286,9 @@ switch(@$_POST['op']) {
 					`dtime_del`=CURRENT_TIMESTAMP
 				WHERE `deleted`=0
 				  AND `dogovor_id`>0
-				  AND `zayav_id`=".$zayav_id;
+				  AND `zayav_id`=".$v['zayav_id'];
 		query($sql);
-
+*/
 		//Внесение начисления по договору
 		$sql = "INSERT INTO `accrual` (
 					`zayav_id`,
@@ -1405,44 +1298,43 @@ switch(@$_POST['op']) {
 					`prim`,
 					`viewer_id_add`
 				) VALUES (
-					".$zayav_id.",
-					".$zayav['client_id'].",
+					".$v['zayav_id'].",
+					".$v['client_id'].",
 					".$dog_id.",
-					".$sum.",
-					'Заключение договора №".$nomer.".',
+					".$v['sum'].",
+					'Заключение договора №".$v['nomer'].".',
 					".VIEWER_ID."
 				)";
 		query($sql);
 
-		//Присвоение заявке номера договора
+		//Присвоение заявке id договора и обновление адреса
 		$sql = "UPDATE `zayav`
 		        SET `dogovor_id`=".$dog_id.",
 		            `dogovor_require`=0,
-					`adres`='".addslashes($adres)."'
-		        WHERE `id`=".$zayav_id;
+					`adres`='".addslashes($v['adres'])."'
+		        WHERE `id`=".$v['zayav_id'];
 		query($sql);
 
 		// Обновление паспортных данных клиента
 		$sql = "UPDATE `client`
-		        SET `pasp_seria`='".addslashes($pasp_seria)."',
-					`pasp_nomer`='".addslashes($pasp_nomer)."',
-					`pasp_adres`='".addslashes($pasp_adres)."',
-					`pasp_ovd`='".addslashes($pasp_ovd)."',
-					`pasp_data`='".addslashes($pasp_data)."',
-					`fio`='".$fio."'
-		        WHERE `id`=".$zayav['client_id'];
+		        SET `pasp_seria`='".addslashes($v['pasp_seria'])."',
+					`pasp_nomer`='".addslashes($v['pasp_nomer'])."',
+					`pasp_adres`='".addslashes($v['pasp_adres'])."',
+					`pasp_ovd`='".addslashes($v['pasp_ovd'])."',
+					`pasp_data`='".addslashes($v['pasp_data'])."',
+					`fio`='".$v['fio']."'
+		        WHERE `id`=".$v['client_id'];
 		query($sql);
 
 		history_insert(array(
 			'type' => 19,
-			'client_id' => $zayav['client_id'],
-			'zayav_id' => $zayav_id,
-			'dogovor_id' => $dog_id,
-			'value' => addslashes($reason)
+			'client_id' => $v['client_id'],
+			'zayav_id' => $v['zayav_id'],
+			'dogovor_id' => $dog_id
 		));
 
 		// Внесение авансового платежа, если есть
-		if($avans) {
+		if($v['avans'] > 0) {
 			$sql = "INSERT INTO `money` (
 						`zayav_id`,
 						`client_id`,
@@ -1451,26 +1343,146 @@ switch(@$_POST['op']) {
 						`income_id`,
 						`viewer_id_add`
 					) VALUES (
-						".$zayav_id.",
-						".$zayav['client_id'].",
+						".$v['zayav_id'].",
+						".$v['client_id'].",
 						".$dog_id.",
-						".$avans.",
+						".$v['avans'].",
 						1,
 						".VIEWER_ID."
 					)";
 			query($sql);
 			history_insert(array(
 				'type' => 20,
-				'client_id' => $zayav['client_id'],
-				'zayav_id' => $zayav_id,
+				'client_id' => $v['client_id'],
+				'zayav_id' => $v['zayav_id'],
 				'dogovor_id' => $dog_id
 			));
 		}
 
 		dogovor_print($dog_id);
 
-		clientBalansUpdate($zayav['client_id']);
-		_zayavBalansUpdate($zayav_id);
+		clientBalansUpdate($v['client_id']);
+		_zayavBalansUpdate($v['zayav_id']);
+
+		jsonSuccess();
+		break;
+	case 'dogovor_edit':
+		$v = dogovorFilter($_POST);
+		if(!is_array($v))
+			jsonError($v);
+
+		foreach($v as $k => $r)
+			$v[$k] = win1251($r);
+
+		$sql = "SELECT * FROM `zayav_dogovor` WHERE `deleted`=0 AND `zayav_id`=".$v['zayav_id'];
+		if(!$dog = mysql_fetch_assoc(query($sql)))
+			jsonError('Ошибка: договора не существует.');
+
+		$sql = "UPDATE `zayav_dogovor`
+				SET `nomer`=".$v['nomer'].",
+					`data_create`='".$v['data_create']."',
+					`zayav_id`=".$v['zayav_id'].",
+					`client_id`=".$v['client_id'].",
+					`fio`='".addslashes($v['fio'])."',
+					`adres`='".addslashes($v['adres'])."',
+					`pasp_seria`='".addslashes($v['pasp_seria'])."',
+					`pasp_nomer`='".addslashes($v['pasp_nomer'])."',
+					`pasp_adres`='".addslashes($v['pasp_adres'])."',
+					`pasp_ovd`='".addslashes($v['pasp_ovd'])."',
+					`pasp_data`='".addslashes($v['pasp_data'])."',
+					`sum`=".$v['sum'].",
+					`avans`=".$v['avans'].",
+					`link`='".time().'_dogovor_'.$v['nomer'].'_'.$v['data_create']."'
+				WHERE `id`=".$dog['id'];
+		query($sql);
+
+		// Обновление начисления по договору
+		$sql = "UPDATE `accrual`
+				SET `sum`=".$v['sum'].",
+					`prim`='Заключение договора №".$v['nomer'].".'
+				WHERE `dogovor_id`=".$dog['id'];
+		query($sql);
+
+		// Обновление адреса
+		$sql = "UPDATE `zayav`
+		        SET `adres`='".addslashes($v['adres'])."'
+		        WHERE `id`=".$v['zayav_id'];
+		query($sql);
+
+		// Обновление паспортных данных клиента
+		$sql = "UPDATE `client`
+		        SET `pasp_seria`='".addslashes($v['pasp_seria'])."',
+					`pasp_nomer`='".addslashes($v['pasp_nomer'])."',
+					`pasp_adres`='".addslashes($v['pasp_adres'])."',
+					`pasp_ovd`='".addslashes($v['pasp_ovd'])."',
+					`pasp_data`='".addslashes($v['pasp_data'])."',
+					`fio`='".$v['fio']."'
+		        WHERE `id`=".$v['client_id'];
+		query($sql);
+
+		// Внесение авансового платежа, если есть
+		if($v['avans'] > 0) {
+			$avans_id = intval(query_value("SELECT `id` FROM `money` WHERE `deleted`=0 AND `dogovor_id`=".$dog['id']));
+			$sql = "INSERT INTO `money` (
+						`id`,
+						`zayav_id`,
+						`client_id`,
+						`dogovor_id`,
+						`sum`,
+						`income_id`,
+						`viewer_id_add`
+					) VALUES (
+						".$avans_id.",
+						".$v['zayav_id'].",
+						".$v['client_id'].",
+						".$dog['id'].",
+						".$v['avans'].",
+						1,
+						".VIEWER_ID."
+					) ON DUPLICATE KEY UPDATE
+						`sum`=VALUES(`sum`)";
+			query($sql);
+		} else
+			query("UPDATE `money` SET `deleted`=1 WHERE `deleted`=0 AND `dogovor_id`=".$dog['id']);
+
+		dogovor_print($dog['id']);
+
+		clientBalansUpdate($v['client_id']);
+		_zayavBalansUpdate($v['zayav_id']);
+
+		unlink(PATH_DOGOVOR.$dog['link'].'.doc');
+
+		$changes = '';
+		if($dog['fio'] != $v['fio'])
+			$changes .= '<tr><th>ФИО:<td>'.$dog['fio'].'<td>»<td>'.$v['fio'];
+		if($dog['adres'] != $v['adres'])
+			$changes .= '<tr><th>Адрес:<td>'.$dog['adres'].'<td>»<td>'.$v['adres'];
+		if($dog['pasp_seria'] != $v['pasp_seria'])
+			$changes .= '<tr><th>Паспорт серия:<td>'.$dog['pasp_seria'].'<td>»<td>'.$v['pasp_seria'];
+		if($dog['pasp_nomer'] != $v['pasp_nomer'])
+			$changes .= '<tr><th>Паспорт номер:<td>'.$dog['pasp_nomer'].'<td>»<td>'.$v['pasp_nomer'];
+		if($dog['pasp_adres'] != $v['pasp_adres'])
+			$changes .= '<tr><th>Паспорт прописка:<td>'.$dog['pasp_adres'].'<td>»<td>'.$v['pasp_adres'];
+		if($dog['pasp_ovd'] != $v['pasp_ovd'])
+			$changes .= '<tr><th>Паспорт кем выдан:<td>'.$dog['pasp_ovd'].'<td>»<td>'.$v['pasp_ovd'];
+		if($dog['pasp_data'] != $v['pasp_data'])
+			$changes .= '<tr><th>Паспорт когда выдан:<td>'.$dog['pasp_data'].'<td>»<td>'.$v['pasp_data'];
+		if($dog['nomer'] != $v['nomer'])
+			$changes .= '<tr><th>Номер:<td>'.$dog['nomer'].'<td>»<td>'.$v['nomer'];
+		if($dog['data_create'] != $v['data_create'])
+			$changes .= '<tr><th>Дата заключения:<td>'.dogovorData($dog['data_create']).'<td>»<td>'.dogovorData($v['data_create']);
+		if($dog['sum'] != $v['sum'])
+			$changes .= '<tr><th>Сумма:<td>'.round($dog['sum'], 2).'<td>»<td>'.round($v['sum'], 2);
+		if($dog['avans'] != $v['avans'])
+			$changes .= '<tr><th>Авансовый платёж:<td>'.round($dog['avans'], 2).'<td>»<td>'.round($v['avans'], 2);
+		if($changes)
+			history_insert(array(
+				'type' => 42,
+				'client_id' => $v['client_id'],
+				'zayav_id' => $v['zayav_id'],
+				'dogovor_id' => $dog['id'],
+				'value' => '<table>'.$changes.'</table>'
+			));
 
 		jsonSuccess();
 		break;
@@ -1514,7 +1526,7 @@ switch(@$_POST['op']) {
 	case 'remind_day':
 		if(!empty($_POST['day']) && !_calendarDataCheck($_POST['day']))
 			jsonError();
-		$send['html'] = utf8(remind_spisok(1, $_POST));
+		$send['html'] = utf8(remind_spisok($_POST));
 		$send['cal'] = utf8(_calendarFilter(array(
 			'month' => $_POST['day'],
 			'days' => remind_days(),
@@ -1524,17 +1536,10 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 
-	case 'history_next':
+	case 'history_spisok':
 		if(!RULES_HISTORYSHOW)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-/*		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
-			$_POST['worker'] = 0;
-		if(!preg_match(REGEXP_NUMERIC, $_POST['action']))
-			$_POST['action'] = 0;*/
-		$page = intval($_POST['page']);
-		$send['html'] = utf8(history_spisok($page));
+		$send['html'] = utf8(history_spisok($_POST));
 		jsonSuccess($send);
 		break;
 

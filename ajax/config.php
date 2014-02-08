@@ -9,7 +9,7 @@ if($_POST['op'] != 'pin_enter')
 function jsonError($values=null) {
 	$send['error'] = 1;
 	if(empty($values))
-		$send['text'] = utf8('Произошла неизвестная ошибка.<br />Попробуйте позднее.');
+		$send['text'] = utf8('Произошла неизвестная ошибка.');
 	elseif(is_array($values))
 		$send += $values;
 	else
