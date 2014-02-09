@@ -116,10 +116,10 @@ function colWidth() {// Установка размеров колонок
 }
 function aboutShow() {
 	global $sheet, $line, $colLast;
-	$ex = explode('-', $_GET['mon']);
+	$ex = explode('-', MON);
 	$mon = '.'.$ex[1].'.'.$ex[0];
 	$sheet->mergeCells('A'.$line.':'.$colLast.$line);
-	$sheet->setCellValue('A'.$line, 'ОТЧЁТ за период с 01'.$mon.' по '.date('t', strtotime($_GET['mon'].'-01')).$mon.' г.');
+	$sheet->setCellValue('A'.$line, 'ОТЧЁТ за период с 01'.$mon.' по '.date('t', strtotime(MON.'-01')).$mon.' г.');
 	$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line++;
@@ -163,11 +163,11 @@ function headShow() {// Рисование заголовка
 	$line += 2;
 }
 function contentShow() {
-	global $sheet, $line, $colLast, $zayav_ids;
+	global $sheet, $line, $colLast;
 	$sql = "SELECT *
         FROM `zayav`
         WHERE `deleted`=0
-          AND `dtime_add` LIKE '".$_GET['mon']."-%'
+          AND `dtime_add` LIKE '".MON."-%'
         ORDER BY `id`";
 	$q = query($sql);
 	$zayav = array();
@@ -202,7 +202,7 @@ function contentShow() {
 				break;
 		}
 
-//Начисления (вставляются в сумму договора)
+	//Начисления (вставляются в сумму договора)
 	$sql = "SELECT `z`.`id`,
 			   SUM(`acc`.`sum`) AS `sum`
 		FROM `accrual` AS `acc`,
@@ -215,7 +215,7 @@ function contentShow() {
 	while($r = mysql_fetch_assoc($q))
 		$zayav[$r['id']]['accrual'] = $r['sum'];
 
-//Предоплата
+	//Предоплата
 	$sql = "SELECT `z`.`id`,
 			   SUM(`m`.`sum`) AS `sum`
 		FROM `money` AS `m`,
@@ -230,6 +230,7 @@ function contentShow() {
 		$zayav[$r['id']]['predoplata'] = $r['sum'];
 
 	$start = $line;
+	$sheet->setSharedStyle(styleContent(), 'A'.$start.':'.$colLast.($start + count($zayav)));
 	foreach($zayav as $r) {
 		$nDog = isset($r['dogovor_n']) ? $r['dogovor_n'] : '';
 		if(!$nDog && $r['nomer_g'])
@@ -271,7 +272,6 @@ function contentShow() {
 	}
 
 	//Стили для колонок содержимого
-	$sheet->setSharedStyle(styleContent(), 'A'.$start.':'.$colLast.$line);
 	$sheet->setSharedStyle(styleResult(), 'A'.$line.':'.$colLast.$line);
 	$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$sheet->getStyle('A'.$start.':A'.$line)->getFont()->getColor()->setRGB('000088');
@@ -298,17 +298,17 @@ function contentShow() {
 	freeLine($line);
 }
 function zarplata() {
-	global $book, $zayav_ids;
+	global $book;
 
 	$book->setActiveSheetIndex(1);
 	$sheet = $book->getActiveSheet();
 	pageSetup('Зарплата');
 	$line = 1;
 
-	$sheet->getColumnDimension('A')->setWidth(40);
+	$sheet->getColumnDimension('A')->setWidth(80);
 	$sheet->getColumnDimension('B')->setWidth(10);
 
-	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для сотрудников:');
+	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для сотрудников за '.MONTH.':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
@@ -317,15 +317,44 @@ function zarplata() {
 	$sheet->setSharedStyle(styleHead(), 'A'.$line.':B'.$line);
 	$line++;
 
+	$sql = "SELECT *
+        FROM `zayav`
+        WHERE `deleted`=0
+          AND `status_day` LIKE '".MON."%'";
+	$q = query($sql);
+	$zayav = array();
+	while($r = mysql_fetch_assoc($q)) {
+		$ex = explode(' ', $r['dtime_add']);
+		$d = explode('-', $ex[0]);
+		$r['dtime_add'] = $d[2].'.'.$d[1].'.'.$d[0];
+		$zayav[$r['id']] = $r;
+	}
+
+	$zayav = zayav_product_array($zayav);
+
+	$zayav_ids = implode(',', array_keys($zayav));
+
 	//Список зп сотрудников. Берётся из расходов по заявке.
-	$sql = "SELECT * FROM `zayav_expense` WHERE `zayav_id` IN (".$zayav_ids.") AND `category_id`=2";
+	$sql = "SELECT `ze`.*
+			FROM `zayav_expense` `ze`,
+				 `zayav` `z`
+			WHERE `ze`.`zayav_id`=`z`.`id`
+			  AND `ze`.`zayav_id` IN (".$zayav_ids.")
+			  AND `ze`.`category_id`=2
+			GROUP BY `ze`.`id`
+			ORDER BY `z`.`id`";
 	$q = query($sql);
 	$zp = array();
+	$worker = array();
 	while($r = mysql_fetch_assoc($q))
 		if($r['worker_id']) {
 			if(empty($zp[$r['worker_id']]))
 				$zp[$r['worker_id']] = 0;
 			$zp[$r['worker_id']] += $r['sum'];
+			$worker[$r['worker_id']][] = array(
+				'zayav_id' => $r['zayav_id'],
+				'sum' => $r['sum']
+			);
 		}
 
 	$start = $line;
@@ -339,6 +368,27 @@ function zarplata() {
 	$sheet->getStyle('B'.$start.':B'.$line)->getNumberFormat()->setFormatCode('#,#');
 	$sheet->setCellValue('B'.$line, '=SUM(B'.$start.':B'.($line - 1).')');
 	$sheet->setCellValue('A'.$line, 'Итог:');
+
+	$line += 2;
+	foreach($worker as $id => $arr) {
+		$sheet->setCellValueByColumnAndRow(0, $line, utf8(_viewer($id, 'name')));
+		$sheet->getStyle('A'.$line)->getFont()->setBold(true);
+		$sheet->setSharedStyle(styleHead(), 'A'.$line.':B'.$line);
+		$line++;
+		$start = $line;
+		foreach($arr as $r) {
+			$z = $zayav[$r['zayav_id']];
+			$adres = $z['adres'] ? $z['adres'].', ' : '';
+			$sheet->setCellValueByColumnAndRow(0, $line, '№'.$z['id'].' от '.$z['dtime_add'].': '.utf8($adres.zayav_product_spisok($z['product'], 'report')));
+			$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : API_URL.'#zayav_').$z['id']);
+			$sheet->setCellValueByColumnAndRow(1, $line, $r['sum']);
+			$line++;
+		}
+		$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.($line - 1));
+		$sheet->getStyle('A'.$start.':A'.($line - 1))->getFont()->getColor()->setRGB('000088');
+		$line++;
+	}
+
 	freeLine($line);
 }
 function incomes() {
@@ -351,11 +401,11 @@ function incomes() {
 
 	$sheet->getColumnDimension('A')->setWidth(8);
 	$sheet->getColumnDimension('B')->setWidth(40);
-	$sheet->getColumnDimension('C')->setWidth(10);
+	$sheet->getColumnDimension('C')->setWidth(15);
 	$sheet->getColumnDimension('D')->setWidth(25);
-	$sheet->getColumnDimension('E')->setWidth(70);
+	$sheet->getColumnDimension('E')->setWidth(60);
 
-	$sheet->setCellValue('A'.$line, 'Платежи:');
+	$sheet->setCellValue('A'.$line, 'Платежи за '.MONTH.':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
@@ -371,7 +421,7 @@ function incomes() {
 	        FROM `money`
 	        WHERE `deleted`=0
 	          AND `sum`>0
-			  AND `dtime_add` LIKE '".$_GET['mon']."%'
+			  AND `dtime_add` LIKE '".MON."%'
 	        ORDER BY `id`";
 	$q = query($sql);
 	$money = array();
@@ -382,20 +432,23 @@ function incomes() {
 	$money = _dogNomer($money);
 
 	$start = $line;
+	$sum = 0;
 	foreach($money as $r) {
 		$sheet->getCell('A'.$line)->setValue(reportData($r['dtime_add']));
-		$sheet->getCell('B'.$line)->setValue(utf8(htmlspecialchars_decode($r['client_fio'])));
-		$sheet->getCell('C'.$line)->setValue($r['sum']);
+		if($r['client_id'])
+			$sheet->getCell('B'.$line)->setValue(utf8(htmlspecialchars_decode($r['client_fio'])));
+		$sheet->getCell('C'.$line)->setValue(_sumSpace($r['sum']));
 		$sheet->getCell('D'.$line)->setValue(utf8(_income($r['income_id'])));
 		$sheet->getCell('E'.$line)->setValue(($r['dogovor_id'] ? 'Авансовый платеж (договор '.utf8($r['dogovor_nomer']).'). ' : '').utf8(htmlspecialchars_decode($r['prim'])).' ');
 		$line++;
+		$sum += $r['sum'];
 	}
 
 	$sheet->setSharedStyle(styleContent(), 'A'.$start.':E'.$line);
 	$sheet->setSharedStyle(styleResult(), 'A'.$line.':E'.$line);
 	$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-	$sheet->setCellValue('C'.$line, '=SUM(C'.$start.':C'.($line - 1).')');
-	$sheet->getStyle('C'.$start.':C'.$line)->getNumberFormat()->setFormatCode('#,#');
+	$sheet->getStyle('C'.$start.':C'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+	$sheet->setCellValue('C'.$line, _sumSpace($sum));
 	$sheet->getStyle('E'.$start.':E'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
 	$sheet->setCellValue('B'.$line, 'Итог:');
 
@@ -413,7 +466,7 @@ function debtors() {
 	$sheet->getColumnDimension('B')->setWidth(60);
 	$sheet->getColumnDimension('C')->setWidth(10);
 
-	$sheet->setCellValue('A'.$line, 'Должники:');
+	$sheet->setCellValue('A'.$line, 'Должники на '.utf8(FullData(curTime())).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
@@ -449,12 +502,18 @@ function debtors() {
 }
 
 require_once '../config.php';
+require_once VKPATH.'excel/PHPExcel.php';
+set_time_limit(10);
+
 
 if(empty($_GET['mon']) || !preg_match(REGEXP_YEARMONTH, $_GET['mon']))
 	die('Некорректный месяц');
 
-require_once VKPATH.'excel/PHPExcel.php';
-set_time_limit(10);
+define('MON', $_GET['mon']);
+$ex = explode('-', MON);
+define('MONTH', utf8(_monthDef($ex[1]).' '.$ex[0]));
+define('MON_FULL', utf8(_monthFull($ex[1])));
+define('YEAR', $ex[0]);
 
 /*
 //Установка кодировки. Не заработало.
@@ -472,7 +531,6 @@ $book->setActiveSheetIndex(0);
 $sheet = $book->getActiveSheet();
 $line = 1;      // Текущая линия
 $colLast = 'L'; // Последняя колонка
-$zayav_ids = 0; // Идентификаторы заявок текущего месяца
 
 pageSetup('Заявки');
 colWidth();
@@ -485,7 +543,7 @@ incomes();
 debtors();
 
 
-$book->setActiveSheetIndex(0);
+$book->setActiveSheetIndex(1);
 
 header('Content-Type:application/vnd.ms-excel');
 header('Content-Disposition:attachment;filename="report.xls"');

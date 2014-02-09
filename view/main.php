@@ -3350,7 +3350,7 @@ function salary_spisok() {
 		$send .=
 			'<tr><td class="fio"><a href="'.URL.'&p=report&d=salary&id='.$r['viewer_id'].'" class="name">'.$r['name'].'</a>'.
 				'<td class="rate">'.($r['rate'] == 0 ? '' : $r['rate']).
-				'<td class="balans" style=color:#'.($r['balans'] < 0 ? 'A00' : '090').'>'.$r['balans'];
+				'<td class="balans" style=color:#'.($r['balans'] < 0 ? 'A00' : '090').'>'.round($r['balans'], 2);
 	}
 	$send .= '</table>';
 	return $send;
@@ -3387,7 +3387,7 @@ function salary_worker_spisok($v) {
 					'Ставка: '.($rate != 0 ? '<b>'.round($rate, 2).'</b> руб.<span>('._viewer($filter['worker_id'], 'rate_day').'-е число месяца)</span>' : 'нет').
 					'<a class="rate-set">Установить новую ставку</a>'.
 				'</h1>'.
-				'Баланс: <b style="color:#'.($balans < 0 ? 'A00' : '090').'">'.$balans.'</b> руб.'.
+				'Баланс: <b style="color:#'.($balans < 0 ? 'A00' : '090').'">'.round($balans, 2).'</b> руб.'.
 				'<div class="a">'.
 					'<a class="up">Начислить</a> :: '.
 					'<a class="down">Выдать з/п</a>'.
@@ -3454,7 +3454,7 @@ function salary_worker_spisok($v) {
 		$about = (!empty($r['zayav_link']) ? 'Заявка '.$r['zayav_link'].'. ' : '').$r['about'];
 		$send .=
 			'<tr><td class="type">'.$r['type'].
-				'<td class="sum">'.$r['sum'].
+				'<td class="sum">'.round($r['sum'], 2).
 				'<td class="about">'.$about.
 				'<td class="dtime">'.FullDataTime($r['dtime_add']);
 	}
