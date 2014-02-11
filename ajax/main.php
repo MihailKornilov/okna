@@ -136,16 +136,16 @@ switch(@$_POST['op']) {
 		while($r = mysql_fetch_assoc($q)) {
 			$unit = array(
 				'uid' => $r['id'],
-				'title' => utf8($r['fio']),
-				'adres' => utf8($r['adres'])
+				'title' => utf8(htmlspecialchars_decode($r['fio'])),
+				'adres' => utf8(htmlspecialchars_decode($r['adres']))
 			);
-			$pole2 = array();
+			$content = array();
 			if($r['telefon'])
-				$pole2[] = $r['telefon'];
+				$content[] = $r['telefon'];
 			if($r['adres'])
-				$pole2[] = $r['adres'];
-			if(!empty($pole2))
-				$unit['content'] = utf8($r['fio'].'<div class="pole2">'.implode('<br />', $pole2).'</div>');
+				$content[] = $r['adres'];
+			if(!empty($content))
+				$unit['content'] = utf8($r['fio'].'<span>'.implode('<br />', $content).'</span>');
 			$send['spisok'][] = $unit;
 		}
 		jsonSuccess($send);
@@ -183,9 +183,16 @@ switch(@$_POST['op']) {
 					".VIEWER_ID."
 				)";
 		query($sql);
+
+		$content = array();
+		if($telefon)
+			$content[] = $telefon;
+		if($adres)
+			$content[] = $adres;
 		$send = array(
 			'uid' => mysql_insert_id(),
-			'title' => $fio
+			'title' => utf8($fio),
+			'content' => utf8($fio.'<span>'.implode('<br />', $content).'</span>')
 		);
 		history_insert(array(
 			'type' => 1,

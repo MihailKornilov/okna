@@ -543,7 +543,7 @@ incomes();
 debtors();
 
 
-$book->setActiveSheetIndex(1);
+$book->setActiveSheetIndex(0);
 
 header('Content-Type:application/vnd.ms-excel');
 header('Content-Disposition:attachment;filename="report.xls"');

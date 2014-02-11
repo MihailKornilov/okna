@@ -399,52 +399,55 @@ var hashLoc,
 		$.post(AJAX_MAIN, send, function() {}, 'json');
 	};
 
-$.fn.clientSel = function(obj) {
+$.fn.clientSel = function(o) {
 	var t = $(this);
-	obj = $.extend({
-		width:240,
+	o = $.extend({
+		width:270,
 		add:null,
 		client_id:t.val() || 0,
 		func:function() {}
-	}, obj);
+	}, o);
 
-	if(obj.add)
-		obj.add = function() {
+	if(o.add)
+		o.add = function() {
 			clientAdd(function(res) {
-				sel.add(res).val(res.uid)
+				var arr = [];
+				arr.push(res);
+				t._select(arr);
+				t._select(res.uid);
 			});
 		};
 
-	var sel = t.vkSel({
-		width:obj.width,
+	t._select({
+		width:o.width,
 		title0:'Начните вводить данные клиента...',
 		spisok:[],
-		ro:0,
+		write:1,
 		nofind:'Клиентов не найдено',
-		func:obj.func,
-		funcAdd:obj.add,
+		func:o.func,
+		funcAdd:o.add,
 		funcKeyup:clientsGet
-	}).o;
-	sel.process();
+	});
 	clientsGet();
 
 	function clientsGet(val) {
 		var send = {
 			op:'client_sel',
 			val:val || '',
-			client_id:obj.client_id
+			client_id:o.client_id
 		};
+		t._select('process');
 		$.post(AJAX_MAIN, send, function(res) {
+			t._select('cancel');
 			if(res.success) {
-				sel.spisok(res.spisok);
-				if(obj.client_id > 0) {
-					sel.val(obj.client_id);
-					obj.client_id = 0;
+				t._select(res.spisok);
+				if(o.client_id) {
+					t._select(o.client_id);
+					o.client_id = 0;
 				}
 			}
 		}, 'json');
 	}
-	t.o = sel;
 	return t;
 };
 $.fn.productList = function(o) {
@@ -777,14 +780,13 @@ $(document)
 	})
 
 	.on('click', '.zakaz_add', function() {
-		if(typeof CLIENT == 'undefined')
+		if(!window.CLIENT)
 			CLIENT = {
 				id:0,
 				fio:'',
 				adres:''
 			};
-		var HOMEADRES = CLIENT.adres,
-			html =
+		var html =
 				'<table class="zayav-add">' +
 					'<tr><td class="label">Клиент:' +
 						'<td><INPUT type="hidden" id="client_id" value="' + CLIENT.id + '">' +
@@ -800,15 +802,8 @@ $(document)
 				content:html,
 				submit:submit
 			});
-		if(CLIENT.id == 0)
-			var client = $('#client_id').clientSel({
-				add:1,
-				func:function(uid) {
-					HOMEADRES = client.item(uid).adres;
-					if($('#homeadres').val() == 1)
-						$('#adres').val(HOMEADRES);
-				}
-			}).o;
+		if(!CLIENT.id)
+			$('#client_id').clientSel({add:1});
 		$('#product').productList();
 		$('#comm').autosize();
 		function submit() {
@@ -941,7 +936,7 @@ $(document)
 		}, 'json');
 	})
 	.on('click', '.zamer_add', function() {
-		if(typeof CLIENT == 'undefined')
+		if(!window.CLIENT)
 			CLIENT = {
 				id:0,
 				fio:'',
@@ -968,15 +963,15 @@ $(document)
 				content:html,
 				submit:submit
 			});
-		if(CLIENT.id == 0)
-			var client = $('#client_id').clientSel({
+		if(!CLIENT.id)
+			$('#client_id').clientSel({
 				add:1,
-				func:function(uid) {
-					HOMEADRES = client.item(uid).adres;
+				func:function(uid, id, item) {
+					HOMEADRES = uid ? item.adres : '';
 					if($('#homeadres').val() == 1)
 						$('#adres').val(HOMEADRES);
 				}
-			}).o;
+			});
 		$('#product').productList();
 		$('#homeadres')._check({
 			func:function() {
@@ -1126,7 +1121,7 @@ $(document)
 	})
 
 	.on('click', '.set_add', function() {
-		if(typeof CLIENT == 'undefined')
+		if(!window.CLIENT)
 			CLIENT = {
 				id:0,
 				fio:'',
@@ -1151,15 +1146,15 @@ $(document)
 				content:html,
 				submit:submit
 			});
-		if(CLIENT.id == 0)
-			var client = $('#client_id').clientSel({
+		if(!CLIENT.id)
+			$('#client_id').clientSel({
 				add:1,
-				func:function(uid) {
-					HOMEADRES = client.item(uid).adres;
+				func:function(uid, id, item) {
+					HOMEADRES = uid ? item.adres : '';
 					if($('#homeadres').val() == 1)
 						$('#adres').val(HOMEADRES);
 				}
-			}).o;
+			});
 		$('#product').productList();
 		$('#homeadres')._check({
 			func:function() {
