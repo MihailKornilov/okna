@@ -1347,6 +1347,7 @@ switch(@$_POST['op']) {
 						`client_id`,
 						`dogovor_id`,
 						`sum`,
+						`invoice_id`,
 						`income_id`,
 						`viewer_id_add`
 					) VALUES (
@@ -1354,6 +1355,7 @@ switch(@$_POST['op']) {
 						".$v['client_id'].",
 						".$dog_id.",
 						".$v['avans'].",
+						1,
 						1,
 						".VIEWER_ID."
 					)";
@@ -1436,6 +1438,7 @@ switch(@$_POST['op']) {
 						`client_id`,
 						`dogovor_id`,
 						`sum`,
+						`invoice_id`,
 						`income_id`,
 						`viewer_id_add`
 					) VALUES (
@@ -1444,6 +1447,7 @@ switch(@$_POST['op']) {
 						".$v['client_id'].",
 						".$dog['id'].",
 						".$v['avans'].",
+						1,
 						1,
 						".VIEWER_ID."
 					) ON DUPLICATE KEY UPDATE
@@ -1551,6 +1555,8 @@ switch(@$_POST['op']) {
 		break;
 
 	case 'invoice_set':
+		if(!VIEWER_ADMIN)
+			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
 			jsonError();
 		if(!preg_match(REGEXP_CENA, $_POST['sum']))
@@ -1578,8 +1584,8 @@ switch(@$_POST['op']) {
 				$sql = "SELECT COUNT(`viewer_id`)
 				        FROM `vk_user`
 				        WHERE `viewer_id`=".$id."
+				          AND `admin`=0
 				          AND `worker`=1
-						  AND `admin`=0
 						  AND `rules` LIKE '%RULES_CASH%'";
 				if(!query_value($sql))
 					jsonError();
@@ -1589,19 +1595,34 @@ switch(@$_POST['op']) {
 			}
 		}
 
+		$cashHistory = '';
 		if(!empty($cash))
-			foreach($cash as $id => $s)
-				query("UPDATE `vk_user` SET `cash`="._invoiceBalans($invoice_id, $s, $id)." WHERE `viewer_id`=".$id);
+			foreach($cash as $id => $s) {
+				query("UPDATE `vk_user` SET `cash`="._invoiceBalans($id, $s)." WHERE `viewer_id`=".$id);
+				xcache_unset(CACHE_PREFIX.'viewer_'.$id);
+				invoice_history_insert(array(
+					'action' => 5,
+					'worker_id' => $id
+				));
+				$cashHistory .= '<tr><td>'._viewer($id, 'name').':<td>'.round($s, 2).' руб.';
+			}
 
 		query("UPDATE `invoice` SET `start`="._invoiceBalans($invoice_id, $sum)." WHERE `id`=".$invoice_id);
+		xcache_unset(CACHE_PREFIX.'invoice');
+		invoice_history_insert(array(
+			'action' => 5,
+			'invoice_id' => $invoice_id
+		));
 
 		history_insert(array(
 			'type' => 38,
 			'value' => $sum,
-			'value1' => $invoice_id
+			'value1' => $invoice_id,
+			'value2' => $cashHistory ? '<table>'.$cashHistory.'</table>' : ''
 		));
 
-		$send['c'] = utf8(cash_spisok());
+		$cash = cash_spisok();
+		$send['c'] = utf8($cash['spisok']);
 		$send['i'] = utf8(invoice_spisok());
 		jsonSuccess($send);
 		break;
@@ -1643,6 +1664,12 @@ switch(@$_POST['op']) {
 				)";
 		query($sql);
 
+		invoice_history_insert(array(
+			'action' => 4,
+			'table' => 'invoice_transfer',
+			'id' => mysql_insert_id()
+		));
+
 		history_insert(array(
 			'type' => 39,
 			'value' => $sum,
@@ -1651,9 +1678,16 @@ switch(@$_POST['op']) {
 			'value3' => $prim
 		));
 
-		$send['c'] = utf8(cash_spisok());
+		$cash = cash_spisok();
+		$send['c'] = utf8($cash['spisok']);
 		$send['i'] = utf8(invoice_spisok());
 		$send['t'] = utf8(transfer_spisok());
+		jsonSuccess($send);
+		break;
+	case 'invoice_history':
+		if(empty($_POST['invoice_id']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
+			jsonError();
+		$send['html'] = utf8(invoice_history(intval($_POST['invoice_id'])));
 		jsonSuccess($send);
 		break;
 
@@ -1716,6 +1750,11 @@ switch(@$_POST['op']) {
 				WHERE `id`=".$id;
 		query($sql);
 
+		invoice_history_insert(array(
+			'action' => 2,
+			'table' => 'money',
+			'id' => $id
+		));
 		clientBalansUpdate($r['client_id']);
 		_zayavBalansUpdate($r['zayav_id']);
 
@@ -1748,6 +1787,11 @@ switch(@$_POST['op']) {
 				WHERE `id`=".$id;
 		query($sql);
 
+		invoice_history_insert(array(
+			'action' => 3,
+			'table' => 'money',
+			'id' => $id
+		));
 		clientBalansUpdate($r['client_id']);
 		_zayavBalansUpdate($r['zayav_id']);
 
@@ -1801,6 +1845,12 @@ switch(@$_POST['op']) {
 				)";
 		query($sql);
 
+		invoice_history_insert(array(
+			'action' => 6,
+			'table' => 'money',
+			'id' => mysql_insert_id()
+		));
+
 		if($worker)
 			_salaryBalansUpdate();
 
@@ -1832,6 +1882,12 @@ switch(@$_POST['op']) {
 					`dtime_del`=CURRENT_TIMESTAMP
 				WHERE `id`=".$id;
 		query($sql);
+
+		invoice_history_insert(array(
+			'action' => 7,
+			'table' => 'money',
+			'id' => $id
+		));
 
 		if($r['worker_id'])
 			_salaryBalansUpdate();
@@ -1868,6 +1924,12 @@ switch(@$_POST['op']) {
 		if($r['worker_id'])
 			_salaryBalansUpdate();
 
+		invoice_history_insert(array(
+			'action' => 8,
+			'table' => 'money',
+			'id' => $id
+		));
+
 		history_insert(array(
 			'type' => 34,
 			'value' => abs($r['sum']),
@@ -1899,6 +1961,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'expense_edit':
+		jsonError();//todo
 		if(empty($_POST['id']) && !preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['category']))
@@ -1943,7 +2006,23 @@ switch(@$_POST['op']) {
 			query($sql);
 
 			_salaryBalansUpdate();
+/*
+  Остался нерешённым вопрос когда изменяется счёт, внутренний счёт сотрудника тоже изменяется.
+			if($r['sum'] != $sum)
+				invoice_history_insert(array(
+					'action' => 9,
+					'table' => 'money',
+					'id' => $id
+				));
 
+			if($r['invoice_id'] != $invoice)
+				invoice_history_insert(array(
+					'action' => 9,
+					'invoice_id' => $invoice,
+					'table' => 'money',
+					'id' => $id
+				));
+*/
 			history_insert(array(
 				'type' => 35,
 				'value' =>
@@ -2062,6 +2141,12 @@ switch(@$_POST['op']) {
 					".VIEWER_ID."
 				)";
 		query($sql);
+
+		invoice_history_insert(array(
+			'action' => 6,
+			'table' => 'money',
+			'id' => mysql_insert_id()
+		));
 
 		_salaryBalansUpdate();
 

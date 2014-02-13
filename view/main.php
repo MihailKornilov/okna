@@ -259,29 +259,33 @@ function _productSub($product_id=false) {//Список изделий для заявок
 	}
 	return $product_id !== false ? constant('PRODUCT_SUB_'.$product_id) : $arr;
 }//_product()
-function _invoice($type_id=false) {//Список изделий для заявок
+function _invoice($type_id=false, $i='name') {//Список изделий для заявок
 	if(!defined('INVOICE_LOADED') || $type_id === false) {
 		$key = CACHE_PREFIX.'invoice';
 		$arr = xcache_get($key);
 		if(empty($arr)) {
 			$sql = "SELECT * FROM `invoice` ORDER BY `id`";
 			$q = query($sql);
-			while($r = mysql_fetch_assoc($q))
-				$arr[$r['id']] = array(
-					'name' => $r['name']
-				);
+			while($r = mysql_fetch_assoc($q)) {
+				$r['start'] = round($r['start'], 2);
+				$arr[$r['id']] = $r;
+			}
 			xcache_set($key, $arr, 86400);
 		}
 		if(!defined('INVOICE_LOADED')) {
 			foreach($arr as $id => $r) {
 				define('INVOICE_'.$id, $r['name']);
+				define('INVOICE_START_'.$id, $r['start']);
 			}
 			define('INVOICE_0', '');
+			define('INVOICE_START_0', 0);
 			define('INVOICE_LOADED', true);
 		}
 	}
 	if($type_id === false)
 		return $arr;
+	if($i == 'start')
+		return constant('INVOICE_START_'.$type_id);
 	return constant('INVOICE_'.$type_id);
 }//_invoice()
 function _income($type_id=false, $i='name') {//Список изделий для заявок
@@ -1615,7 +1619,7 @@ function zayavDogovorList($zayav_id) {//Список договоров для заявки
 		$d = explode('-', $r['data_create']);
 		$data = $d[2].'/'.$d[1].'/'.$d[0];
 		$reason = $r['reason'] ? "\n".$r['reason'] : '';
-		$title = 'от '.$data.' г. на сумму '.$r['sum'].' руб.'.$reason;
+		$title = 'от '.$data.' г. на сумму '.round($r['sum'], 2).' руб.'.$reason;
 		$del = $r['deleted'] ? ' d' : '';
 		$send .= '<b class="dogn'.$del.'" title="'.$title.'">№'.$r['nomer'].'</b> '.
 			'<a class="img_word" href="'.LINK_DOGOVOR.$r['link'].'.doc" title="Распечатать"></a>';
@@ -2388,35 +2392,35 @@ function history_types($v) {
 		case 2: return 'Изменение данных клиента '.$v['client_link'].':<div class="changes">'.$v['value'].'</div>';
 		case 3: return 'Удаление клиента '.$v['client_link'].'.';
 
-		case 4: return 'Внесение новой заявки '.$v['zayav_link'].'<em>(замер)</em> для клиента '.$v['client_link'].'.';
-		case 5: return 'Изменение данных заявки '.$v['zayav_link'].'<em>(замер)</em>:<div class="changes">'.$v['value1'].'</div>';
+		case 4: return 'Внесение новой заявки '.$v['zayav_link'].' <em>(замер)</em> для клиента '.$v['client_link'].'.';
+		case 5: return 'Изменение данных заявки '.$v['zayav_link'].' <em>(замер)</em>:<div class="changes">'.$v['value1'].'</div>';
 		case 6: return 'Удаление заявки '.$v['zayav_link'].' у клиента '.$v['client_link'].'.';
 
 		case 7: return 'Начисление на сумму <b>'.$v['value'].'</b> руб.'.
-						($v['value1'] ? '<em>('.$v['value1'].')</em>' : '').
+						($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 						' по заявке '.$v['zayav_link'].'.';
 		case 8: return 'Удаление начисления на сумму <b>'.$v['value'].'</b> руб.'.
-						($v['value1'] ? '<em>('.$v['value1'].')</em>' : '').
+						($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 						' у заявки '.$v['zayav_link'].'.';
 		case 9: return 'Восстановление начисления на сумму <b>'.$v['value'].'</b> руб.'.
-						($v['value1'] ? '<em>('.$v['value1'].')</em>' : '').
+						($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 						' у заявки '.$v['zayav_link'].'.';
 
 		case 10: return
 			'Платёж <span class="oplata">'._income($v['value2']).'</span> '.
 			'на сумму <b>'.$v['value'].'</b> руб.'.
-			($v['value1'] ? '<em>('.$v['value1'].')</em>' : '').
+			($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 			($v['zayav_id'] ? ' по заявке '.$v['zayav_link'] : '').
 			'.';
 		case 11: return
 			'Удаление платежа <span class="oplata">'._income($v['value2']).'</span> '.
-			'на сумму <b>'.$v['value'].'</b> руб.'.
-			($v['value1'] ? '<em>('.$v['value1'].')</em>' : '').
+			'на сумму <b>'.round($v['value'], 2).'</b> руб.'.
+			($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 			($v['zayav_id'] ? ' у заявки '.$v['zayav_link'] : '').
 			'.';
 		case 12: return
 			'Восстановление платежа <span class="oplata">'._income($v['value2']).'</span> '.
-			'на сумму <b>'.$v['value'].'</b> руб.'.
+			'на сумму <b>'.round($v['value'], 2).'</b> руб.'.
 			($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 			($v['zayav_id'] ? ' у заявки '.$v['zayav_link'] : '').
 			'.';
@@ -2439,17 +2443,17 @@ function history_types($v) {
 			' для заявки '.$v['zayav_link'].
 			' при заключении договора '.$v['dogovor_nomer'].'.';
 
-		case 21: return 'Внесение новой заявки '.$v['zayav_link'].'<em>(установка)</em> для клиента '.$v['client_link'].'.';
-		case 22: return 'Изменение данных заявки '.$v['zayav_link'].'<em>(установка)</em>:<div class="changes">'.$v['value'].'</div>';
+		case 21: return 'Внесение новой заявки '.$v['zayav_link'].' <em>(установка)</em> для клиента '.$v['client_link'].'.';
+		case 22: return 'Изменение данных заявки '.$v['zayav_link'].' <em>(установка)</em>:<div class="changes">'.$v['value'].'</div>';
 
-		case 23: return 'Внесение новой заявки '.$v['zayav_link'].'<em>(заказ)</em> для клиента '.$v['client_link'].'.';
-		case 24: return 'Изменение данных заявки '.$v['zayav_link'].'<em>(заказ)</em>:<div class="changes">'.$v['value1'].'</div>';
-		case 25: return 'Изменение статуса заявки '.$v['zayav_link'].'<em>(заказ)</em>:<br />'.
+		case 23: return 'Внесение новой заявки '.$v['zayav_link'].' <em>(заказ)</em> для клиента '.$v['client_link'].'.';
+		case 24: return 'Изменение данных заявки '.$v['zayav_link'].' <em>(заказ)</em>:<div class="changes">'.$v['value1'].'</div>';
+		case 25: return 'Изменение статуса заявки '.$v['zayav_link'].' <em>(заказ)</em>:<br />'.
 						'<span style="background-color:#'._statusColor($v['value']).'" class="zstatus">'._zakazStatus($v['value']).'</span>'.
 						' » '.
 						'<span style="background-color:#'._statusColor($v['value1']).'" class="zstatus">'._zakazStatus($v['value1']).'</span>.'.
 						($v['value2'] ? ' Дата выполнения: <u>'.FullData($v['value2']).'</u>.' : '');
-		case 26: return 'Изменение статуса заявки '.$v['zayav_link'].'<em>(установка)</em>:<br />'.
+		case 26: return 'Изменение статуса заявки '.$v['zayav_link'].' <em>(установка)</em>:<br />'.
 						'<span style="background-color:#'._statusColor($v['value']).'" class="zstatus">'._setStatus($v['value']).'</span>'.
 						' » '.
 						'<span style="background-color:#'._statusColor($v['value1']).'" class="zstatus">'._setStatus($v['value1']).'</span>'.
@@ -2488,7 +2492,8 @@ function history_types($v) {
 			'Выдача з/п на сумму <b>'.$v['value'].'</b> '.
 			($v['value1'] ? '<em>('.$v['value1'].')</em> ' : '').
 			'для сотрудника <u>'._viewer($v['value2'], 'name').'</u>.';
-		case 38: return 'Установка текущей суммы для счёта <span class="oplata">'._invoice($v['value1']).'</span>: <b>'.$v['value'].'</b> руб.';
+		case 38: return 'Установка текущей суммы для счёта <span class="oplata">'._invoice($v['value1']).'</span>: <b>'.$v['value'].'</b> руб.'.
+						($v['value2'] ? '<br /><div class="changes">'.$v['value2'].'</div>' : '');
 		case 39:
 			return 'Перевод со счёта <span class="oplata">'._invoice($v['value1'] > 100 ? 1 : $v['value1']).'</span> '.
 					($v['value1'] > 100 ? '<u>'._viewer($v['value1'], 'name').'</u> ' : '').
@@ -2634,21 +2639,29 @@ function history_right() {
 		'<input type="hidden" id="cat_id">';
 }//history_right()
 
-function _invoiceBalans($invoice_id, $start, $worker_id=0) {// Получение текущего баланса счёта
-	$income = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `invoice_id`=".($worker_id ? "1 AND `viewer_id_add`=".$worker_id : $invoice_id));
-	$from = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE `invoice_from`=".($worker_id ? "1 AND `worker_from`=".$worker_id : $invoice_id));
-	$to = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE `invoice_to`=".($worker_id ? "1 AND `worker_to`=".$worker_id : $invoice_id));
+function _invoiceBalans($invoice_id, $start=false) {// Получение текущего баланса счёта
+	if($start === false)
+		$start = $invoice_id > 100 ? _viewer($invoice_id, 'cash') : _invoice($invoice_id, 'start');
+	$income = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `invoice_id`=".($invoice_id > 100 ? "1 AND `viewer_id_add`=" : '').$invoice_id);
+	$from = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE `invoice_from`=".($invoice_id > 100 ? "1 AND `worker_from`=" : '').$invoice_id);
+	$to = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE `invoice_to`=".($invoice_id > 100 ? "1 AND `worker_to`=" : '').$invoice_id);
 	return round($income - $start - $from + $to, 2);
 }//_invoiceBalans()
 function invoice() {
+	$data = cash_spisok();
 	return
+		'<script type="text/javascript">'.
+			'var CASH=['.implode(',', $data['cash']).'],'.
+				'CASH_SPISOK=['.implode(',', $data['cash_spisok']).'],'.
+				'INVOICE_NAME="'._invoice(1).'";'.
+		'</script>'.
 		'<div class="headName">'.
 			'Счета'.
 			'<a class="add transfer">Перевод между счетами</a>'.
 			'<span>::</span>'.
 			'<a href="'.URL.'&p=setup&d=invoice" class="add">Управление счетами</a>'.
 		'</div>'.
-		'<div id="cash-spisok">'.cash_spisok().'</div>'.
+		'<div id="cash-spisok">'.$data['spisok'].'</div>'.
 		'<div id="invoice-spisok">'.invoice_spisok().'</div>'.
 		'<div class="headName">История переводов</div>'.
 		'<div id="transfer-spisok">'.transfer_spisok().'</div>';
@@ -2656,52 +2669,48 @@ function invoice() {
 function cash_spisok() {
 	$sql = "SELECT *
 	        FROM `vk_user`
-			WHERE `worker`=1
-			  AND `admin`=0
+			WHERE `admin`=0
+			  AND `worker`=1
 			  AND `rules` LIKE '%RULES_CASH%'
 	        ORDER BY `dtime_add`";
 	$q = query($sql);
 	if(!mysql_num_rows($q))
 		return '';
 
-	$cash = array();
-	$cashSpisok = array();
-	$send = '<table class="_spisok">';
+	$send['cash'] = array();
+	$send['cash_spisok'] = array();
+	$send['spisok'] = '<table class="_spisok">';
 	while($r = mysql_fetch_assoc($q)) {
-		$sum = $r['cash'] == -1 ? '' : _invoiceBalans(1, $r['cash'], $r['viewer_id']);
-		$send .= '<tr>'.
+		$sum = $r['cash'] == -1 ? '' : _invoiceBalans($r['viewer_id']);
+		$send['spisok'] .= '<tr>'.
 			'<td><span>Наличные:</span> '._viewer($r['viewer_id'], 'name').
-			'<td class="r">'.$sum.($r['cash'] == -1 ? '' : ' руб.');
-		$cash[] = '{'.
+			'<td class="r">'.$sum.($r['cash'] == -1 ? '' : ' руб.').
+			'<td><div class="img_note" val="'.$r['viewer_id'].'"></div>';
+		$send['cash'][] = '{'.
 				'id:'.$r['viewer_id'].','.
 				'name:"'.addslashes(_viewer($r['viewer_id'], 'name')).'",'.
 				'sum:"'.$sum.'"'.
 			'}';
-		$cashSpisok[] = '{'.
+		$send['cash_spisok'][] = '{'.
 				'uid:'.$r['viewer_id'].','.
 				'title:"Наличные: '.addslashes(_viewer($r['viewer_id'], 'name')).'"'.
 			'}';
 	}
-	$send .= '</table>'.
-		'<script type="text/javascript">'.
-			'var CASH=['.implode(',', $cash).'],'.
-				'CASH_SPISOK=['.implode(',', $cashSpisok).'],'.
-				'INVOICE_NAME="'._invoice(1).'";'.
-		'</script>';
+	$send['spisok'] .= '</table>';
 	return $send;
 }//cash_spisok()
 function invoice_spisok() {
-	$sql = "SELECT * FROM `invoice` ORDER BY `id`";
-	$q = query($sql);
-	if(!mysql_num_rows($q))
+	$invoice = _invoice();
+	if(empty($invoice))
 		return 'Счета не определены.';
 
 	$send = '<table class="_spisok">';
-	while($r = mysql_fetch_assoc($q))
+	foreach($invoice as $r)
 		$send .= '<tr>'.
 			'<td class="name"><b>'.$r['name'].'</b><pre>'.$r['about'].'</pre>'.
 			'<td class="balans">'.
-			($r['start'] != -1 ? '<b>'._sumSpace(_invoiceBalans($r['id'], $r['start'])).'</b> руб.' : (VIEWER_ADMIN ? '' : '<a class="invoice_set" val="'.$r['id'].'">Установить текущую сумму</a>')).
+			($r['start'] != -1 ? '<b>'._sumSpace(_invoiceBalans($r['id'])).'</b> руб.' : (VIEWER_ADMIN ? '' : '<a class="invoice_set" val="'.$r['id'].'">Установить текущую сумму</a>')).
+			'<td><div class="img_note" val="'.$r['id'].'"></div>'.
 			(VIEWER_ADMIN ? '<td><a class="invoice_set" val="'.$r['id'].'">Установить текущую сумму</a>' : '');
 	$send .= '</table>';
 	return $send;
@@ -2726,6 +2735,145 @@ function transfer_spisok() {
 	$send .= '</table>';
 	return $send;
 }//transfer_spisok()
+function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории счетов
+	$action = array(
+		1 => array(
+			'name' => 'Внесение платежа',
+			'znak' => '',
+			'cash' => 1
+		),
+		2 => array(
+			'name' => 'Удаление платежа',
+			'znak' => '-',
+			'cash' => 1
+		),
+		3 => array(
+			'name' => 'Восстановление платежа',
+			'znak' => '',
+			'cash' => 1
+		),
+		4 => array(
+			'name' => 'Перевод между счетами',
+			'znak' => '',
+			'cash' => 0
+		),
+		5 => array(
+			'name' => 'Установка текущей суммы',
+			'znak' => '',
+			'cash' => 0
+		),
+		6 => array(
+			'name' => 'Внесение расхода',
+			'znak' => '-',
+			'cash' => 1
+		),
+		7 => array(
+			'name' => 'Удаление расхода',
+			'znak' => '',
+			'cash' => 1
+		),
+		8 => array(
+			'name' => 'Восстановление расхода',
+			'znak' => '-',
+			'cash' => 1
+		),
+		9 => array(
+			'name' => 'Редактирование расхода',
+			'znak' => '',
+			'cash' => 0
+		)
+	);
+	return $action[$id][$i];
+}//invoiceHistoryAction()
+function invoice_history($invoice_id) {
+	$invoice = $invoice_id > 100 ? 'Наличные '._viewer($invoice_id, 'name') : _invoice($invoice_id);
+	$send = '<div>Счёт <u>'.$invoice.'</u>:</div>';
+	$sql = "SELECT *
+			FROM `invoice_history`
+			WHERE `invoice_id`=".$invoice_id."
+			ORDER BY `id` DESC";
+	$q = query($sql);
+	if(!mysql_num_rows($q))
+		return $send.'<br />Истории нет.';
+	$send .= '<table class="_spisok _money invoice-history">'.
+		'<tr><th>Действие'.
+			'<th>Сумма'.
+			'<th>Баланс'.
+			'<th>Описание'.
+			'<th>Дата';
+	while($r = mysql_fetch_assoc($q)) {
+		$send .=
+			'<tr><td class="action">'.invoiceHistoryAction($r['action']).
+				'<td class="sum">'.($r['sum'] != 0 ? _sumSpace($r['sum']) : '').
+				'<td class="balans">'._sumSpace($r['balans']).
+				'<td>'.
+				'<td class="dtime">'.FullDataTime($r['dtime_add']);
+	}
+	$send .= '</table>';
+	return $send;
+}//invoice_history()
+function invoice_history_insert($v) {
+	$v = array(
+		'action' => $v['action'],
+		'table' => empty($v['table']) ? '' : $v['table'],
+		'id' => empty($v['id']) ? 0 : $v['id'],
+		'worker_id' => empty($v['worker_id']) ? 0 : $v['worker_id'],
+		'invoice_id' => empty($v['invoice_id']) ? 0 : $v['invoice_id']
+	);
+	if($v['worker_id']) //Если существует сотрудник, то он является счётом
+		$v['invoice_id'] = $v['worker_id'];
+	if($v['table']) {
+		$r = query_assoc("SELECT * FROM `".$v['table']."` WHERE `id`=".$v['id']);
+		$v['sum'] = abs($r['sum']);
+		switch($v['table']) {
+			case 'money':
+				$v['invoice_id'] = $r['invoice_id'];
+				$v['sum'] = invoiceHistoryAction($v['action'], 'znak').$v['sum'];
+				if(invoiceHistoryAction($v['action'], 'cash') && $r['invoice_id'] == 1)
+					if(query_value("SELECT COUNT(*) FROM `vk_user` WHERE `viewer_id`=".$r['viewer_id_add']." AND `admin`=0 AND `rules` LIKE '%RULES_CASH%'"))
+						invoice_history_insert_sql($r['viewer_id_add'], $v);
+				break;
+			case 'invoice_transfer':
+				if($r['invoice_from'] == $r['invoice_to']) {
+					$v['invoice_id'] = $r['worker_from'];
+					invoice_history_insert_sql($r['worker_to'], $v);
+				} else {
+					$v['invoice_id'] = $r['invoice_from'];
+					invoice_history_insert_sql($r['invoice_to'], $v);
+					if($r['worker_from']) {
+						$v['sum'] = $r['sum'] * -1;
+						invoice_history_insert_sql($r['worker_from'], $v);
+						$v['sum'] = $r['sum'] * -1;
+					}
+					if($r['worker_to'])
+						invoice_history_insert_sql($r['worker_to'], $v);
+				}
+				$v['sum'] = $r['sum'] * -1;
+				break;
+			}
+	}
+	invoice_history_insert_sql($v['invoice_id'], $v);
+}//invoice_history_insert()
+function invoice_history_insert_sql($invoice_id, $v) {
+	$sql = "INSERT INTO `invoice_history` (
+				`action`,
+				`table`,
+				`table_id`,
+				`invoice_id`,
+				`sum`,
+				`balans`,
+				`viewer_id_add`
+			) VALUES (
+				".$v['action'].",
+				'".$v['table']."',
+				".$v['id'].",
+				".$invoice_id.",
+				".$v['sum'].",
+				"._invoiceBalans($invoice_id).",
+				".VIEWER_ID."
+			)";
+	query($sql);
+}
 
 function income_path($data) {
 	$ex = explode(':', $data);
@@ -2977,6 +3125,11 @@ function income_insert($v) {//Внесение платежа
 	query($sql);
 	$insert_id = mysql_insert_id();
 
+	invoice_history_insert(array(
+		'action' => 1,
+		'table' => 'money',
+		'id' => $insert_id
+	));
 	clientBalansUpdate($v['client_id']);
 	_zayavBalansUpdate($v['zayav_id']);
 
@@ -3249,7 +3402,7 @@ function expense_spisok($filter=array()) {
 				($r['prim'] ? ', ' : '') : '').$r['prim'].
 			'<td class="dtime" title="'.$dtimeTitle.'">'.FullDataTime($r['dtime_add']).
 			'<td class="ed r">'.
-				'<div class="img_edit" title="Редактировать"></div>'.
+				//'<div class="img_edit" title="Редактировать"></div>'.
 				'<div class="img_del" title="Удалить"></div>'.
 				'<div class="img_rest" title="Восстановить"></div>';
 	}

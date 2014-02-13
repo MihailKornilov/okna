@@ -1366,6 +1366,26 @@ $(document)
 			});
 		}
 	})
+	.on('click', '#report.invoice .img_note', function() {
+		var dialog = _dialog({
+			top:20,
+			width:570,
+			head:'История операций со счётом',
+			load:1,
+			butSubmit:'',
+			butCancel:'Закрыть'
+		});
+		var send = {
+			op:'invoice_history',
+			invoice_id:$(this).attr('val')
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				dialog.content.html(res.html);
+			else
+				dialog.loadError();
+		}, 'json');
+	})
 
 	.on('click', '.income-add', function() {
 		var html =
