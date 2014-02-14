@@ -186,6 +186,8 @@
 .zayav-zamer-dtime #zamer_hour_select{margin-right:2px}
 .zayav-zamer-dtime #zamer_min_select{margin-left:1px}
 
+/* ƒописывание номера договора к заголовку о за€вке */
+.zayav-dog{color:#777}
 
 .zayav_unit{
 	cursor:pointer;
@@ -199,8 +201,8 @@
 .zayav_unit em{background:#FFC;border-bottom:1px solid #FE2}
 .zayav_unit .name em{font-size:12px;font-weight:bold}
 .zayav_unit .name{display:block;font-size:12px;font-weight:700;margin:5px 0 0 8px}
-.zayav_unit .name span{color:#777;font-weight:normal;font-size:12px}
-.zayav_unit .name span em{font-weight:normal}
+.zayav_unit .zayav-dog{font-size:12px}
+.zayav_unit .zayav-dog em{font-weight:normal}
 .zayav_unit .dtime{float:right;text-align:right;font-size:10px;color:#777;padding:4px}
 .zayav_unit .dtime em{font-size:10px}
 .zayav_unit .balans{color:#777;margin-top:2px}
@@ -227,6 +229,7 @@
 .zayav-info:not(.h) .histories,.zayav-info.h .content{display:none}
 .zayav-info .content{margin:10px}
 .zayav-info .content .headName{margin:2px 12px 5px 5px}
+.zayav-info .zid{float:right}
 .zayav-info .tabmain{width:100%}
 .zayav-info .mainleft{vertical-align:top}
 .zayav-info .tabInfo{width:100%;margin:0 10px;border-spacing:7px}
@@ -235,7 +238,7 @@
 .zayav-info.zamer .label{width:80px}
 .zayav-info.dog .label{width:100px}
 .zayav-info.set .label{width:100px}
-.zayav-info .zakaz-to-set{float:right}
+.zayav-info .zakaz-to-set{float:right;margin-right:10px}
 .zayav-info .zakaz-to-set:not(:hover){color:#999}
 .zayav-info .product td{padding:1px 4px 3px 0}
 .zayav-info .zamer-dtime{cursor:help}

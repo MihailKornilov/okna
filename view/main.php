@@ -134,6 +134,7 @@ function _header() {
 
 		'<link href="'.SITE.'/css/main'.(DEBUG ? '' : '.min').'.css?'.VERSION.'" rel="stylesheet" type="text/css" />'.
 		'<script type="text/javascript" src="'.SITE.'/js/main'.(DEBUG ? '' : '.min').'.js?'.VERSION.'"></script>'.
+		(@$_GET['p'] == 'setup' ? '<script type="text/javascript" src="'.SITE.'/js/setup'.(DEBUG ? '' : '.min').'.js?'.VERSION.'"></script>' : '').
 		'<script type="text/javascript" src="'.SITE.'/js/G_values.js?'.G_VALUES_VERSION.'"></script>'.
 
 		'</head>'.
@@ -781,30 +782,11 @@ function client_info($client_id) {
 		$zayav = _dogNomer($zayav);
 		$zayav = zayav_product_array($zayav);
 		foreach($zayav as $r) {
-			$dop = $r['nomer_vg'] ? ' ВГ'.$r['nomer_vg'] :
-				($r['nomer_g'] ? ' Ж'.$r['nomer_g'] :
-				($r['nomer_d'] ? ' Д'.$r['nomer_d'] : '№'.$r['id']));
-			switch(_zayavCategory($r)) {
-				case 'zakaz':
-					$zayavSpisok .= zakaz_unit($r, 1);
-					$title = 'Заказ '.$dop;
-					break;
-				case 'zamer':
-					$zayavSpisok .= zamer_unit($r, 1);
-					$title = 'Замер №'.$r['id'];
-					break;
-				case 'dog':
-					$zayavSpisok .= dogovor_unit($r, 1);
-					$title = 'Заявка №'.$r['id'].' на закл. договора';
-					break;
-				case 'set':
-					$zayavSpisok .= set_unit($r, 1);
-					$title = 'Установка '.$dop;
-					break;
-			}
+			$r['no_client'] = 1;
+			$zayavSpisok .= _zayavCategory($r, 'unit');
 			$zopl[$r['id']] = array(
-				'title' => $title,
-				'content' => $title.($r['dogovor_id'] ? ' <span>Договор '.$r['dogovor_nomer'].'</span>' : '')
+				'title' => _zayavCategory($r, 'head'),
+				'content' => _zayavCategory($r, 'head').($r['dogovor_id'] ? ' <span>Договор '.$r['dogovor_nomer'].'</span>' : '')
 			);
 		}
 	}
@@ -907,8 +889,13 @@ function _zayavLink($arr) {
 	$sql = "SELECT * FROM `zayav` WHERE `id` IN (".implode(',', array_keys($ids)).")";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
-		foreach($arrIds[$r['id']] as $key)
-			$arr[$key]['zayav_link'] = '<a'.($r['deleted'] ? ' class="deleted" title="Заявка удалена"' : '').' href="'.URL.'&p=zayav&d=info&id='.$r['id'].'">№'.$r['id'].'</a>';
+		foreach($arrIds[$r['id']] as $key) {
+			$dop = $r['nomer_vg'] ? ' ВГ'.$r['nomer_vg'] :
+				   ($r['nomer_g'] ? ' Ж'.$r['nomer_g'] :
+				   ($r['nomer_d'] ? ' Д'.$r['nomer_d'] : ''));
+			$arr[$key]['zayav_link'] = '<a'.($r['deleted'] ? ' class="deleted" title="Заявка удалена"' : '').' href="'.URL.'&p=zayav&d=info&id='.$r['id'].'">'._zayavCategory($r, 'head').'</a>';
+			//$arr[$key]['zayav_about'] = ($r['dogovor_id'] ? ' <span>(Договор '.$r['dogovor_nomer'].')</span>' : '');
+		}
 	return $arr;
 }//_zayavLink()
 function _zayavStatus($id=false) {
@@ -950,16 +937,61 @@ function _zayavStatusColor($id=false) {
 		$send[$id] = $r['color'];
 	return $send;
 }//_zayavStatusColor()
-function _zayavCategory($z) {// Определение категории заявки
+function _zayavCategory($z, $i='type') {// Определение категории заявки
+	$dop = $z['nomer_vg'] ? ' ВГ'.$z['nomer_vg'] :
+		  ($z['nomer_g'] ? ' Ж'.$z['nomer_g'] :
+		  ($z['nomer_d'] ? ' Д'.$z['nomer_d'] : ' #'.$z['id']));
 	if(!$z['dogovor_id'] && $z['dogovor_require'])
-		return 'dog';
+		$send = array(
+			'type' => 'dog',
+			'head' => 'Договор не заключен <span class="zayav-dog">('.($z['set_status'] ? 'установка' : ($z['zakaz_status'] ? 'заказ' : 'замер')).$dop.')</span>',
+			'status_id' => $z['zamer_status'],
+			'status_name' => $z['zamer_status'] ? _zamerStatus($z['zamer_status']) : ''
+		);
 	elseif($z['zakaz_status'])
-		return 'zakaz';
+		$send = array(
+			'type' => 'zakaz',
+			'head' => 'Заказ'.$dop,
+			'status_id' => $z['zakaz_status'],
+			'status_name' => _zakazStatus($z['zakaz_status'])
+		);
 	elseif($z['zamer_status'] == 1 || $z['zamer_status'] == 3)
-		return 'zamer';
+		$send = array(
+			'type' => 'zamer',
+			'head' => 'Замер'.$dop,
+			'status_id' => $z['zamer_status'],
+			'status_name' => _zamerStatus($z['zamer_status'])
+		);
 	elseif($z['set_status'])
-		return 'set';
-	return false;
+		$send = array(
+			'type' => 'set',
+			'head' => 'Установка'.$dop,
+			'status_id' => $z['set_status'],
+			'status_name' => _setStatus($z['set_status'])
+		);
+	if($i == 'unit') {
+		$diff = $z['accrual_sum'] - $z['oplata_sum'];
+		return
+			'<div class="zayav_unit"'.($send['type'] != 'dog' ? ' style="background-color:#'._statusColor($send['status_id']) : '').'" val="'.$z['id'].'">'.
+				'<div class="dtime">'.
+					'#'.(isset($z['find_id']) ? $z['find_id'] : $z['id']).'<br />'.
+					FullData($z['dtime_add'], 1).
+					(($send['type'] == 'zakaz' || $send['type'] == 'set') && ($z['accrual_sum'] || $z['oplata_sum']) ?
+						'<div class="balans'.($z['accrual_sum'] != $z['oplata_sum'] ? ' diff' : '').'">'.
+							'<span class="acc" title="Начислено">'.$z['accrual_sum'].'</span>/'.
+							'<span class="opl" title="'.($diff ? 'Недоплата '.$diff.' руб.' : 'Оплачено').'">'.$z['oplata_sum'].'</span>'.
+						'</div>'
+					: '').
+					'</div>'.
+				'<a class="name">'.$send['head'].($z['dogovor_id'] ? ' <span class="zayav-dog">(Договор '.$z['dogovor_nomer'].')</span>' : '').'</a>'.
+				'<table class="ztab">'.
+					(empty($z['no_client']) ? '<tr><td class="label">Клиент:<td>'.$z['client_link'] : '').
+					($z['adres'] ? '<tr><td class="label top">Адрес:<td>'.$z['adres'] : '').
+					'<tr><td class="label top">Изделия:<td>'.(isset($z['product']) ? zayav_product_spisok($z['product']) : '').$z['zakaz_txt'].
+				'</table>'.
+			'</div>';
+	}
+	return $send[$i];
 }//_zayavCategory()
 function _zayavBalansUpdate($zayav_id) {//Обновление начислений, суммы платежей, дохода заявки
 	if(!$zayav_id)
@@ -1260,12 +1292,8 @@ function zayav_spisok($category, $page=1, $filter=array()) {
 
 	$send['spisok'] = '';
 	foreach($zayav as $r)
-		switch($category) {
-			case 'zakaz': $send['spisok'] .= zakaz_unit($r); break;
-			case 'zamer': $send['spisok'] .= zamer_unit($r); break;
-			case 'dog': $send['spisok'] .= dogovor_unit($r); break;
-			case 'set': $send['spisok'] .= set_unit($r); break;
-		}
+		$send['spisok'] .= _zayavCategory($r, 'unit');
+
 	if($start + $limit < $send['all']) {
 		$c = $send['all'] - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
@@ -1283,7 +1311,6 @@ function zayav_spisok($category, $page=1, $filter=array()) {
 function zayav_findfast($page=1, $find) {
 	$cond = "`nomer_vg`='".$find."'
 		  OR `nomer_g`='".$find."'
-		  OR `nomer_d`='".$find."'
 		  OR `nomer_d`='".$find."'
 		  OR `adres` LIKE '%".$find."%'
 		  OR `zakaz_txt` LIKE '%".$find."%'";
@@ -1341,12 +1368,7 @@ function zayav_findfast($page=1, $find) {
 			$r['adres'] = preg_replace($reg, '<em>\\1</em>', $r['adres'], 1);
 		if(preg_match($reg, $r['zakaz_txt']))
 			$r['zakaz_txt'] = preg_replace($reg, '<em>\\1</em>', $r['zakaz_txt'], 1);
-		switch(_zayavCategory($r)) {
-			case 'zakaz': $send['spisok'] .= zakaz_unit($r); break;
-			case 'zamer': $send['spisok'] .= zamer_unit($r); break;
-			case 'dog': $send['spisok'] .= dogovor_unit($r); break;
-			case 'set': $send['spisok'] .= set_unit($r); break;
-		}
+		$send['spisok'] .= _zayavCategory($r, 'unit');
 	}
 	if($start + $limit < $send['all']) {
 		$c = $send['all'] - $start - $limit;
@@ -1368,30 +1390,6 @@ function _zakazStatus($id) {
 	);
 	return $arr[$id];
 }//_zakazStatus()
-function zakaz_unit($r, $no_client=0) {
-	$dop = $r['nomer_vg'] ? ' ВГ'.$r['nomer_vg'] :
-		  ($r['nomer_g'] ? ' Ж'.$r['nomer_g'] :
-		  ($r['nomer_d'] ? ' Д'.$r['nomer_d'] : ''));
-	$diff = $r['accrual_sum'] - $r['oplata_sum'];
-	return
-		'<div class="zayav_unit" style="background-color:#'._statusColor($r['zakaz_status']).'" val="'.$r['id'].'">'.
-			'<div class="dtime">'.
-				'#'.(isset($r['find_id']) ? $r['find_id'] : $r['id']).'<br />'.
-				FullData($r['dtime_add'], 1).
-				($r['accrual_sum'] || $r['oplata_sum'] ?
-					'<div class="balans'.($r['accrual_sum'] != $r['oplata_sum'] ? ' diff' : '').'">'.
-						'<span class="acc" title="Начислено">'.$r['accrual_sum'].'</span>/'.
-						'<span class="opl" title="'.($diff ? 'Недоплата '.$diff.' руб.' : 'Оплачено').'">'.$r['oplata_sum'].'</span>'.
-					'</div>'
-				: '').
-			'</div>'.
-			'<a class="name">Заказ'.$dop.($r['dogovor_id'] ? ' <span>(Договор '.$r['dogovor_nomer'].')</span>' : '').'</a>'.
-			'<table class="ztab">'.
-				($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
-				'<tr><td class="label top">Изделия:<td>'.(isset($r['product']) ? zayav_product_spisok($r['product']) : '').$r['zakaz_txt'].
-			'</table>'.
-		'</div>';
-}//zamer_unit()
 
 function zamer_table($mon=false, $zayav_id=0) {
 	if(!$mon)
@@ -1524,19 +1522,6 @@ function _zamerStatus($id) {
 	);
 	return $arr[$id];
 }//_zakazStatus()
-function zamer_unit($r, $no_client=0) {
-	if(isset($r['find'])) {}
-	return
-	'<div class="zayav_unit" style="background-color:#'._statusColor($r['zamer_status']).'" val="'.$r['id'].'">'.
-		'<div class="dtime">#'.(isset($r['find_id']) ? $r['find_id'] : $r['id']).'<br />'.FullData($r['dtime_add'], 1).'</div>'.
-		'<a class="name">Замер</a>'.
-		'<table class="ztab">'.
-			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
-			'<tr><td class="label top">Адрес:<td>'.$r['adres'].
-			'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($r['product']).
-	'</table>'.
-	'</div>';
-}//zamer_unit()
 
 function _dogNomer($arr) {//Добавление к списку данный по договору, получаемого по dogovor_id
 	$ids = array(); // идешники договоров
@@ -1560,21 +1545,6 @@ function _dogNomer($arr) {//Добавление к списку данный по договору, получаемого 
 		}
 	return $arr;
 }//_dogNomer()
-function dogovor_unit($r, $no_client=0) {
-	return
-	'<div class="zayav_unit" val="'.$r['id'].'">'.
-		'<div class="dtime">#'.(isset($r['find_id']) ? $r['find_id'] : $r['id']).'<br />'.FullData($r['dtime_add'], 1).'</div>'.
-		'<a class="name">'.
-			'Договор не заключен '.
-			'<span>('.($r['set_status'] ? 'установка' : ($r['zakaz_status'] ? 'заказ' : 'замер')).')</span>'.
-		'</a>'.
-		'<table class="ztab">'.
-			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
-			'<tr><td class="label top">Адрес:<td>'.$r['adres'].
-			'<tr><td class="label top">Изделия:<td>'.(isset($r['product']) ? zayav_product_spisok($r['product']) : '').$r['zakaz_txt'].
-		'</table>'.
-	'</div>';
-}//zamer_unit()
 
 function _setStatus($id) {
 	$arr = array(
@@ -1585,31 +1555,6 @@ function _setStatus($id) {
 	);
 	return $arr[$id];
 }//_zakazStatus()
-function set_unit($r, $no_client=0) {
-	$dop = $r['nomer_vg'] ? ' ВГ'.$r['nomer_vg'] :
-		  ($r['nomer_g'] ? ' Ж'.$r['nomer_g'] :
-		  ($r['nomer_d'] ? ' Д'.$r['nomer_d'] : ''));
-	$diff = $r['accrual_sum'] - $r['oplata_sum'];
-	return
-	'<div class="zayav_unit" style="background-color:#'._statusColor($r['set_status']).'" val="'.$r['id'].'">'.
-		'<div class="dtime">'.
-			'#'.(isset($r['find_id']) ? $r['find_id'] : $r['id']).'<br />'.
-			FullData($r['dtime_add'], 1).
-	($r['accrual_sum'] || $r['oplata_sum'] ?
-			'<div class="balans'.($diff ? ' diff' : '').'">'.
-				'<span class="acc" title="Начислено">'.$r['accrual_sum'].'</span>/'.
-				'<span class="opl" title="'.($diff ? 'Недоплата '.$diff.' руб.' : 'Оплачено').'">'.$r['oplata_sum'].'</span>'.
-			'</div>'
-	: '').
-		'</div>'.
-		'<a class="name">Установка'.$dop.($r['dogovor_id'] ? ' <span>(Договор '.$r['dogovor_nomer'].')</span>' : '').'</a>'.
-		'<table class="ztab">'.
-			($no_client ? '' : '<tr><td class="label">Клиент:<td>'.$r['client_link']).
-			'<tr><td class="label top">Адрес:<td>'.$r['adres'].
-			'<tr><td class="label top">Изделия:<td>'.(isset($r['product']) ? zayav_product_spisok($r['product']) : '').$r['zakaz_txt'].
-		'</table>'.
-	'</div>';
-}//zamer_unit()
 
 function zayavDogovorList($zayav_id) {//Список договоров для заявки
 	$sql = "SELECT * FROM `zayav_dogovor` WHERE `zayav_id`=".$zayav_id;
@@ -1639,29 +1584,6 @@ function zayav_info($zayav_id) {
 	define('DOG', $type == 'dog');
 	define('SET', $type == 'set');
 
-	switch($type) {
-		case 'zakaz':
-			$head = 'Заказ №'.$z['id'];
-			$status_name = _zakazStatus($z['zakaz_status']);
-			$status_id = $z['zakaz_status'];
-			break;
-		case 'zamer':
-			$head = 'Замер №'.$z['id'];
-			$status_name = _zamerStatus($z['zamer_status']);
-			$status_id = $z['zamer_status'];
-			break;
-		case 'dog':
-			$head = 'Ожидание заключения договора - '.($z['set_status'] ? 'установка' : ($z['zakaz_status'] ? 'заказ' : 'замер')).' №'.$z['id'];
-			$status_name = $z['zamer_status'] ? _zamerStatus($z['zamer_status']) : '';
-			$status_id = $z['zamer_status'];
-			break;
-		case 'set':
-			$head = 'Установка №'.$z['id'];
-			$status_name = _setStatus($z['set_status']);
-			$status_id = $z['set_status'];
-			break;
-	}
-
 	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$z['client_id']." LIMIT 1";
 	$client = mysql_fetch_assoc(query($sql));
 
@@ -1678,12 +1600,12 @@ function zayav_info($zayav_id) {
 	'<script type="text/javascript">'.
 		'var ZAYAV={'.
 			'id:'.$zayav_id.','.
-			'head:"'.$head.'",'.
+			'head:"'.addslashes(_zayavCategory($z, 'head')).'",'.
 			'client_fio:"'.$client['fio'].'",'.
 			'client_adres:"'.addslashes(htmlspecialchars_decode($client['adres'])).'",'.
 			'product:['.zayav_product_spisok($z['id'], 'json').'],'.
-			'status:'.$status_id.','.
-			($status_id == 2 ? 'status_day:"'.$z['status_day'].'",' : '').
+			'status:'._zayavCategory($z, 'status_id').','.
+			(_zayavCategory($z, 'status_id') == 2 ? 'status_day:"'.$z['status_day'].'",' : '').
 			'zakaz_txt:"'.$z['zakaz_txt'].'",'.
 			'adres:"'.$z['adres'].'",'.
 			'rashod:['.$rashod['json'].'],'.
@@ -1732,7 +1654,11 @@ function zayav_info($zayav_id) {
 		'<div class="content">'.
 			'<TABLE class="tabmain"><TR>'.
 				'<TD class="mainleft">'.
-					'<div class="headName">'.$head.(ZAKAZ ? '<a class="zakaz-to-set">Перенести в Установки</a>' : '').'</div>'.
+					'<div class="headName">'.
+						_zayavCategory($z, 'head').
+						'<div class="zid">#'.$z['id'].'</div>'.
+						(ZAKAZ ? '<a class="zakaz-to-set">Перенести в Установки</a>' : '').
+					'</div>'.
 					'<table class="tabInfo">'.
 						'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
 						'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).$z['zakaz_txt'].
@@ -1756,11 +1682,11 @@ function zayav_info($zayav_id) {
 	   ($z['nomer_d'] ? '<tr><td class="label top">Номер Д:<td>'._attach('d', $z['id'], 'Прикрепить документ', $z['nomer_d']) : '').
 						'<tr><td class="label top">Файлы:<td>'._attach('files', $z['id'], 'Загрузить')
 : '').
-					($status_name ?
+					(_zayavCategory($z, 'status_name') ?
 						'<tr><td class="label">Статус'.($type == 'dog' ? ' замера' : '').':'.
 							'<td><div style="background-color:#'._statusColor($z[($type == 'dog' ? 'zamer' : $type).'_status']).'" class="status '.$type.'_status">'.
-									$status_name.
-									($status_id == 2  && !DOG ? ' '.FullData($z['status_day'], 1) : '').
+									_zayavCategory($z, 'status_name').
+									(_zayavCategory($z, 'status_id') == 2  && !DOG ? ' '.FullData($z['status_day'], 1) : '').
 								'</div>'
 					: '').
 					'</table>'.
@@ -1792,7 +1718,12 @@ function zayav_info($zayav_id) {
 
 			_vkComment('zayav', $z['id']).
 		'</div>'.
-		(RULES_HISTORYSHOW ? '<div class="histories"><div class="headName">'.$head.'</div>'.history_spisok(array('zayav_id'=>$z['id'])).'</div>' : '').
+		(RULES_HISTORYSHOW ?
+			'<div class="histories">'.
+				'<div class="headName">'._zayavCategory($z, 'head').'<div class="zid">#'.$z['id'].'</div>'.
+			'</div>'.
+			history_spisok(array('zayav_id'=>$z['id'])).'</div>'
+		: '').
 	'</div>';
 }//zayav_info()
 function zayav_money($zayav_id) {
@@ -2392,8 +2323,8 @@ function history_types($v) {
 		case 2: return 'Изменение данных клиента '.$v['client_link'].':<div class="changes">'.$v['value'].'</div>';
 		case 3: return 'Удаление клиента '.$v['client_link'].'.';
 
-		case 4: return 'Внесение новой заявки '.$v['zayav_link'].' <em>(замер)</em> для клиента '.$v['client_link'].'.';
-		case 5: return 'Изменение данных заявки '.$v['zayav_link'].' <em>(замер)</em>:<div class="changes">'.$v['value1'].'</div>';
+		case 4: return 'Внесение новой заявки  <em>(замер)</em> '.$v['zayav_link'].' для клиента '.$v['client_link'].'.';
+		case 5: return 'Изменение данных заявки <em>(замер)</em> '.$v['zayav_link'].':<div class="changes">'.$v['value1'].'</div>';
 		case 6: return 'Удаление заявки '.$v['zayav_link'].' у клиента '.$v['client_link'].'.';
 
 		case 7: return 'Начисление на сумму <b>'.$v['value'].'</b> руб.'.
@@ -2785,31 +2716,78 @@ function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории сче
 	);
 	return $action[$id][$i];
 }//invoiceHistoryAction()
-function invoice_history($invoice_id) {
-	$invoice = $invoice_id > 100 ? 'Наличные '._viewer($invoice_id, 'name') : _invoice($invoice_id);
-	$send = '<div>Счёт <u>'.$invoice.'</u>:</div>';
-	$sql = "SELECT *
-			FROM `invoice_history`
-			WHERE `invoice_id`=".$invoice_id."
-			ORDER BY `id` DESC";
-	$q = query($sql);
-	if(!mysql_num_rows($q))
+function invoice_history($v) {
+	$v = array(
+		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
+		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 15,
+		'invoice_id' => intval($v['invoice_id'])
+	);
+	$invoice = $v['invoice_id'] > 100 ? 'Наличные '._viewer($v['invoice_id'], 'name') : _invoice($v['invoice_id']);
+	$send = '';
+	if($v['page'] == 1)
+		$send = '<div>Счёт <u>'.$invoice.'</u>:</div>'.
+				'<input type="hidden" id="invoice_history_id" value="'.$v['invoice_id'].'" />';
+
+	$all = query_value("SELECT COUNT(*) FROM `invoice_history` WHERE `invoice_id`=".$v['invoice_id']);
+	if(!$all)
 		return $send.'<br />Истории нет.';
-	$send .= '<table class="_spisok _money invoice-history">'.
-		'<tr><th>Действие'.
-			'<th>Сумма'.
-			'<th>Баланс'.
-			'<th>Описание'.
-			'<th>Дата';
+
+	$start = ($v['page'] - 1) * $v['limit'];
+	$sql = "SELECT `h`.*,
+				   IFNULL(`m`.`zayav_id`,0) AS `zayav_id`,
+				   IFNULL(`m`.`income_id`,0) AS `income_id`,
+				   IFNULL(`m`.`expense_id`,0) AS `expense_id`,
+				   IFNULL(`m`.`worker_id`,0) AS `worker_id`,
+				   IFNULL(`m`.`dogovor_id`,0) AS `dogovor_id`,
+				   IFNULL(`m`.`prim`,'') AS `prim`
+			FROM `invoice_history` `h`
+				LEFT JOIN `money` `m`
+				ON `h`.`table`='money' AND `h`.`table_id`=`m`.`id`
+			WHERE `h`.`invoice_id`=".$v['invoice_id']."
+			ORDER BY `h`.`id` DESC
+			LIMIT ".$start.",".$v['limit'];
+	$q = query($sql);
+	$history = array();
 	while($r = mysql_fetch_assoc($q)) {
+		$history[$r['id']] = $r;
+	}
+
+	$history = _zayavLink($history);
+	$history = _dogNomer($history);
+
+	if($v['page'] == 1)
+		$send .= '<table class="_spisok _money invoice-history">'.
+					'<tr><th>Действие'.
+						'<th>Сумма'.
+						'<th>Баланс'.
+						'<th>Описание'.
+						'<th>Дата';
+	foreach($history as $r) {
+		$about = '';
+		if($r['zayav_id'])
+			$about = $r['zayav_link'].'. '.
+					 ($r['dogovor_id'] ? 'Авансовый платёж (договор '.$r['dogovor_nomer'].').' : '');
+		$about .= $r['prim'];
+		$worker = $r['worker_id'] ? _viewer($r['worker_id'], 'link') : '';
+		$expense = $r['expense_id'] ? '<span class="type">'._expense($r['expense_id']).(!$about && !$worker ? '' : ': ').'</span>' : '';
+		//$income = $r['income_id'] ? '<div class="type">'._income($r['income_id']).(empty($about) ? '' : ': ').'</div>' : '';
 		$send .=
 			'<tr><td class="action">'.invoiceHistoryAction($r['action']).
 				'<td class="sum">'.($r['sum'] != 0 ? _sumSpace($r['sum']) : '').
 				'<td class="balans">'._sumSpace($r['balans']).
-				'<td>'.
+				'<td>'.$expense.$worker.$about.
 				'<td class="dtime">'.FullDataTime($r['dtime_add']);
 	}
-	$send .= '</table>';
+
+	if($start + $v['limit'] < $all) {
+		$c = $all - $start - $v['limit'];
+		$c = $c > $v['limit'] ? $v['limit'] : $c;
+		$send .=
+			'<tr class="_next" val="'.($v['page'] + 1).'"><td colspan="5">'.
+				'<span>Показать ещё '.$c.' запис'._end($c, 'ь', 'и', 'ей').'</span>';
+	}
+	if($v['page'] == 1)
+		$send .= '</table>';
 	return $send;
 }//invoice_history()
 function invoice_history_insert($v) {
@@ -3241,7 +3219,8 @@ function income_spisok($filter=array()) {
 			'<tr class="_next" val="'.($page + 1).'" id="income_next"><td colspan="4">'.
 				'<span>Показать ещё '.$c.' платеж'._end($c, '', 'а', 'ей').'</span>';
 	}
-	$send['spisok'] .= '</table>';
+	if($page == 1)
+		$send['spisok'] .= '</table>';
 	return $send;
 }//income_spisok()
 function income_unit($r, $filter=array()) {
@@ -3251,7 +3230,7 @@ function income_unit($r, $filter=array()) {
 			(!$filter['zayav_id'] ? 'по заявке '.$r['zayav_link'].' ' : '').
 			'(договор '.$r['dogovor_nomer'].').';
 	elseif($r['zayav_id'] && !$filter['zayav_id'])
-		$about .= 'Заявка '.$r['zayav_link'].'. ';
+		$about .= $r['zayav_link'].'. ';
 	$about .= $r['prim'];
 	$sumTitle = $filter['zayav_id'] ? ' title="Платёж"' : '';
 	return

@@ -1360,6 +1360,11 @@ switch(@$_POST['op']) {
 						".VIEWER_ID."
 					)";
 			query($sql);
+			invoice_history_insert(array(
+				'action' => 1,
+				'table' => 'money',
+				'id' => mysql_insert_id()
+			));
 			history_insert(array(
 				'type' => 20,
 				'client_id' => $v['client_id'],
@@ -1430,8 +1435,8 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		// Внесение авансового платежа, если есть
+		$avans_id = intval(query_value("SELECT `id` FROM `money` WHERE `deleted`=0 AND `dogovor_id`=".$dog['id']));
 		if($v['avans'] > 0) {
-			$avans_id = intval(query_value("SELECT `id` FROM `money` WHERE `deleted`=0 AND `dogovor_id`=".$dog['id']));
 			$sql = "INSERT INTO `money` (
 						`id`,
 						`zayav_id`,
@@ -1453,8 +1458,20 @@ switch(@$_POST['op']) {
 					) ON DUPLICATE KEY UPDATE
 						`sum`=VALUES(`sum`)";
 			query($sql);
-		} else
-			query("UPDATE `money` SET `deleted`=1 WHERE `deleted`=0 AND `dogovor_id`=".$dog['id']);
+			if(!$avans_id)
+				invoice_history_insert(array(
+					'action' => 1,
+					'table' => 'money',
+					'id' => mysql_insert_id()
+				));
+		} elseif($avans_id) {
+			query("UPDATE `money` SET `deleted`=1 WHERE `deleted`=0 AND `id`=".$avans_id);
+			invoice_history_insert(array(
+				'action' => 2,
+				'table' => 'money',
+				'id' => $avans_id
+			));
+		}
 
 		dogovor_print($dog['id']);
 
@@ -1687,7 +1704,7 @@ switch(@$_POST['op']) {
 	case 'invoice_history':
 		if(empty($_POST['invoice_id']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
 			jsonError();
-		$send['html'] = utf8(invoice_history(intval($_POST['invoice_id'])));
+		$send['html'] = utf8(invoice_history($_POST));
 		jsonSuccess($send);
 		break;
 
