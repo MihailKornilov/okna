@@ -1341,42 +1341,19 @@ switch(@$_POST['op']) {
 		));
 
 		// Внесение авансового платежа, если есть
-		if($v['avans'] > 0) {
-			$sql = "INSERT INTO `money` (
-						`zayav_id`,
-						`client_id`,
-						`dogovor_id`,
-						`sum`,
-						`invoice_id`,
-						`income_id`,
-						`viewer_id_add`
-					) VALUES (
-						".$v['zayav_id'].",
-						".$v['client_id'].",
-						".$dog_id.",
-						".$v['avans'].",
-						1,
-						1,
-						".VIEWER_ID."
-					)";
-			query($sql);
-			invoice_history_insert(array(
-				'action' => 1,
-				'table' => 'money',
-				'id' => mysql_insert_id()
-			));
-			history_insert(array(
-				'type' => 20,
-				'client_id' => $v['client_id'],
+		if($v['avans'] > 0)
+			income_insert(array(
 				'zayav_id' => $v['zayav_id'],
-				'dogovor_id' => $dog_id
+				'dogovor_id' => $dog_id,
+				'sum' => $v['avans'],
+				'type' => 1
 			));
+		else {
+			clientBalansUpdate($v['client_id']);
+			_zayavBalansUpdate($v['zayav_id']);
 		}
 
 		dogovor_print($dog_id);
-
-		clientBalansUpdate($v['client_id']);
-		_zayavBalansUpdate($v['zayav_id']);
 
 		jsonSuccess();
 		break;
@@ -1435,41 +1412,30 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		// Внесение авансового платежа, если есть
-		$avans_id = intval(query_value("SELECT `id` FROM `money` WHERE `deleted`=0 AND `dogovor_id`=".$dog['id']));
+		$avans = query_assoc("SELECT * FROM `money` WHERE `deleted`=0 AND `dogovor_id`=".$dog['id']);
 		if($v['avans'] > 0) {
-			$sql = "INSERT INTO `money` (
-						`id`,
-						`zayav_id`,
-						`client_id`,
-						`dogovor_id`,
-						`sum`,
-						`invoice_id`,
-						`income_id`,
-						`viewer_id_add`
-					) VALUES (
-						".$avans_id.",
-						".$v['zayav_id'].",
-						".$v['client_id'].",
-						".$dog['id'].",
-						".$v['avans'].",
-						1,
-						1,
-						".VIEWER_ID."
-					) ON DUPLICATE KEY UPDATE
-						`sum`=VALUES(`sum`)";
-			query($sql);
-			if(!$avans_id)
-				invoice_history_insert(array(
-					'action' => 1,
-					'table' => 'money',
-					'id' => mysql_insert_id()
+			if(empty($avans))
+				income_insert(array(
+					'zayav_id' => $v['zayav_id'],
+					'dogovor_id' => $dog['id'],
+					'sum' => $v['avans'],
+					'type' => 1
 				));
-		} elseif($avans_id) {
-			query("UPDATE `money` SET `deleted`=1 WHERE `deleted`=0 AND `id`=".$avans_id);
+			elseif($v['avans'] != $avans['sum']) {
+				query("UPDATE `money` SET `sum`=".$v['avans']." WHERE `id`=".$avans['id']);
+				invoice_history_insert(array(
+					'action' => 10,
+					'table' => 'money',
+					'id' => $avans['id'],
+					'sum_prev' => $avans['sum']
+				));
+			}
+		} elseif(!empty($avans)) {
+			query("UPDATE `money` SET `deleted`=1 WHERE `deleted`=0 AND `id`=".$avans['id']);
 			invoice_history_insert(array(
 				'action' => 2,
 				'table' => 'money',
-				'id' => $avans_id
+				'id' => $avans['id']
 			));
 		}
 
@@ -1643,6 +1609,18 @@ switch(@$_POST['op']) {
 		$send['i'] = utf8(invoice_spisok());
 		jsonSuccess($send);
 		break;
+	case 'income_choice':
+		if(empty($_POST['owner_id']) || !preg_match(REGEXP_NUMERIC, $_POST['owner_id']) || $_POST['owner_id'] < 100)
+			jsonError();
+		if(!empty($_POST['ids']))
+			foreach(explode(',', $_POST['ids']) as $id)
+				if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
+					jsonError();
+		$_POST['limit'] = 100;
+		$data = income_spisok($_POST);
+		$send['html'] = utf8($data['spisok']);
+		jsonSuccess($send);
+		break;
 	case 'invoice_transfer':
 		if(empty($_POST['from']) || !preg_match(REGEXP_NUMERIC, $_POST['from']))
 			jsonError();
@@ -1650,14 +1628,19 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(!preg_match(REGEXP_CENA, $_POST['sum']) || $_POST['sum'] == 0)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['cash']))
-			jsonError();
+		$income_count = 0;
+		if(!empty($_POST['ids'])) {
+			$ex = explode(',', $_POST['ids']);
+			$income_count = count($ex);
+			foreach($ex as $id)
+				if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
+					jsonError();
+		}
 
 		$from = intval($_POST['from']);
 		$to = intval($_POST['to']);
 		$sum = str_replace(',', '.', $_POST['sum']);
-		$cash = intval($_POST['cash']);
-		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
+		$income_ids = $_POST['ids'];
 
 		if($from == $to)
 			jsonError();
@@ -1668,15 +1651,17 @@ switch(@$_POST['op']) {
 					`worker_from`,
 					`worker_to`,
 					`sum`,
-					`prim`,
+					`income_count`,
+					`income_ids`,
 					`viewer_id_add`
 				) VALUES (
-					".($cash && $from > 100 ? 1 : $from).",
-					".($cash && $to > 100  ? 1 : $to).",
-					".($cash && $from > 100 ? $from : 0).",
-					".($cash && $to > 100  ? $to : 0).",
+					".($from > 100 ? 1 : $from).",
+					".($to > 100  ? 1 : $to).",
+					".($from > 100 ? $from : 0).",
+					".($to > 100  ? $to : 0).",
 					".$sum.",
-					'".addslashes($prim)."',
+					".$income_count.",
+					'".$income_ids."',
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -1687,18 +1672,31 @@ switch(@$_POST['op']) {
 			'id' => mysql_insert_id()
 		));
 
+		if($income_ids)
+			query("UPDATE `money` SET `owner_id`=".($to > 100 ? $to : 0)." WHERE `id` IN (".$income_ids.")");
+
 		history_insert(array(
 			'type' => 39,
 			'value' => $sum,
 			'value1' => $from,
-			'value2' => $to,
-			'value3' => $prim
+			'value2' => $to
 		));
 
 		$cash = cash_spisok();
 		$send['c'] = utf8($cash['spisok']);
 		$send['i'] = utf8(invoice_spisok());
 		$send['t'] = utf8(transfer_spisok());
+		jsonSuccess($send);
+		break;
+	case 'income_transfer_show':
+		if(empty($_POST['ids']))
+			jsonError();
+		foreach(explode(',', $_POST['ids']) as $id)
+			if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
+				jsonError();
+		$_POST['limit'] = 100;
+		$data = income_spisok($_POST);
+		$send['html'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
 	case 'invoice_history':

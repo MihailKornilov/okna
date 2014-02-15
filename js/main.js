@@ -363,6 +363,30 @@ var hashLoc,
 			}
 		}, 'json');
 	},
+	incomeChoiceSum = function() {
+		var n,
+			mc = $('._money .choice'),
+			c = 0,
+			sum = 0,
+			all = true,
+			ids = [];
+		for(n = 0; n < mc.length; n++) {
+			var eq = mc.eq(n);
+			if(eq.find('input').val() == 1) {
+				c++;
+				sum += eq.parent().find('.sum').html().replace(' ', '') * 1;
+				ids.push(eq.parent().attr('val'));
+			} else
+				all = false;
+		}
+		$('.income_choice_sum').html(c ? 'Выбрано <b>' + c + '</b> платеж' + _end(c, ['', 'а', 'ей']) + ' на сумму <b>' + sum + '</b> руб.' : '');
+		$('#money_all')._check(all);
+		return {
+			count:c,
+			ids:ids.join(),
+			sum:sum
+		};
+	},
 	expenseFilter = function() {
 		var arr = [],
 			inp = $('#monthList input');
@@ -1286,7 +1310,7 @@ $(document)
 		html += '</table>';
 		var dialog = _dialog({
 				width:320,
-				head:'Установка начального баланса счёта',
+				head:'Установка текущей суммы счёта',
 				content:html,
 				butSubmit:'Установить',
 				submit:submit
@@ -1391,6 +1415,37 @@ $(document)
 				next.after(res.html).remove();
 			else
 				next.removeClass('busy');
+		}, 'json');
+	})
+	.on('click', '#money_all_check', function() {
+		var t = $(this),
+			n,
+			v = t.find('input').val();
+		while(!t.hasClass('_money'))
+			t = t.parent();
+		var tr = t.find('tr');
+		for(n = 1; n < tr.length; n++)
+			tr.eq(n).find('input:first')._check(v);
+	})
+	.on('click', '._money ._check', incomeChoiceSum)
+	.on('click', '.income-transfer-show', function() {
+		var dialog = _dialog({
+			top:20,
+			width:480,
+			head:'Просмотр платежей',
+			load:1,
+			butSubmit:'',
+			butCancel:'Закрыть'
+		});
+		var send = {
+			op:'income_transfer_show',
+			ids:$(this).attr('val')
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				dialog.content.html(res.html);
+			else
+				dialog.loadError();
 		}, 'json');
 	})
 
@@ -2640,16 +2695,18 @@ $(document)
 					html = '<table class="invoice-transfer">' +
 						'<tr><td class="label">Со счёта:<td><input type="hidden" id="from" />' +
 						'<tr><td class="label">На счёт:<td><input type="hidden" id="to" />' +
-						'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" /> руб.' +
-						'<tr><td class="label">Комментарий:<td><input type="text" id="prim" maxlength="50" />' +
+						'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" /> руб. ' +
+							'<a class="income-choice">Выбрать платежи</a>' +
+							'<input type="hidden" id="ids" />' +
 						'</table>',
 					dialog = _dialog({
+						width:380,
 						head:'Перевод между счетами',
 						content:html,
 						butSubmit:'Применить',
 						submit:submit
 					});
-				if(window.CASH_SPISOK && !window.CSMOVE) {
+				if(window.CASH_SPISOK && !window.CSMOVE) {//Проверка открывалось ли это окно прежде
 					for(n = 0; n < INVOICE_SPISOK.length; n++)
 						if(INVOICE_SPISOK[n].uid != 1)
 							CASH_SPISOK.push(INVOICE_SPISOK[n]);
@@ -2657,31 +2714,64 @@ $(document)
 					window.CSMOVE = 1;
 				}
 				$('#from')._select({
-					width:230,
+					width:250,
 					title0:'Не выбран',
-					spisok:INVOICE_SPISOK,
-					func:function() {
-						$('#sum').focus();
-					}
+					spisok:INVOICE_SPISOK
 				});
 				$('#to')._select({
-					width:230,
+					width:250,
 					title0:'Не выбран',
-					spisok:INVOICE_SPISOK,
-					func:function() {
-						$('#sum').focus();
+					spisok:INVOICE_SPISOK
+				});
+				$('#sum').keyEnter(submit);
+				$('#sum').keyup(function() {
+					if($('#ids').val()) {
+						$('.income-choice').html('Выбрать платежи');
+						$('#ids').val('');
+						$('#sum').val('');
 					}
 				});
-				$('#sum').focus();
-				$('#sum,#prim').keyEnter(submit);
+				$('.income-choice').click(function() {
+					if($('#from').val() == 0) {
+						err('Не выбран счёт-отправитель', 1);
+						return;
+					}
+					var choice = _dialog({
+						top:20,
+						width:480,
+						head:'Выбор платежей для перевода',
+						load:1,
+						butSubmit:'Готово',
+						submit:chioceSubmit
+					});
+					var send = {
+						op:'income_choice',
+						owner_id:$('#from').val(),
+						ids:$('#ids').val()
+					};
+					$.post(AJAX_MAIN, send, function(res) {
+						if(res.success) {
+							choice.content.html(res.html + '<div class="income_choice_sum"></div>');
+							incomeChoiceSum();
+						}
+						else
+							choice.loadError();
+					}, 'json');
+					function chioceSubmit() {
+						var res = incomeChoiceSum();
+						$('#ids').val(res.ids);
+						$('.income-choice').html(res.count + ' платеж' + _end(res.count, ['', 'а', 'ей']));
+						$('#sum').val(res.sum);
+						choice.close();
+					}
+				});
 				function submit() {
 					var send = {
 						op:'invoice_transfer',
 						from:$('#from').val() * 1,
 						to:$('#to').val() * 1,
 						sum:$('#sum').val(),
-						cash:window.CASH_SPISOK ? 1 : 0,
-						prim:$('#prim').val()
+						ids:$('#ids').val()
 					};
 					if(!send.from) err('Выберите счёт-отправитель');
 					else if(!send.to) err('Выберите счёт-получатель');
@@ -2701,11 +2791,11 @@ $(document)
 						}, 'json');
 					}
 				}
-				function err(msg) {
+				function err(msg, ch) {
 					dialog.bottom.vkHint({
 						msg:'<span class="red">' + msg + '</span>',
-						top:-47,
-						left:82,
+						top:ch ? -95 : -47,
+						left:ch ? 197 : 92,
 						indent:50,
 						show:1,
 						remove:1

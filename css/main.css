@@ -377,10 +377,12 @@
 .invoice #invoice-spisok{margin:10px 10px 25px}
 .invoice #transfer-spisok{margin:10px}
 .invoice-transfer{border-spacing:10px}
-.invoice-transfer #prim{width:222px}
+.invoice-transfer .income-choice{margin-left:10px}
+.income_choice_sum{margin-top:10px}
 .invoice-history{margin-top:10px}
 .invoice-history .action{width:80px}
 .invoice-history .balans{width:70px;text-align:right}
+.invoice-history .sum-change{font-size:10px;color:#555}
 .income#report .headName{margin:10px}
 .income .inc-path{margin:15px 10px}
 .income .inc-path._busy{background-position:right center}
