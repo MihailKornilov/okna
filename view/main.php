@@ -546,6 +546,10 @@ function numberToWord($num, $firstSymbolUp=false) {
 	return $word;
 }//numberToWord()
 
+function viewerAdded($viewer_id) {//Вывод сотрудника, который вносил запись с учётом пола
+	return 'Вн'.(_viewer($viewer_id, 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($viewer_id, 'name');
+}
+
 function pin_enter() {
 	return
 	'<div id="pin-enter">'.
@@ -978,8 +982,8 @@ function _zayavCategory($z, $i='type') {// Определение категории заявки
 					FullData($z['dtime_add'], 1).
 					(($send['type'] == 'zakaz' || $send['type'] == 'set') && ($z['accrual_sum'] || $z['oplata_sum']) ?
 						'<div class="balans'.($z['accrual_sum'] != $z['oplata_sum'] ? ' diff' : '').'">'.
-							'<span class="acc" title="Начислено">'.$z['accrual_sum'].'</span>/'.
-							'<span class="opl" title="'.($diff ? 'Недоплата '.$diff.' руб.' : 'Оплачено').'">'.$z['oplata_sum'].'</span>'.
+							'<span class="acc'._tooltip('Начислено', -39).$z['accrual_sum'].'</span>/'.
+							'<span class="opl'._tooltip($diff ? 'Недоплата '.$diff.' руб.' : 'Оплачено', -17, 'l').$z['oplata_sum'].'</span>'.
 						'</div>'
 					: '').
 					'</div>'.
@@ -1008,7 +1012,6 @@ function _zayavBalansUpdate($zayav_id) {//Обновление начислений, суммы платежей,
 	query($sql);
 	return true;
 }//_zayavBalansUpdate()
-
 
 function zayav_product_test($product) {// Проверка корректности данных изделий при внесении в базу
 	if(empty($product))
@@ -1750,11 +1753,11 @@ function zayav_money($zayav_id) {
 	while($r = mysql_fetch_assoc($q))
 		$money[strtotime($r['dtime_add']).$r['id']] =
 			'<tr val="'.$r['id'].'">'.
-				'<td class="sum acc" title="Начисление"><b>'._sumSpace($r['sum']).'</b>'.
+				'<td class="sum acc'._tooltip('Начисление', -5).'<b>'._sumSpace($r['sum']).'</b>'.
 				'<td>'.$r['prim'].
-				'<td class="dtime" title="Вн'.(_viewer($r['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']).
+				'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
 				'<td class="ed" align="right">'.
-					(!$r['dogovor_id'] ? '<div class="img_del accrual-del"></div>' : '');
+					(!$r['dogovor_id'] ? '<div class="img_del accrual-del'._tooltip('Удалить начисление', -116, 'r').'</div>' : '');
 
 	if(empty($money))
 		return '';
@@ -2617,7 +2620,7 @@ function cash_spisok() {
 		$send['spisok'] .= '<tr>'.
 			'<td><span>Наличные:</span> '._viewer($r['viewer_id'], 'name').
 			'<td class="r">'.$sum.($r['cash'] == -1 ? '' : ' руб.').
-			'<td><div class="img_note" val="'.$r['viewer_id'].'"></div>';
+			'<td><div val="'.$r['viewer_id'].'" class="img_note'._tooltip('Посмотреть историю операций', -95).'</div>';
 		$send['cash'][] = '{'.
 				'id:'.$r['viewer_id'].','.
 				'name:"'.addslashes(_viewer($r['viewer_id'], 'name')).'",'.
@@ -2642,7 +2645,7 @@ function invoice_spisok() {
 			'<td class="name"><b>'.$r['name'].'</b><pre>'.$r['about'].'</pre>'.
 			'<td class="balans">'.
 			($r['start'] != -1 ? '<b>'._sumSpace(_invoiceBalans($r['id'])).'</b> руб.' : (VIEWER_ADMIN ? '' : '<a class="invoice_set" val="'.$r['id'].'">Установить текущую сумму</a>')).
-			'<td><div class="img_note" val="'.$r['id'].'"></div>'.
+			'<td><div val="'.$r['id'].'" class="img_note'._tooltip('Посмотреть историю операций', -95).'</div>'.
 			(VIEWER_ADMIN ? '<td><a class="invoice_set" val="'.$r['id'].'">Установить текущую сумму</a>' : '');
 	$send .= '</table>';
 	return $send;
@@ -3304,18 +3307,18 @@ function income_unit($r, $filter=array()) {
 	elseif($r['zayav_id'] && !$filter['zayav_id'])
 		$about .= $r['zayav_link'].'. ';
 	$about .= $r['prim'];
-	$sumTitle = $filter['zayav_id'] ? ' title="Платёж"' : '';
+	$sumTitle = $filter['zayav_id'] ? _tooltip('Платёж', 5) : '">';
 	return
 		'<tr val="'.$r['id'].'">'.
-			($filter['owner_id'] ? '<td class="choice">'._check('money_'.$r['id'], '', isset($filter['ids_ass'][$r['id']])) : '').
-			'<td class="sum opl"'.$sumTitle.'>'._sumSpace($r['sum']).
+			(!empty($filter['owner_id']) ? '<td class="choice">'._check('money_'.$r['id'], '', isset($filter['ids_ass'][$r['id']])) : '').
+			'<td class="sum opl'.$sumTitle.''._sumSpace($r['sum']).
 			'<td><span class="type">'._income($r['income_id']).(empty($about) ? '' : ':').'</span> '.$about.
-			'<td class="dtime" title="Вн'.(_viewer($r['viewer_id_add'], 'sex') == 1 ? 'есла' : 'ёс').' '._viewer($r['viewer_id_add'], 'name').'">'.FullDataTime($r['dtime_add']).
-		(!$filter['owner_id'] && !$filter['ids'] ?
-			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" class="img_doc" target="_blank"></a>'.
+			'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
+		(empty($filter['owner_id']) && empty($filter['ids']) ?
+			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" target="_blank" class="img_doc'._tooltip('Распечатать квитанцию', -140, 'r').'</a>'.
 				(!$r['dogovor_id'] ?
-					'<div class="img_del income-del" title="Удалить платёж"></div>'.
-					'<div class="img_rest income-rest" title="Восстановить платёж"></div>'
+					'<div class="img_del income-del'._tooltip('Удалить платёж', -95, 'r').'</div>'.
+					'<div class="img_rest income-rest'._tooltip('Восстановить платёж', -125, 'r').'</div>'
 				: '')
 		: '');
 }//income_unit()
@@ -3446,19 +3449,19 @@ function expense_spisok($filter=array()) {
 		$rashod[$r['id']] = $r;
 	$rashod = _viewer($rashod);
 	foreach($rashod as $r) {
-		$dtimeTitle = 'Внёс: '.$r['viewer_name'];
-		if($r['deleted'])
-			$dtimeTitle .= "\n".'Удалил: '.$r['viewer_del']."\n".FullDataTime($r['dtime_del']);
+		$dtimeTitle = _tooltip(viewerAdded($r['viewer_id_add']), -40);
+		//if($r['deleted'])
+			//$dtimeTitle .= "\n".'Удалил: '.$r['viewer_del']."\n".FullDataTime($r['dtime_del']);
 		$send['spisok'] .= '<tr'.($r['deleted'] ? ' class="deleted"' : '').' val="'.$r['id'].'">'.
 			'<td class="sum"><b>'._sumSpace(abs($r['sum'])).'</b>'.
 			'<td>'.($r['expense_id'] ? '<span class="type">'._expense($r['expense_id']).($r['prim'] || $r['worker_id'] ? ':' : '').'</span> ' : '').
 				($r['worker_id'] ? _viewer($r['worker_id'], 'link').
 				($r['prim'] ? ', ' : '') : '').$r['prim'].
-			'<td class="dtime" title="'.$dtimeTitle.'">'.FullDataTime($r['dtime_add']).
+			'<td class="dtime'.$dtimeTitle.FullDataTime($r['dtime_add']).
 			'<td class="ed r">'.
 				//'<div class="img_edit" title="Редактировать"></div>'.
-				'<div class="img_del" title="Удалить"></div>'.
-				'<div class="img_rest" title="Восстановить"></div>';
+				'<div class="img_del'._tooltip('Удалить расход', -52).'</div>'.
+				'<div class="img_rest'._tooltip('Восстановить расход', -67).'</div>';
 	}
 	if($start + $limit < $all)
 		$send['spisok'] .= '<tr class="_next" val="'.($page + 1).'"><td colspan="4"><span>Показать далее...</span>';

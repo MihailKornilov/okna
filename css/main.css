@@ -206,8 +206,8 @@
 .zayav_unit .dtime{float:right;text-align:right;font-size:10px;color:#777;padding:4px}
 .zayav_unit .dtime em{font-size:10px}
 .zayav_unit .balans{color:#777;margin-top:2px}
-.zayav_unit .acc{color:#07a;cursor:help;font-size:10px}
-.zayav_unit .opl{color:#090;cursor:help;font-size:10px}
+.zayav_unit .acc{color:#07a;cursor:default;font-size:10px}
+.zayav_unit .opl{color:#090;cursor:default;font-size:10px}
 .zayav_unit .diff .acc,.zayav_unit .diff .opl{color:#b33}
 .zayav_unit .ztab{border-spacing:2px;margin:4px 0 4px 8px}
 .zayav_unit .label{width:60px}
@@ -262,8 +262,8 @@
 .zayav-info .mainright .headBlue{margin:0}
 .zayav-info .acc-sum{margin:7px}
 .zayav-info .mon em{float:right;margin:0 5px}
-.zayav-info .sum.acc{color:#07a;cursor:help}
-.zayav-info .sum.opl{color:#090;cursor:help}
+.zayav-info .sum.acc{color:#07a;cursor:default}
+.zayav-info .sum.opl{color:#090;cursor:default}
 .zayav-info .dtime_add{font-size:10px;color:#999;text-align:right;margin:10px 0}
 .zayav-info .vkComment{margin-bottom:15px}
 .zayav-info .histories{min-height:210px;margin:12px 15px}
