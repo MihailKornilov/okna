@@ -112,23 +112,25 @@ var hashLoc,
 	},
 	clientFilter = function() {
 		var v = {
+			op:'client_spisok',
 			fast:cFind.inp(),
-			dolg:$('#dolg').val()
+			dolg:$('#dolg').val(),
+			note:$('#note').val(),
+			product_id:$('#product_id').val()
 		};
 		$('.filter')[v.fast ? 'hide' : 'show']();
 		return v;
 	},
-	clientSpisokLoad = function() {
+	clientSpisok = function() {
 		var send = clientFilter(),
 			result = $('.result');
-		send.op = 'client_spisok_load';
 		if(result.hasClass('busy'))
 			return;
 		result.addClass('busy');
 		$.post(AJAX_MAIN, send, function(res) {
 			result.removeClass('busy');
 			if(res.success) {
-				result.html(res.all);
+				result.html(res.result);
 				$('.left').html(res.spisok);
 			}
 		}, 'json');
@@ -737,19 +739,17 @@ $(document)
 	})
 
 	.on('click', '#client ._next', function() {
-		if($(this).hasClass('busy'))
-			return;
-		var next = $(this),
+		var t = $(this),
 			send = clientFilter();
-		send.op = 'client_next';
-		send.page = next.attr('val');
-		next.addClass('busy');
+		if(t.hasClass('busy'))
+			return;
+		send.page = t.attr('val');
+		t.addClass('busy');
 		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success) {
-				next.remove();
-				$('#client .left').append(res.spisok);
-			} else
-				next.removeClass('busy');
+			if(res.success)
+				t.after(res.spisok).remove();
+			else
+				t.removeClass('busy');
 		}, 'json');
 	})
 
@@ -1921,7 +1921,7 @@ $(document)
 				focus:1,
 				enter:1,
 				txt:'Начните вводить данные клиента',
-				func:clientSpisokLoad
+				func:clientSpisok
 			});
 			$('#buttonCreate').vkHint({
 				msg:'<B>Внесение нового клиента в базу.</B><br /><br />' +
@@ -1935,7 +1935,7 @@ $(document)
 				delayShow:1000,
 				correct:0
 			}).click(clientAdd);
-			$('#dolg')._check(clientSpisokLoad);
+			$('#dolg')._check(clientSpisok);
 			$('#dolg_check').vkHint({
 				msg:'<b>Список должников.</b><br /><br />' +
 					'Выводятся клиенты, у которых баланс менее 0. Также в результате отображается общая сумма долга.',
@@ -1946,6 +1946,13 @@ $(document)
 				indent:20,
 				delayShow:1000,
 				correct:0
+			});
+			$('#note')._check(clientSpisok);
+			$('#product_id')._select({
+				width:140,
+				title0:'Любые изделия',
+				spisok:PRODUCT_SPISOK,
+				func:clientSpisok
 			});
 		}
 		if($('#clientInfo').length) {

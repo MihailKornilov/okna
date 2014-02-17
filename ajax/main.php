@@ -203,18 +203,11 @@ switch(@$_POST['op']) {
 		));
 		jsonSuccess($send);
 		break;
-	case 'client_spisok_load':
-		$filter = clientFilter($_POST);
-		$send = client_data(1, $filter);
-		$send['all'] = utf8(client_count($send['all'], $filter['dolg']));
-		$send['spisok'] = utf8($send['spisok']);
-		jsonSuccess($send);
-		break;
-	case 'client_next':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$send = client_data(intval($_POST['page']), clientFilter($_POST));
-		$send['spisok'] = utf8($send['spisok']);
+	case 'client_spisok':
+		$data = client_data($_POST);
+		if(empty($_POST['page']))
+			$send['result'] = utf8($data['result']);
+		$send['spisok'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
 	case 'client_edit':
@@ -1568,11 +1561,10 @@ switch(@$_POST['op']) {
 					jsonError();
 				$id = intval($r[0]);
 				$sql = "SELECT COUNT(`viewer_id`)
-				        FROM `vk_user`
+				        FROM `vk_user_rules`
 				        WHERE `viewer_id`=".$id."
-				          AND `admin`=0
-				          AND `worker`=1
-						  AND `rules` LIKE '%RULES_CASH%'";
+						  AND `rules`='RULES_CASH'
+						  AND `value`=1";
 				if(!query_value($sql))
 					jsonError();
 				$s = str_replace(',', '.', $r[1]);

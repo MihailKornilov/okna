@@ -498,7 +498,7 @@ function _setupRules($rls, $admin=0) {
 	}
 	return $ass;
 }//_setupRules()
-function _viewerRules($viewer_id=VIEWER_ID) {
+function _viewerRules($viewer_id=VIEWER_ID, $rule='') {
 	$key = CACHE_PREFIX.'viewer_rules_'.$viewer_id;
 	$wr = xcache_get($key);
 	if(empty($wr)) {
@@ -507,7 +507,7 @@ function _viewerRules($viewer_id=VIEWER_ID) {
 		$wr = _setupRules($rules, $admin);
 		xcache_set($key, $wr, 86400);
 	}
-	return $wr;
+	return $rule ? $wr[$rule] : $wr;
 }//_viewerRules()
 function _norules($txt=false) {
 	return '<div class="norules">'.($txt ? '<b>'.$txt.'</b>: н' : 'Н').'едостаточно прав.</div>';
@@ -652,21 +652,21 @@ function clientBalansUpdate($client_id) {//Обновление баланса клиента
 }//clientBalansUpdate()
 
 function clientFilter($v) {
-	if(!preg_match(REGEXP_WORDFIND, win1251($v['fast'])))
-		$v['fast'] = '';
-	if(!preg_match(REGEXP_BOOL, $v['dolg']))
-		$v['dolg'] = 0;
 	$filter = array(
-		'fast' => win1251(htmlspecialchars(trim($v['fast']))),
-		'dolg' => intval($v['dolg'])
+		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? intval($v['page']) : 1,
+		'fast' => !empty($v['fast']) && preg_match(REGEXP_WORDFIND, win1251($v['fast'])) ? win1251(htmlspecialchars(trim($v['fast']))) : '',
+		'dolg' => !empty($v['dolg']) && preg_match(REGEXP_BOOL, $v['dolg']) ? intval($v['dolg']) : 0,
+		'note' => !empty($v['note']) && preg_match(REGEXP_BOOL, $v['note']) ? intval($v['note']) : 0,
+		'product_id' => !empty($v['product_id']) && preg_match(REGEXP_NUMERIC, $v['product_id']) ? intval($v['product_id']) : 0
 	);
 	return $filter;
 }//clientFilter()
-function client_data($page=1, $filter=array()) {
+function client_data($filter=array()) {
+	$filter = clientFilter($filter);
 	$cond = "`deleted`=0";
 	$reg = '';
 	$regEngRus = '';
-	if(!empty($filter['fast'])) {
+	if($filter['fast']) {
 		$engRus = _engRusChar($filter['fast']);
 		$cond .= " AND (`fio` LIKE '%".$filter['fast']."%'
 					 OR `telefon` LIKE '%".$filter['fast']."%'
@@ -681,14 +681,36 @@ function client_data($page=1, $filter=array()) {
 		if($engRus)
 			$regEngRus = '/('.$engRus.')/i';
 	} else {
-		if(isset($filter['dolg']) && $filter['dolg'] == 1)
+		if($filter['dolg'])
 			$cond .= " AND `balans`<0";
+		if($filter['product_id']) {
+			$sql = "SELECT `z`.`client_id`
+			        FROM `zayav` AS `z`,
+			             `zayav_product` AS `p`
+			        WHERE `z`.`deleted`=0
+			          AND `z`.`id`=`p`.`zayav_id`
+			          AND `p`.`product_id`=".$filter['product_id'];
+			$ids = query_ids($sql);
+			$cond .= " AND `id` IN (".$ids.")";
+		}
+		if($filter['note']) {
+			$sql = "SELECT DISTINCT `table_id`
+					FROM `vk_comment`
+					WHERE `status`=1 AND `table_name`='client'";
+			$ids = query_ids($sql);
+			$cond .= " AND `id` IN (".$ids.")";
+		}
 	}
-	$send['all'] = query_value("SELECT COUNT(`id`) AS `all` FROM `client` WHERE ".$cond." LIMIT 1");
-	if($send['all'] == 0) {
-		$send['spisok'] = '<div class="_empty">Клиентов не найдено.</div>';
-		return $send;
-	}
+
+	$all = query_value("SELECT COUNT(`id`) AS `all` FROM `client` WHERE ".$cond." LIMIT 1");
+	if(!$all)
+		return array(
+			'all' => 0,
+			'result' => 'Клиентов не найдено.',
+			'spisok' => '<div class="_empty">Клиентов не найдено.</div>'
+		);
+
+	$page = $filter['page'];
 	$limit = 20;
 	$start = ($page - 1) * $limit;
 	$spisok = array();
@@ -739,7 +761,13 @@ function client_data($page=1, $filter=array()) {
 	while($r = mysql_fetch_assoc($q))
 		$spisok[$r['id']]['comm'] = 1;
 
-	$send['spisok'] = '';
+	$dolg = $filter['dolg'] ? abs(query_value("SELECT SUM(`balans`) FROM `client` WHERE `deleted`=0 AND `balans`<0 LIMIT 1")) : 0;
+	$send = array(
+		'all' => $all,
+		'spisok' => '',
+		'result' => 'Найден'._end($all, ' ', 'о ').$all.' клиент'._end($all, '', 'а', 'ов').
+					($dolg ? '<span class="dolg_sum">(Общая сумма долга = <b>'._sumSpace($dolg).'</b> руб.)</span>' : '')
+	);
 	foreach($spisok as $r)
 		$send['spisok'] .= '<div class="unit'.(isset($r['comm']) ? ' i' : '').'">'.
 			($r['balans'] != 0 ? '<div class="balans">Баланс: <b style=color:#'.($r['balans'] < 0 ? 'A00' : '090').'>'.round($r['balans'], 2).'</b></div>' : '').
@@ -750,37 +778,32 @@ function client_data($page=1, $filter=array()) {
 				(isset($r['zayav_count']) ? '<tr><td class="label">Заявки:<td>'.$r['zayav_count'] : '').
 			'</table>'.
 		'</div>';
-	if($start + $limit < $send['all']) {
-		$c = $send['all'] - $start - $limit;
+	if($start + $limit < $all) {
+		$c = $all - $start - $limit;
 		$c = $c > $limit ? $limit : $c;
 		$send['spisok'] .= '<div class="_next" val="'.($page + 1).'"><span>Показать ещё '.$c.' клиент'._end($c, 'а', 'а', 'ов').'</span></div>';
 	}
 	return $send;
 }//client_data()
-function client_list($data) {
+function client_list() {
+	$data = client_data();
 	return
 	'<div id="client">'.
 		'<div id="find"></div>'.
-		'<div class="result">'.client_count($data['all']).'</div>'.
+		'<div class="result">'.$data['result'].'</div>'.
 		'<table class="tabLR">'.
 			'<tr><td class="left">'.$data['spisok'].
 				'<td class="right">'.
 					'<div id="buttonCreate"><a>Новый клиент</a></div>'.
 					'<div class="filter">'.
 						_check('dolg', 'Должники').
+						_check('note', 'Есть заметки').
+						'<div class="findHead">Заказывались изделия</div>'.
+						'<input type="hidden" id="product_id">'.
 					'</div>'.
 		'</table>'.
 	'</div>';
 }//client_list()
-function client_count($count, $dolg=0) {
-	if($dolg)
-		$dolg = abs(query_value("SELECT SUM(`balans`) FROM `client` WHERE `deleted`=0 AND `balans`<0 LIMIT 1"));
-	return ($count > 0 ?
-		'Найден'._end($count, ' ', 'о ').$count.' клиент'._end($count, '', 'а', 'ов').
-		($dolg ? '<span class="dolg_sum">(Общая сумма долга = <b>'._sumSpace($dolg).'</b> руб.)</span>' : '')
-		:
-		'Клиентов не найдено');
-}//client_count()
 
 function clientInfoGet($client) {
 	return
@@ -2651,18 +2674,25 @@ function invoice() {
 		'<div id="transfer-spisok">'.transfer_spisok().'</div>';
 }//invoice()
 function cash_spisok() {
-	$sql = "SELECT *
-	        FROM `vk_user`
-			WHERE `admin`=0
-			  AND `worker`=1
-			  AND `rules` LIKE '%RULES_CASH%'
-	        ORDER BY `dtime_add`";
+	$send = array(
+		'cash' => array(),
+		'cash_spisok' => array(),
+		'spisok' => ''
+	);
+	$sql = "SELECT
+ 				DISTINCT(`u`.`viewer_id`) AS `viewer_id`,
+ 				`u`.`cash`
+	        FROM `vk_user` AS `u`,
+	        	 `vk_user_rules` AS `r`
+			WHERE `u`.`worker`=1
+			  AND `u`.`viewer_id`=`r`.`viewer_id`
+			  AND `r`.`key`='RULES_CASH'
+			  AND `r`.`value`=1
+	        ORDER BY `u`.`dtime_add`";
 	$q = query($sql);
 	if(!mysql_num_rows($q))
-		return '';
+		return $send;
 
-	$send['cash'] = array();
-	$send['cash_spisok'] = array();
 	$send['spisok'] = '<table class="_spisok">';
 	while($r = mysql_fetch_assoc($q)) {
 		$sum = $r['cash'] == -1 ? '' : _invoiceBalans($r['viewer_id']);
@@ -2908,7 +2938,7 @@ function invoice_history_insert($v) {
 				$v['invoice_id'] = $r['invoice_id'];
 				$v['sum'] = invoiceHistoryAction($v['action'], 'znak').$v['sum'];
 				if(invoiceHistoryAction($v['action'], 'cash') && $r['invoice_id'] == 1)
-					if(query_value("SELECT COUNT(*) FROM `vk_user` WHERE `viewer_id`=".$r['viewer_id_add']." AND `admin`=0 AND `rules` LIKE '%RULES_CASH%'"))
+					if(query_value("SELECT COUNT(*) FROM `vk_user_rules` WHERE `viewer_id`=".$r['viewer_id_add']." AND `key`='RULES_CASH' AND `value`=1"))
 						invoice_history_insert_sql($r['viewer_id_add'], $v);
 				break;
 			case 'invoice_transfer':
@@ -3605,18 +3635,20 @@ function salary_spisok() {
 				'<tr><th>Фио'.
 					'<th>Ставка'.
 					'<th>Баланс';
-	while($r = mysql_fetch_assoc($q)) {
-		$send .=
+	while($r = mysql_fetch_assoc($q))
+		if(!_viewerRules($r['viewer_id'], 'RULES_NOSALARY'))
+			$send .=
 			'<tr><td class="fio"><a href="'.URL.'&p=report&d=salary&id='.$r['viewer_id'].'" class="name">'.$r['name'].'</a>'.
 				'<td class="rate">'.($r['rate'] == 0 ? '' : $r['rate']).
-				'<td class="balans" style=color:#'.($r['balans'] < 0 ? 'A00' : '090').'>'.round($r['balans'], 2);
-	}
+				'<td class="balans" style="color:#'.($r['balans'] < 0 ? 'A00' : '090').'">'.round($r['balans'], 2);
 	$send .= '</table>';
 	return $send;
 }//salary_spisok()
 function salary_worker($worker_id) {
 	if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `viewer_id`=".$worker_id))
 		return 'Сотрудника не существует.';
+	if(_viewerRules($worker_id, 'RULES_NOSALARY'))
+		return 'У сотрудника <u>'._viewer($worker_id, 'name').'</u> не начисляется зарплата.';
 	return
 		'<script type="text/javascript">'.
 			'var WORKER_ID='.$worker_id.','.
@@ -3887,7 +3919,7 @@ function setup_worker_rules($viewer_id) {
 		'<tr><td><td><div class="vkButton dop-save"><button>Сохранить</button></div>'.
 	'</table>'.
 
-	(!$u['admin'] && $viewer_id < VIEWER_MAX ?
+	(!$u['admin'] && $viewer_id < VIEWER_MAX && RULES_RULES?
 		'<div class="headName">Права</div>'.
 		'<table class="rtab">'.
 			'<tr><td class="lab">Разрешать вход<br />в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).

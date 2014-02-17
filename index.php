@@ -23,7 +23,7 @@ elseif(PIN_ENTER) {
 					$html .= client_info(intval($_GET['id']));
 					break;
 				default:
-					$html .= client_list(client_data());
+					$html .= client_list();
 			}
 			break;
 		case 'zayav':
