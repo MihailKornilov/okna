@@ -95,7 +95,6 @@ function _cacheClear() {
 	xcache_unset(CACHE_PREFIX.'income');
 	xcache_unset(CACHE_PREFIX.'expense');
 	xcache_unset(CACHE_PREFIX.'zayavrashod');
-	xcache_unset(CACHE_PREFIX.'pin_enter_count'.VIEWER_ID);
 	xcache_unset(PIN_TIME_KEY);
 	GvaluesCreate();
 }//_cacheClear()
@@ -436,30 +435,80 @@ function _mainLinks() {
 	$html .= $send;
 }//_mainLinks()
 
-function rulesList($v=false) {
+function _setupRules($rls, $admin=0) {
 	$rules = array(
-		'RULES_APPENTER' => 1,      // Разрешать вход в приложение
-		'RULES_WORKER' => 1,	    // Сотрудники
-		'RULES_REKVISIT' => 1,      // Реквизиты организации
-		'RULES_PRODUCT' => 1,       // Виды изделий
-		'RULES_INCOME' => 1,        // Счета или виды платежей
-		'RULES_ZAYAVRASHOD' => 1,   // Расходы по заявке
-		'RULES_HISTORYSHOW' => 1,   // Может видеть историю действий
-		'RULES_MONEY' => 1,	        // Может видеть все платежи, иначе только свои
-		'RULES_CASH' => 1	        // Внутренний наличный счёт
+		'RULES_BONUS' => array(	    // Начисление бонусов: по дате внесения заявок, по дате выполнения заявок
+			'def' => 0
+		),
+		'RULES_CASH' => array(	    // Внутренний наличный счёт
+			'def' => 0
+		),
+		'RULES_GETMONEY' => array(	// Может принимать и передавать деньги:
+			'def' => 0
+		),
+		'RULES_NOSALARY' => array(	// Не отображать в начислениях з/п:
+			'def' => 0
+		),
+		'RULES_APPENTER' => array(	// Разрешать вход в приложение
+			'def' => 0,
+			'admin' => 1,
+			'childs' => array(
+				'RULES_WORKER' => array(	// Сотрудники
+					'def' => 0,
+					'admin' => 1
+				),
+				'RULES_RULES' => array(	    // Настройка прав сотрудников
+					'def' => 0,
+					'admin' => 1
+				),
+				'RULES_REKVISIT' => array(	// Реквизиты организации
+					'def' => 0,
+					'admin' => 1
+				),
+				'RULES_PRODUCT' => array(	// Виды изделий
+					'def' => 0,
+					'admin' => 1
+				),
+				'RULES_INCOME' => array(	// Реквизиты организации
+					'def' => 0,
+					'admin' => 1
+				),
+				'RULES_ZAYAVRASHOD' => array(// Расходы по заявке
+					'def' => 0,
+					'admin' => 1
+				),
+				'RULES_HISTORYSHOW' => array(// Видит историю действий
+					'def' => 0,
+					'admin' => 1
+				),
+				'RULES_MONEY' => array(	    // Может видеть платежи: только свои, все платежи
+					'def' => 0,
+					'admin' => 1
+				)
+			)
+		)
 	);
-	return $v ? isset($rules[$v]) : $rules;
-}//rulesList()
-function workerRulesArray($rules, $noList=false) {
-	$send = array();
-	foreach(explode(',', $rules) as $name)
-		$send[$name] = 1;
-	if(!$noList)
-		foreach(rulesList() as $name => $v)
-			$send[$name] = isset($send[$name]) ? 1 : 0;
-	unset($send['']);
-	return $send;
-}//workerRulesArray()
+	$ass = array();
+	foreach($rules as $i => $r) {
+		$ass[$i] = $admin && isset($r['admin']) ? $r['admin'] : (isset($rls[$i]) ? $rls[$i] : $r['def']);
+		//$parent = $ass[$i];
+		if(isset($r['childs']))
+			foreach($r['childs'] as $ci => $cr)
+				$ass[$ci] = $admin && isset($cr['admin']) ? $cr['admin'] : (isset($rls[$ci]) ? $rls[$ci] : $cr['def']);
+	}
+	return $ass;
+}//_setupRules()
+function _viewerRules($viewer_id=VIEWER_ID) {
+	$key = CACHE_PREFIX.'viewer_rules_'.$viewer_id;
+	$wr = xcache_get($key);
+	if(empty($wr)) {
+		$rules = query_ass("SELECT `key`,`value` FROM `vk_user_rules` WHERE `viewer_id`=".$viewer_id);
+		$admin = _viewer($viewer_id, 'admin');
+		$wr = _setupRules($rules, $admin);
+		xcache_set($key, $wr, 86400);
+	}
+	return $wr;
+}//_viewerRules()
 function _norules($txt=false) {
 	return '<div class="norules">'.($txt ? '<b>'.$txt.'</b>: н' : 'Н').'едостаточно прав.</div>';
 }//_norules()
@@ -3805,7 +3854,7 @@ function setup_worker_rules($viewer_id) {
 		return _norules('Настройка прав для сотрудника '.$u['name']);
 	if(!isset($u['worker']))
 		return 'Сотрудника не существует.';
-	$rule = workerRulesArray($u['rules']);
+	$rule = _viewerRules($viewer_id);
 	return
 	'<script type="text/javascript">var RULES_VIEWER_ID='.$viewer_id.';</script>'.
 	'<div id="setup_rules">'.
@@ -3817,11 +3866,11 @@ function setup_worker_rules($viewer_id) {
 		'</table>'.
 
 		'<div class="headName">Общее</div>'.
-		'<table class="gtab">'.
-			'<tr><td class="label">Имя:<td><input type="text" id="first_name" value="'.$u['first_name'].'" />'.
-			'<tr><td class="label">Фамилия:<td><input type="text" id="last_name" value="'.$u['last_name'].'" />'.
-			'<tr><td class="label">Должность:<td><input type="text" id="post" value="'.$u['post'].'" />'.
-			'<tr><td><td><div class="vkButton gtab-save"><button>Сохранить</button></div>'.
+		'<table class="rtab">'.
+			'<tr><td class="lab">Имя:<td><input type="text" id="first_name" value="'.$u['first_name'].'" />'.
+			'<tr><td class="lab">Фамилия:<td><input type="text" id="last_name" value="'.$u['last_name'].'" />'.
+			'<tr><td class="lab">Должность:<td><input type="text" id="post" value="'.$u['post'].'" />'.
+			'<tr><td><td><div class="vkButton g-save"><button>Сохранить</button></div>'.
 		'</table>'.
 
 	(!$u['admin'] && $u['pin'] ?
@@ -3829,28 +3878,67 @@ function setup_worker_rules($viewer_id) {
 		'<div class="vkButton pin-clear"><button>Сбросить пин-код</button></div>'
 	: '').
 
+	'<div class="headName">Дополнительно</div>'.
+	'<table class="rtab">'.
+		'<tr><td class="lab">Начисление бонусов:<td><input type="hidden" id="rules_bonus" value="'.$rule['RULES_BONUS'].'" />'.
+		'<tr><td class="lab">Внутренний наличный счёт:<td>'._check('rules_cash', '', $rule['RULES_CASH']).
+		'<tr><td class="lab">Может принимать<br />и передавать деньги:<td>'._check('rules_getmoney', '', $rule['RULES_GETMONEY']).
+		'<tr><td class="lab">Не отображать<br />в начислениях з/п:<td>'._check('rules_nosalary', '', $rule['RULES_NOSALARY']).
+		'<tr><td><td><div class="vkButton dop-save"><button>Сохранить</button></div>'.
+	'</table>'.
+
 	(!$u['admin'] && $viewer_id < VIEWER_MAX ?
 		'<div class="headName">Права</div>'.
 		'<table class="rtab">'.
-			'<tr><td class="lab">Разрешать вход в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).
+			'<tr><td class="lab">Разрешать вход<br />в приложение:<td>'._check('rules_appenter', '', $rule['RULES_APPENTER']).
 		'</table>'.
 		'<div class="app-div'.($rule['RULES_APPENTER'] ? '' : ' dn').'">'.
 			'<table class="rtab">'.
 				'<tr><td class="lab top">Управление установками:'.
 					'<td class="setup-div">'.
 						_check('rules_worker', 'Сотрудники', $rule['RULES_WORKER']).
+						_check('rules_rules', 'Настройка прав сотрудников', $rule['RULES_RULES']).
 						_check('rules_rekvisit', 'Реквизиты организации', $rule['RULES_REKVISIT']).
 						_check('rules_product', 'Виды изделий', $rule['RULES_PRODUCT']).
 						_check('rules_income', 'Счета и виды платежей', $rule['RULES_INCOME']).
 						_check('rules_zayavrashod', 'Расходы по заявке', $rule['RULES_ZAYAVRASHOD']).
-				'<tr><td class="lab">Может видеть историю действий:<td>'._check('rules_historyshow', '', $rule['RULES_HISTORYSHOW']).
-				'<tr><td class="lab">Может видеть все платежи,<br />иначе только свои:<td>'._check('rules_money', '', $rule['RULES_MONEY']).
-				'<tr><td class="lab">Внутренний наличный счёт:<td>'._check('rules_cash', '', $rule['RULES_CASH']).
+				'<tr><td class="lab">Видит историю действий:<td>'._check('rules_historyshow', '', $rule['RULES_HISTORYSHOW']).
+				'<tr><td class="lab">Может видеть платежи:<td><input type="hidden" id="rules_money" value="'.$rule['RULES_MONEY'].'" />'.
 			'</table>'.
-		'</div>'
+		'</div>'.
+		'<table class="rtab">'.
+			'<tr><td class="lab"><td><div class="vkButton rules-save"><button>Сохранить</button></div>'.
+		'</table>'
 	: '').
 	'</div>';
 }//setup_worker_rules()
+function setup_worker_rules_save($post, $viewer_id) {
+	$rules = array();
+	foreach($post as $i => $v)
+		if(preg_match('/^rules_/', $i))
+			if(!preg_match(REGEXP_BOOL, $v))
+				jsonError();
+			else
+				$rules[strtoupper($i)] = $v;
+
+	$cur = query_ass("SELECT `key`,`value` FROM `vk_user_rules` WHERE `viewer_id`=".$viewer_id);
+	$rules += $cur;
+	foreach($rules as $i => $v)
+		if(isset($cur[$i]))
+			query("UPDATE `vk_user_rules` SET `value`=".$v." WHERE `key`='".$i."' AND `viewer_id`=".$viewer_id);
+		else
+			query("INSERT INTO `vk_user_rules` (
+						`viewer_id`,
+						`key`,
+						`value`
+					  ) VALUES (
+					    ".$viewer_id.",
+					    '".$i."',
+					    ".$v."
+					  )");
+	xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+	xcache_unset(CACHE_PREFIX.'viewer_rules_'.$viewer_id);
+}//setup_worker_rules_save()
 
 function setup_rekvisit() {
 	if(!RULES_REKVISIT)

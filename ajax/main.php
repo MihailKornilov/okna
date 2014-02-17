@@ -9,9 +9,12 @@ switch(@$_POST['op']) {
 			jsonError();
 		$sql = "SELECT `viewer_id` FROM `vk_user` WHERE `worker`=1";
 		$q = query($sql);
-		while($r = mysql_fetch_assoc($q))
+		while($r = mysql_fetch_assoc($q)) {
 			xcache_unset(CACHE_PREFIX.'viewer_'.$r['viewer_id']);
-		query("UPDATE `vk_user` SET `rules`='".implode(',', array_keys(rulesList()))."' WHERE `admin`=1");
+			xcache_unset(CACHE_PREFIX.'viewer_rules_'.$r['viewer_id']);
+			xcache_unset(CACHE_PREFIX.'pin_enter_count'.$r['viewer_id']);
+		}
+		//query("UPDATE `vk_user` SET `rules`='".implode(',', array_keys(rulesList()))."' WHERE `admin`=1");
 		query("UPDATE `setup_global` SET `version`=`version`+1");
 		_cacheClear();
 		jsonSuccess();
@@ -2382,20 +2385,28 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
 		jsonSuccess();
 		break;
-	case 'setup_rules_set':
+	case 'setup_worker_dop_save':
 		if(!RULES_WORKER)
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
 			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['action']))
+
+		$viewer_id = intval($_POST['viewer_id']);
+
+		$u = _viewer($viewer_id);
+		if(!$u['worker'])
+			jsonError();
+
+		setup_worker_rules_save($_POST, $viewer_id);
+		jsonSuccess();
+		break;
+	case 'setup_worker_rules_save':
+		if(!RULES_WORKER || !RULES_RULES)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
 			jsonError();
 
 		$viewer_id = intval($_POST['viewer_id']);
-		$value = strtoupper($_POST['value']);
-		$action = intval($_POST['action']);
-
-		if(!rulesList($value))
-			jsonError();
 
 		$u = _viewer($viewer_id);
 		if($u['admin'])
@@ -2403,15 +2414,7 @@ switch(@$_POST['op']) {
 		if(!$u['worker'])
 			jsonError();
 
-		$rules = workerRulesArray($u['rules'], true);
-		unset($rules[$value]);
-		if($value == 'RULES_APPENTER')
-			$rules = array();
-		if($action)
-			$rules[$value] = 1;
-		$sql = "UPDATE `vk_user` SET `rules`='".implode(',', array_keys($rules))."' WHERE `viewer_id`=".$viewer_id;
-		query($sql);
-		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+		setup_worker_rules_save($_POST, $viewer_id);
 		jsonSuccess();
 		break;
 	case 'setup_rekvisit':

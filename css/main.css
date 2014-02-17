@@ -467,15 +467,15 @@
 #setup_worker_add #sex_radio div{display:inline-block;margin-right:15px}
 
 
+#setup_rules{padding-bottom:30px}
 #setup_rules .utab td{padding-right:10px;vertical-align:top}
 #setup_rules .vklink{color:#777;display:inline-block;margin-top:10px}
 #setup_rules .name{font-weight:bold;font-size:12px;color:#45688e}
-#setup_rules .gtab{border-spacing:8px;margin-left:20px}
-#setup_rules .gtab input{width:230px}
 #setup_rules .headName{margin:20px 0 10px}
 #setup_rules .pin-clear{margin-left:97px}
-#setup_rules .rtab{border-spacing:8px;margin-left:20px}
-#setup_rules .lab{width:200px;text-align:right}
+#setup_rules .rtab{border-spacing:8px}
+#setup_rules .lab{width:150px;text-align:right}
+#setup_rules .rtab input{width:160px}
 #setup_rules .setup-div div{display:block;margin-bottom:5px;color:#555}
 
 #setup_rekvisit .t{border-spacing:10px;margin-left:10px}

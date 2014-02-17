@@ -62,7 +62,7 @@ function _getVkUser() {//Получение данных о пользователе
 		define('PIN_TIME_KEY', CACHE_PREFIX.'pin_time'.VIEWER_ID);
 		define('PIN_TIME', intval(xcache_get(PIN_TIME_KEY)));
 		define('PIN_ENTER', PIN && isset($_GET['start']) || PIN && PIN_TIME + 10800 < time());
-		foreach(workerRulesArray($u['rules']) as $name => $val)
-			define($name, $val);
+		foreach(_viewerRules() as $key => $value)
+			define($key, $value);
 	}
 }//end of _getVkUser()

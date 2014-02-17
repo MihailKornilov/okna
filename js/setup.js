@@ -1,13 +1,3 @@
-var setupRulesSet = function(action, value) {
-		var send = {
-			op:'setup_rules_set',
-			viewer_id:RULES_VIEWER_ID,
-			value:value,
-			action:action
-		};
-		$.post(AJAX_MAIN, send, function() {}, 'json');
-	};
-
 $(document)
 	.on('click', '#setup_my .pinset', function() {
 		var t = $(this),
@@ -1073,7 +1063,7 @@ $(document)
 
 	.ready(function() {
 		if($('#setup_rules').length) {
-			$('.gtab-save').click(function() {
+			$('.g-save').click(function() {
 				var send = {
 					op:'setup_worker_save',
 					viewer_id:RULES_VIEWER_ID,
@@ -1109,6 +1099,8 @@ $(document)
 						viewer_id:RULES_VIEWER_ID
 					},
 					but = $(this);
+				if(but.hasClass('busy'))
+					return;
 				but.addClass('busy');
 				$.post(AJAX_MAIN, send, function(res) {
 					but.removeClass('busy');
@@ -1116,25 +1108,72 @@ $(document)
 						_msg('Пин-код сброшен.');
 				}, 'json');
 			});
-			$('#rules_appenter')._check(function(v, id) {
+			$('#rules_bonus')._dropdown({
+				spisok:[
+					{uid:0,title:'по дате выполнения заявок'},
+					{uid:1,title:'по дате внесения заявок'}
+				]
+			});
+			$('#rules_appenter')._check(function(v) {
 				$('.app-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
-				setupRulesSet(v, id);
 				$('#rules_worker')._check(0);
+				$('#rules_rules')._check(0);
+				$('#rules_rekvisit')._check(0);
 				$('#rules_product')._check(0);
 				$('#rules_income')._check(0);
 				$('#rules_zayavrashod')._check(0);
 				$('#rules_historyshow')._check(0);
-				$('#rules_money')._check(0);
-				$('#rules_cash')._check(0);
+				$('#rules_money')._dropdown(0);
 			});
-			$('#rules_worker')._check(setupRulesSet);
-			$('#rules_rekvisit')._check(setupRulesSet);
-			$('#rules_product')._check(setupRulesSet);
-			$('#rules_income')._check(setupRulesSet);
-			$('#rules_zayavrashod')._check(setupRulesSet);
-			$('#rules_historyshow')._check(setupRulesSet);
-			$('#rules_money')._check(setupRulesSet);
-			$('#rules_cash')._check(setupRulesSet);
+			$('#rules_money')._dropdown({
+				spisok:[
+					{uid:0,title:'только свои'},
+					{uid:1,title:'все платежи'}
+				]
+			});
+			$('.rules-save').click(function() {
+					var send = {
+						op:'setup_worker_rules_save',
+						viewer_id:RULES_VIEWER_ID,
+						rules_appenter:$('#rules_appenter').val(),
+						rules_worker:$('#rules_worker').val(),
+						rules_rules:$('#rules_rules').val(),
+						rules_rekvisit:$('#rules_rekvisit').val(),
+						rules_product:$('#rules_product').val(),
+						rules_income:$('#rules_income').val(),
+						rules_zayavrashod:$('#rules_zayavrashod').val(),
+						rules_historyshow:$('#rules_historyshow').val(),
+						rules_money:$('#rules_money').val()
+					},
+					but = $(this);
+				if(but.hasClass('busy'))
+					return;
+				but.addClass('busy');
+				$.post(AJAX_MAIN, send, function(res) {
+					but.removeClass('busy');
+					if(res.success)
+						_msg('Права сохранены.');
+				}, 'json');
+			});
+			$('.dop-save').click(function() {
+					var send = {
+						op:'setup_worker_dop_save',
+						viewer_id:RULES_VIEWER_ID,
+						rules_bonus:$('#rules_bonus').val(),
+						rules_cash:$('#rules_cash').val(),
+						rules_getmoney:$('#rules_getmoney').val(),
+						rules_nosalary:$('#rules_nosalary').val()
+					},
+					but = $(this);
+				if(but.hasClass('busy'))
+					return;
+				but.addClass('busy');
+				$.post(AJAX_MAIN, send, function(res) {
+					but.removeClass('busy');
+					if(res.success)
+						_msg('Дополнительные настройки сохранены.');
+				}, 'json');
+			});
 		}
 		if($('#setup_rekvisit').length) {
 			$('.vkButton').click(function() {
