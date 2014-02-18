@@ -673,19 +673,20 @@ $(document)
 		var t = $(this),
 			html = '<table class="setup-tab">' +
 				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" />' +
+				'<tr><td class="label r">Подтверждение<br />поступления<br />на счёт:<td><input id="confirm" type="hidden" />' +
 				'</table>',
 			dialog = _dialog({
-				top:60,
-				width:440,
 				head:'Добавление нового вида платежа',
 				content:html,
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
+		$('#confirm')._check();
 		function submit() {
 			var send = {
 				op:'setup_income_add',
-				name:$('#name').val()
+				name:$('#name').val(),
+				confirm:$('#confirm').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
@@ -717,8 +718,10 @@ $(document)
 			t = t.parent();
 		var id = t.attr('val'),
 			name = t.find('.name').html(),
+			confirm = t.find('.confirm').html() ? 1 : 0,
 			html = '<table class="setup-tab">' +
 				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" value="' + name + '" />' +
+				'<tr><td class="label r">Подтверждение<br />поступления<br />на счёт:<td><input id="confirm" type="hidden" value="' + confirm + '" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -729,11 +732,13 @@ $(document)
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
+		$('#confirm')._check();
 		function submit() {
 			var send = {
 				op:'setup_income_edit',
 				id:id,
-				name:$('#name').val()
+				name:$('#name').val(),
+				confirm:$('#confirm').val()
 			};
 			if(!send.name) {
 				dialog.bottom.vkHint({
@@ -913,7 +918,7 @@ $(document)
 		}
 	})
 
-	.on('click', '#setup_zayavrashod .add', function() {
+	.on('click', '#setup_zayavexpense .add', function() {
 		var t = $(this),
 			html = '<table style="border-spacing:10px">' +
 				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="50" style="width:210px" />' +
@@ -968,7 +973,7 @@ $(document)
 					$('#show_txt')._check(0);
 		}
 	})
-	.on('click', '#setup_zayavrashod .img_edit', function() {
+	.on('click', '#setup_zayavexpense .img_edit', function() {
 		var t = $(this);
 		while(t[0].tagName != 'DD')
 			t = t.parent();
@@ -1031,7 +1036,7 @@ $(document)
 					$('#show_txt')._check(0);
 		}
 	})
-	.on('click', '#setup_zayavrashod .img_del', function() {
+	.on('click', '#setup_zayavexpense .img_del', function() {
 		var t = $(this),
 			dialog = _dialog({
 				top:90,

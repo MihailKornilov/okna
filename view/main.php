@@ -168,11 +168,12 @@ function GvaluesCreate() {//Составление файла G_values.js
 		"\n".'PRODUCT_ASS=_toAss(PRODUCT_SPISOK),'.
 		"\n".'INVOICE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `invoice` ORDER BY `id`").','.
 		"\n".'INCOME_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_income` ORDER BY `sort`").','.
+		"\n".'INCOME_CONFIRM='.query_ptpJson("SELECT `id`,`confirm` FROM `setup_income` WHERE `confirm`").','.
 		"\n".'EXPENSE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_expense` ORDER BY `sort`").','.
-		"\n".'EXPENSE_WORKER_ASS='.query_ptpJson("SELECT `id`,`show_worker` FROM `setup_expense` WHERE `show_worker`=1").','.
-		"\n".'ZAYAVRASHOD_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_zayavrashod` ORDER BY `sort`").','.
-		"\n".'ZAYAVRASHOD_TXT_ASS='.query_ptpJson("SELECT `id`,`show_txt` FROM `setup_zayavrashod` WHERE `show_txt`=1").','.
-		"\n".'ZAYAVRASHOD_WORKER_ASS='.query_ptpJson("SELECT `id`,`show_worker` FROM `setup_zayavrashod` WHERE `show_worker`=1").','.
+		"\n".'EXPENSE_WORKER='.query_ptpJson("SELECT `id`,`show_worker` FROM `setup_expense` WHERE `show_worker`").','.
+		"\n".'ZAYAVEXPENSE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_zayavexpense` ORDER BY `sort`").','.
+		"\n".'ZAYAVEXPENSE_TXT='.query_ptpJson("SELECT `id`,`show_txt` FROM `setup_zayavexpense` WHERE `show_txt`").','.
+		"\n".'ZAYAVEXPENSE_WORKER='.query_ptpJson("SELECT `id`,`show_worker` FROM `setup_zayavexpense` WHERE `show_worker`").','.
 		"\n".'ZAMER_HOUR=['.
 				'{uid:10,title:10},'.
 				'{uid:11,title:11},'.
@@ -298,7 +299,8 @@ function _income($type_id=false, $i='name') {//Список изделий для заявок
 			while($r = mysql_fetch_assoc($q))
 				$arr[$r['id']] = array(
 					'name' => $r['name'],
-					'invoice_id' => $r['invoice_id']
+					'invoice_id' => $r['invoice_id'],
+					'confirm' => $r['confirm']
 				);
 			xcache_set($key, $arr, 86400);
 		}
@@ -306,9 +308,11 @@ function _income($type_id=false, $i='name') {//Список изделий для заявок
 			foreach($arr as $id => $r) {
 				define('INCOME_'.$id, $r['name']);
 				define('INCOME_INVOICE_'.$id, $r['invoice_id']);
+				define('INCOME_CONFIRM_'.$id, $r['confirm']);
 			}
 			define('INCOME_0', '');
 			define('INCOME_INVOICE_0', 0);
+			define('INCOME_CONFIRM_0', 0);
 			define('INCOME_LOADED', true);
 		}
 	}
@@ -316,6 +320,8 @@ function _income($type_id=false, $i='name') {//Список изделий для заявок
 		return $arr;
 	if($i == 'invoice')
 		return constant('INCOME_INVOICE_'.$type_id);
+	if($i == 'confirm')
+		return constant('INCOME_CONFIRM_'.$type_id);
 	return constant('INCOME_'.$type_id);
 }//_income()
 function _expense($type_id=false, $i='name') {//Список изделий для заявок
@@ -364,7 +370,7 @@ function _zayavRashod($type_id=false, $i='name') {//Список расходов заявки
 		$key = CACHE_PREFIX.'zayavrashod';
 		$arr = xcache_get($key);
 		if(empty($arr)) {
-			$sql = "SELECT * FROM `setup_zayavrashod` ORDER BY `sort`";
+			$sql = "SELECT * FROM `setup_zayavexpense` ORDER BY `sort`";
 			$q = query($sql);
 			while($r = mysql_fetch_assoc($q))
 				$arr[$r['id']] = array(
@@ -966,11 +972,9 @@ function _zayavLink($arr) {
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
 		foreach($arrIds[$r['id']] as $key) {
-			$dop = $r['nomer_vg'] ? ' ВГ'.$r['nomer_vg'] :
-				   ($r['nomer_g'] ? ' Ж'.$r['nomer_g'] :
-				   ($r['nomer_d'] ? ' Д'.$r['nomer_d'] : ''));
-			$arr[$key]['zayav_link'] = '<a'.($r['deleted'] ? ' class="deleted" title="Заявка удалена"' : '').' href="'.URL.'&p=zayav&d=info&id='.$r['id'].'">'._zayavCategory($r, 'head').'</a>';
-			//$arr[$key]['zayav_about'] = ($r['dogovor_id'] ? ' <span>(Договор '.$r['dogovor_nomer'].')</span>' : '');
+			$head = _zayavCategory($r, 'head');
+			$arr[$key]['zayav_link'] = '<a'.($r['deleted'] ? ' class="deleted" title="Заявка удалена"' : '').' href="'.URL.'&p=zayav&d=info&id='.$r['id'].'">'.$head.'</a>';
+			$arr[$key]['zayav_head'] = $head;
 		}
 	return $arr;
 }//_zayavLink()
@@ -2477,7 +2481,7 @@ function history_types($v) {
 		case 32: return 'Внесение расхода организации: '.
 			($v['value1'] ? '<span class="oplata">'._expense($v['value1']).'</span> ' : '').
 			($v['value2'] ? '<em>('.$v['value2'].')</em> ' : '').
-			($v['value3'] ? 'для сотрудника '._viewer($v['value3'], 'link').' ' : '').
+			($v['value3'] ? _viewer($v['value3'], 'link').' ' : '').
 			'на сумму <b>'.$v['value'].'</b> руб.';
 		case 33: return 'Удаление расхода организации: '.
 			($v['value1'] ? '<span class="oplata">'._expense($v['value1']).'</span> ' : '').
@@ -2517,6 +2521,8 @@ function history_types($v) {
 		case 42: return 'Изменение данных договора '.$v['dogovor_nomer'].' '.
 						'у заявки '.$v['zayav_link'].':'.
 						'<div class="changes">'.$v['value'].'</div>';
+
+		case 43: return 'Подтверждение поступления на счёт: <a class="income-show" val="'.$v['value1'].'">'.$v['value'].' платеж'._end($v['value'], '', 'а', 'ей').'</a>.';
 
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -2649,7 +2655,7 @@ function history_right() {
 function _invoiceBalans($invoice_id, $start=false) {// Получение текущего баланса счёта
 	if($start === false)
 		$start = $invoice_id > 100 ? _viewer($invoice_id, 'cash') : _invoice($invoice_id, 'start');
-	$income = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `invoice_id`=".($invoice_id > 100 ? "1 AND `viewer_id_add`=" : '').$invoice_id);
+	$income = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `confirm`=0 AND `invoice_id`=".($invoice_id > 100 ? "1 AND `viewer_id_add`=" : '').$invoice_id);
 	$from = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE `invoice_from`=".($invoice_id > 100 ? "1 AND `worker_from`=" : '').$invoice_id);
 	$to = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE `invoice_to`=".($invoice_id > 100 ? "1 AND `worker_to`=" : '').$invoice_id);
 	return round($income - $start - $from + $to, 2);
@@ -2668,11 +2674,21 @@ function invoice() {
 			'<span>::</span>'.
 			'<a href="'.URL.'&p=setup&d=invoice" class="add">Управление счетами</a>'.
 		'</div>'.
+		'<div id="confirm-info">'.income_confirm_info().'</div>'.
 		'<div id="cash-spisok">'.$data['spisok'].'</div>'.
 		'<div id="invoice-spisok">'.invoice_spisok().'</div>'.
 		'<div class="headName">История переводов</div>'.
 		'<div id="transfer-spisok">'.transfer_spisok().'</div>';
 }//invoice()
+function income_confirm_info() {
+	if(!$confirm = query_value("SELECT COUNT(`id`) FROM `money` WHERE !`deleted` AND `confirm`"))
+		return '';
+	return
+	'<div class="_info">'.
+		'<b>'.$confirm.' платеж'._end($confirm, '', 'а', 'ей').'</b> ожида'._end($confirm, 'е', 'ю').'т подтверждения поступления на счёт. '.
+		'<a class="income-confirm">Подтвердить</a>'.
+	'</div>';
+}
 function cash_spisok() {
 	$send = array(
 		'cash' => array(),
@@ -2744,7 +2760,7 @@ function transfer_spisok() {
 				'<td class="sum">'._sumSpace($r['sum']).
 				'<td><span class="type">'._invoice($r['invoice_from']).'</span>'.($r['worker_from'] ? '<br />'._viewer($r['worker_from'], 'name') : '').
 				'<td><span class="type">'._invoice($r['invoice_to']).'</span>'.($r['worker_to'] ? '<br />'._viewer($r['worker_to'], 'name') : '').
-				'<td class="about">'.($r['income_count'] ? '<a class="income-transfer-show" val="'.$r['income_ids'].'">'.$r['income_count'].' платеж'._end($r['income_count'], '', 'а', 'ей').'</a>' : '').
+				'<td class="about">'.($r['income_count'] ? '<a class="income-show" val="'.$r['income_ids'].'">'.$r['income_count'].' платеж'._end($r['income_count'], '', 'а', 'ей').'</a>' : '').
 				'<td class="dtime">'.FullDataTime($r['dtime_add']);
 	$send .= '</table>';
 	return $send;
@@ -2798,6 +2814,11 @@ function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории сче
 		),
 		10 => array(
 			'name' => 'Изменение платежа',
+			'znak' => '',
+			'cash' => 1
+		),
+		11 => array(
+			'name' => 'Подтверждение платежа',
 			'znak' => '',
 			'cash' => 1
 		)
@@ -2888,7 +2909,7 @@ function invoice_history($v) {
 			}
 			$about .=
 				($r['income_count'] ?
-						' <a class="income-transfer-show" val="'.$r['income_ids'].'">'.
+						' <a class="income-show" val="'.$r['income_ids'].'">'.
 							$r['income_count'].' платеж'._end($r['income_count'], '', 'а', 'ей').
 						'</a>'
 				: '').
@@ -2935,6 +2956,8 @@ function invoice_history_insert($v) {
 		$v['sum'] = abs($r['sum']);
 		switch($v['table']) {
 			case 'money':
+				if($r['confirm'])
+					return;
 				$v['invoice_id'] = $r['invoice_id'];
 				$v['sum'] = invoiceHistoryAction($v['action'], 'znak').$v['sum'];
 				if(invoiceHistoryAction($v['action'], 'cash') && $r['invoice_id'] == 1)
@@ -3202,6 +3225,7 @@ function income_insert($v) {//Внесение платежа
 	$v = array(
 		'from' => empty($v['from']) ? '' : $v['from'],
 		'type' => $v['type'],
+		'confirm' => empty($v['confirm']) ? 0 : $v['confirm'],
 		'zayav_id' => empty($v['zayav_id']) ? 0 : $v['zayav_id'],
 		'client_id' => empty($v['client_id']) ? 0 : $v['client_id'],
 		'dogovor_id' => empty($v['dogovor_id']) ? 0 : $v['dogovor_id'],
@@ -3225,6 +3249,7 @@ function income_insert($v) {//Внесение платежа
 				`client_id`,
 				`invoice_id`,
 				`income_id`,
+				`confirm`,
 				`owner_id`,
 				`dogovor_id`,
 				`sum`,
@@ -3235,6 +3260,7 @@ function income_insert($v) {//Внесение платежа
 				".$v['client_id'].",
 				"._income($v['type'], 'invoice').",
 				".$v['type'].",
+				".$v['confirm'].",
 				".VIEWER_ID.",
 				".$v['dogovor_id'].",
 				".$v['sum'].",
@@ -3275,6 +3301,7 @@ function incomeFilter($v) {
 		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
 		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 30,
 		'income_id' => !empty($v['income_id']) && preg_match(REGEXP_NUMERIC, $v['income_id']) ? $v['income_id'] : 0,
+		'confirm' => !empty($v['confirm']),
 		'worker_id' => !empty($v['worker_id']) && preg_match(REGEXP_NUMERIC, $v['worker_id']) ? $v['worker_id'] : 0,
 		'owner_id' => !empty($v['owner_id']) && preg_match(REGEXP_NUMERIC, $v['owner_id']) && $v['owner_id'] > 100 ? $v['owner_id'] : 0,
 		'client_id' => !empty($v['client_id']) && preg_match(REGEXP_NUMERIC, $v['client_id']) ? $v['client_id'] : 0,
@@ -3302,6 +3329,8 @@ function income_spisok($filter=array()) {
 		$cond .= " AND `viewer_id_add`=".$filter['worker_id'];
 	if($filter['income_id'])
 		$cond .= " AND `income_id`=".$filter['income_id'];
+	if($filter['confirm'])
+		$cond .= " AND `confirm`";
 	if($filter['owner_id'])
 		$cond .= " AND `owner_id`=".$filter['owner_id'];
 	if($filter['client_id'])
@@ -3358,11 +3387,11 @@ function income_spisok($filter=array()) {
 			'<table class="_spisok _money">'.
 		(!$filter['zayav_id'] ?
 				'<tr>'.
-					($filter['owner_id'] ? '<th>'._check('money_all') : '').
+					($filter['owner_id'] || $filter['confirm'] ? '<th>'._check('money_all') : '').
 					'<th>Сумма'.
 					'<th>Описание'.
 					'<th>Дата'.
-					(!$filter['owner_id'] && !$filter['ids'] ? '<th>' : '')
+					(!$filter['owner_id'] && !$filter['ids'] && !$filter['confirm'] ? '<th>' : '')
 		: '');
 	foreach($money as $r)
 		$send['spisok'] .= income_unit($r, $filter);
@@ -3370,7 +3399,7 @@ function income_spisok($filter=array()) {
 		$c = $send['all'] - $start - $filter['limit'];
 		$c = $c > $filter['limit'] ? $filter['limit'] : $c;
 		$send['spisok'] .=
-			'<tr class="_next" val="'.($page + 1).'" id="income_next"><td colspan="4">'.
+			'<tr class="_next" val="'.($page + 1).'" id="income_next"><td colspan="5">'.
 				'<span>Показать ещё '.$c.' платеж'._end($c, '', 'а', 'ей').'</span>';
 	}
 	if($page == 1)
@@ -3386,14 +3415,16 @@ function income_unit($r, $filter=array()) {
 	elseif($r['zayav_id'] && !$filter['zayav_id'])
 		$about .= $r['zayav_link'].'. ';
 	$about .= $r['prim'];
+	if($r['confirm'])
+		$about .= '<br /><span class="red">Ожидает подтверждения</span>';
 	$sumTitle = $filter['zayav_id'] ? _tooltip('Платёж', 5) : '">';
 	return
 		'<tr val="'.$r['id'].'">'.
-			(!empty($filter['owner_id']) ? '<td class="choice">'._check('money_'.$r['id'], '', isset($filter['ids_ass'][$r['id']])) : '').
+			(!empty($filter['owner_id']) || !empty($filter['confirm']) ? '<td class="choice">'._check('money_'.$r['id'], '', isset($filter['ids_ass'][$r['id']])) : '').
 			'<td class="sum opl'.$sumTitle.''._sumSpace($r['sum']).
 			'<td><span class="type">'._income($r['income_id']).(empty($about) ? '' : ':').'</span> '.$about.
 			'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
-		(empty($filter['owner_id']) && empty($filter['ids']) ?
+		(empty($filter['owner_id']) && empty($filter['ids']) && empty($filter['confirm']) ?
 			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" target="_blank" class="img_doc'._tooltip('Распечатать квитанцию', -140, 'r').'</a>'.
 				(!$r['dogovor_id'] ?
 					'<div class="img_del income-del'._tooltip('Удалить платёж', -95, 'r').'</div>'.
@@ -3814,7 +3845,7 @@ function setup() {
 		case 'invoice': $left = setup_invoice(); break;
 		case 'income': $left = setup_income(); break;
 		case 'expense': $left = setup_expense(); break;
-		case 'zayavrashod': $left = setup_zayavrashod(); break;
+		case 'zayavrashod': $left = setup_zayavexpense(); break;
 	}
 	$links = '';
 	foreach($pages as $p => $name)
@@ -4173,6 +4204,7 @@ function setup_income_spisok() {
 	$send =
 	'<table class="_spisok">'.
 		'<tr><th class="name">Наименование'.
+			'<th class="confirm">Подтверждение<br />поступления<br />на счёт'.
 			'<th class="money">Кол-во<br />платежей'.
 			'<th class="set">'.
 	'</table>'.
@@ -4183,10 +4215,11 @@ function setup_income_spisok() {
 		$send .='<dd val="'.$id.'">'.
 			'<table class="_spisok">'.
 				'<tr><td class="name">'.$r['name'].
+					'<td class="confirm">'.($r['confirm'] ? 'да' : '').
 					'<td class="money">'.$money.
 					'<td class="set">'.
-						'<div class="img_edit"></div>'.
-						(!$r['money'] && $id > 1 ? '<div class="img_del"></div>' : '').
+						'<div class="img_edit'._tooltip('Изменить', -33).'</div>'.
+						(!$r['money'] && $id > 1 ? '<div class="img_del'._tooltip('Удалить', -29).'</div>' : '').
 			'</table>';
 	}
 	$send .= '</dl>';
@@ -4239,19 +4272,19 @@ function setup_expense_spisok() {
 	return $send;
 }//setup_expense_spisok()
 
-function setup_zayavrashod() {
+function setup_zayavexpense() {
 	if(!RULES_ZAYAVRASHOD)
 		return _norules('Настройки расходов по заявке');
 	return
-	'<div id="setup_zayavrashod">'.
+	'<div id="setup_zayavexpense">'.
 		'<div class="headName">Настройки категорий расходов по заявке<a class="add">Добавить</a></div>'.
-		'<div class="spisok">'.setup_zayavrashod_spisok().'</div>'.
+		'<div class="spisok">'.setup_zayavexpense_spisok().'</div>'.
 	'</div>';
-}//setup_zayavrashod()
-function setup_zayavrashod_spisok() {
+}//setup_zayavexpense()
+function setup_zayavexpense_spisok() {
 	$sql = "SELECT `s`.*,
 				   COUNT(`zr`.`id`) AS `use`
-			FROM `setup_zayavrashod` AS `s`
+			FROM `setup_zayavexpense` AS `s`
 			  LEFT JOIN `zayav_expense` AS `zr`
 			  ON `s`.`id`=`zr`.`category_id`
 			GROUP BY `s`.`id`
@@ -4272,7 +4305,7 @@ function setup_zayavrashod_spisok() {
 			'<th class="use">Кол-во<br />записей'.
 			'<th class="set">'.
 	'</table>'.
-	'<dl class="_sort" val="setup_zayavrashod">';
+	'<dl class="_sort" val="setup_zayavexpense">';
 	foreach($rashod as $id => $r) {
 		$send .='<dd val="'.$id.'">'.
 			'<table class="_spisok">'.
@@ -4287,7 +4320,7 @@ function setup_zayavrashod_spisok() {
 	}
 	$send .= '</dl>';
 	return $send;
-}//setup_zayavrashod_spisok()
+}//setup_zayavexpense_spisok()
 
 
 /*

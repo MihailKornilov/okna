@@ -381,7 +381,7 @@ var hashLoc,
 			} else
 				all = false;
 		}
-		$('.income_choice_sum').html(c ? 'Выбрано <b>' + c + '</b> платеж' + _end(c, ['', 'а', 'ей']) + ' на сумму <b>' + sum + '</b> руб.' : '');
+		$('.income_choice_sum').html(c ? 'Выбран' + _end(c, ['', 'о']) + ' <b>' + c + '</b> платеж' + _end(c, ['', 'а', 'ей']) + ' на сумму <b>' + sum + '</b> руб.' : '');
 		$('#money_all')._check(all);
 		return {
 			count:c,
@@ -569,9 +569,9 @@ $.fn.zayavRashod = function(o) {
 					continue;
 				if(!REGEXP_NUMERIC.test(sum) || sum == 0)
 					return 'sum_error';
-				if(ZAYAVRASHOD_TXT_ASS[cat_id])
+				if(ZAYAVEXPENSE_TXT[cat_id])
 					dop = u.find('.zrtxt').val();
-				else if(ZAYAVRASHOD_WORKER_ASS[cat_id])
+				else if(ZAYAVEXPENSE_WORKER[cat_id])
 					dop = $('#' + attr + 'worker').val();
 				send.push(cat_id + ':' + dop + ':' + sum);
 			}
@@ -595,15 +595,15 @@ $.fn.zayavRashod = function(o) {
 			html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
 						'<td><input type="hidden" id="' + attr_cat + '" value="' + (v[0] || 0) + '" />' +
 						'<td class="tddop">' +
-							(v[0] && ZAYAVRASHOD_TXT_ASS[v[0]] ? '<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
-							(v[0] && ZAYAVRASHOD_WORKER_ASS[v[0]] ? '<input type="hidden" id="' + attr_worker + '" value="' + v[1] + '" />' : '') +
+							(v[0] && ZAYAVEXPENSE_TXT[v[0]] ? '<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
+							(v[0] && ZAYAVEXPENSE_WORKER[v[0]] ? '<input type="hidden" id="' + attr_worker + '" value="' + v[1] + '" />' : '') +
 						'<td class="tdsum' + (v[0] ? '' : ' dn') + '"><input type="text" class="zrsum" maxlength="6" tabindex="' + (num * 10) + '" value="' + (v[2] || '') + '" />руб.' +
 					'</table>';
 		zr.append(html);
 		var ptab = $('#ptab' + num),
 			tddop = ptab.find('.tddop'),
 			zrsum = ptab.find('.zrsum');
-		if(v[0] && ZAYAVRASHOD_WORKER_ASS[v[0]])
+		if(v[0] && ZAYAVEXPENSE_WORKER[v[0]])
 			$('#' + attr_worker)._select({
 				width:150,
 				title0:'Сотрудник',
@@ -615,13 +615,13 @@ $.fn.zayavRashod = function(o) {
 		$('#' + attr_cat)._select({
 			width:120,
 			title0:'Категория',
-			spisok:ZAYAVRASHOD_SPISOK,
+			spisok:ZAYAVEXPENSE_SPISOK,
 			func:function(id) {
 				ptab.find('.tdsum')[(id > 0 ? 'remove' : 'add') + 'Class']('dn');
-				if(ZAYAVRASHOD_TXT_ASS[id]) {
+				if(ZAYAVEXPENSE_TXT[id]) {
 					tddop.html('<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 11) + '" />');
 					tddop.find('.zrtxt').focus();
-				} else if(ZAYAVRASHOD_WORKER_ASS[id]) {
+				} else if(ZAYAVEXPENSE_WORKER[id]) {
 					tddop.html('<input type="hidden" id="' + attr_worker + '" />');
 					$('#' + attr_worker)._select({
 						width:150,
@@ -1428,7 +1428,7 @@ $(document)
 			tr.eq(n).find('input:first')._check(v);
 	})
 	.on('click', '._money ._check', incomeChoiceSum)
-	.on('click', '.income-transfer-show', function() {
+	.on('click', '.income-show', function() {
 		var dialog = _dialog({
 			top:20,
 			width:480,
@@ -1448,6 +1448,57 @@ $(document)
 				dialog.loadError();
 		}, 'json');
 	})
+	.on('click', '.income-confirm', function() {
+		var dialog = _dialog({
+			top:20,
+			width:480,
+			head:'Подтверждение платежей',
+			load:1,
+			butSubmit:'Подтвердить',
+			submit:submit
+		});
+		var send = {
+			op:'income_confirm_get'
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				dialog.content.html(res.html + '<div class="income_choice_sum"></div>');
+			else
+				dialog.loadError();
+		}, 'json');
+		function submit() {
+			var send = {
+				op:'income_confirm',
+				ids:incomeChoiceSum().ids
+			};
+			if(!send.ids)
+				err('Платежи не выбраны');
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						$('#confirm-info').html(res.confirm);
+						$('#cash-spisok').html(res.c);
+						$('#invoice-spisok').html(res.i);
+						dialog.close();
+						_msg('Платежи подтверждены.');
+					}
+					else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:50,
+				show:1,
+				top:-48,
+				left:143
+			});
+		}
+	})
 
 	.on('click', '.income-add', function() {
 		var html =
@@ -1459,7 +1510,8 @@ $(document)
 						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '')
   : '') +
 				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="income_opl">' +
-					'<a href="' + URL + '&p=setup&d=income" class="img_edit" title="Перейти к настройке видов платежей"></a>' +
+					'<a href="' + URL + '&p=setup&d=income" class="img_edit' + _tooltip('Перейти к настройке видов платежей', -115) + '</a>' +
+				'<tr class="tr_confirm dn"><td class="label">Подтверждение:<td><input type="hidden" id="confirm">' +
 				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="11"> руб.' +
 				'<tr><td class="label">Комментарий:<td><input type="text" id="prim" maxlength="100">' +
 			'</table>';
@@ -1484,13 +1536,23 @@ $(document)
 			spisok:INCOME_SPISOK,
 			func:function(uid) {
 				$('#sum').focus();
+				$('.tr_confirm')[(INCOME_CONFIRM[uid] ? 'remove' : 'add') + 'Class']('dn');
+				$('#confirm')._check(0);
 			}
+		});
+		$('#confirm')._check();
+		$('#confirm_check').vkHint({
+			width:210,
+			msg:'Установите галочку, если платёж нужно внести, но требуется подтверждение о его поступлении на счёт.',
+			top:-96,
+			left:-100
 		});
 		function submit() {
 			var send = {
 				op:'income_add',
 				from:OPL.from,
 				type:$('#income_opl').val(),
+				confirm:$('#confirm').val(),
 				sum:$('#sum').val(),
 				zayav_id:$('#zayav_id').val() || 0,
 				client_id:OPL.client_id || 0,
@@ -1656,7 +1718,7 @@ $(document)
 		$.post(AJAX_MAIN, send, function(res) {
 			var html = '<table id="expense-add-tab">' +
 				'<tr><td class="label">Категория:<td><input type="hidden" id="cat" value="' + res.category + '">' +
-				'<tr class="tr-work ' + (EXPENSE_WORKER_ASS[res.category] ? '' : 'dn') + '">' +
+				'<tr class="tr-work ' + (EXPENSE_WORKER[res.category] ? '' : 'dn') + '">' +
 					'<td class="label">Сотрудник:' +
 					'<td><input type="hidden" id="work" value="' + res.worker + '">' +
 				'<tr><td class="label">Описание:<td><input type="text" id="about" maxlength="150" value="' + res.about + '">' +
@@ -1671,7 +1733,7 @@ $(document)
 				spisok:EXPENSE_SPISOK,
 				func:function(id) {
 					$('#work')._select(0);
-					$('.tr-work')[(EXPENSE_WORKER_ASS[id] ? 'remove' : 'add') + 'Class']('dn');
+					$('.tr-work')[(EXPENSE_WORKER[id] ? 'remove' : 'add') + 'Class']('dn');
 				}
 			});
 			$('#about').focus();
@@ -2609,7 +2671,7 @@ $(document)
 					spisok:EXPENSE_SPISOK,
 					func:function(id) {
 						$('#work')._select(0);
-						$('.tr-work')[(EXPENSE_WORKER_ASS[id] ? 'remove' : 'add') + 'Class']('dn');
+						$('.tr-work')[(EXPENSE_WORKER[id] ? 'remove' : 'add') + 'Class']('dn');
 					}
 				});
 				$('#about').focus();

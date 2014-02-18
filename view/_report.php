@@ -297,30 +297,26 @@ function contentShow() {
 	//$sheet->getStyle('A'.$line.':'.$colLast.$line)->getBorders()->getAllBorders()->setBorderStyle(PHPExcel_Style_Border::BORDER_THIN);
 	freeLine($line);
 }
-function zarplata() {
-	global $book;
+function zpman() {
+	global $book, $index;
 
-	$book->setActiveSheetIndex(1);
+	$book->createSheet();
+	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
-	pageSetup('Зарплата');
+	pageSetup('Зарплата мал.');
 	$line = 1;
 
 	$sheet->getColumnDimension('A')->setWidth(80);
 	$sheet->getColumnDimension('B')->setWidth(10);
 
-	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для сотрудников за '.MONTH.':');
+	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для установщиков за '.MONTH.':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
-
-	$sheet->setCellValue('A'.$line, 'Сотрудник');
-	$sheet->setCellValue('B'.$line, 'Сумма');
-	$sheet->setSharedStyle(styleHead(), 'A'.$line.':B'.$line);
-	$line++;
 
 	$sql = "SELECT *
         FROM `zayav`
         WHERE `deleted`=0
-          AND `status_day` LIKE '".MON."%'";
+		  AND `status_day` LIKE '".MON."%'";
 	$q = query($sql);
 	$zayav = array();
 	while($r = mysql_fetch_assoc($q)) {
@@ -347,7 +343,7 @@ function zarplata() {
 	$zp = array();
 	$worker = array();
 	while($r = mysql_fetch_assoc($q))
-		if($r['worker_id']) {
+		if($r['worker_id'] && !_viewerRules($r['worker_id'], 'RULES_BONUS')) {
 			if(empty($zp[$r['worker_id']]))
 				$zp[$r['worker_id']] = 0;
 			$zp[$r['worker_id']] += $r['sum'];
@@ -357,6 +353,35 @@ function zarplata() {
 			);
 		}
 
+	//Подробно по каждому сотруднику
+	foreach($worker as $id => $arr) {
+		$sheet->setCellValueByColumnAndRow(0, $line, utf8(_viewer($id, 'name')));
+		$sheet->getStyle('A'.$line)->getFont()->setBold(true);
+		$sheet->setSharedStyle(styleHead(), 'A'.$line.':B'.$line);
+		$line++;
+		$start = $line;
+		foreach($arr as $r) {
+			$z = $zayav[$r['zayav_id']];
+			$adres = $z['adres'] ? $z['adres'].', ' : '';
+			$sheet->setCellValueByColumnAndRow(0, $line, utf8(_zayavCategory($z, 'head')).' от '.$z['dtime_add'].': '.utf8($adres.zayav_product_spisok($z['product'], 'report')));
+			$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : API_URL.'#zayav_').$z['id']);
+			$sheet->setCellValueByColumnAndRow(1, $line, $r['sum']);
+			$line++;
+		}
+		$sheet->setCellValueByColumnAndRow(0, $line, 'Сумма:');
+		$sheet->setCellValueByColumnAndRow(1, $line, $zp[$id]);
+		$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.$line);
+		$sheet->getStyle('A'.$start.':A'.($line - 1))->getFont()->getColor()->setRGB('000088');
+		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+		$sheet->getStyle('B'.$line)->getFont()->setBold(true);
+		$line += 2;
+	}
+
+	//Общий список
+	$sheet->setCellValue('A'.$line, 'Сотрудник');
+	$sheet->setCellValue('B'.$line, 'Сумма');
+	$sheet->setSharedStyle(styleHead(), 'A'.$line.':B'.$line);
+	$line++;
 	$start = $line;
 	foreach($zp as $id => $sum) {
 		$sheet->setCellValueByColumnAndRow(0, $line, utf8(_viewer($id, 'name')));
@@ -369,7 +394,65 @@ function zarplata() {
 	$sheet->setCellValue('B'.$line, '=SUM(B'.$start.':B'.($line - 1).')');
 	$sheet->setCellValue('A'.$line, 'Итог:');
 
+	freeLine($line);
+}
+function zpwoman() {
+	global $book, $index;
+
+	$book->createSheet();
+	$book->setActiveSheetIndex($index++);
+	$sheet = $book->getActiveSheet();
+	pageSetup('Зарплата дев.');
+	$line = 1;
+
+	$sheet->getColumnDimension('A')->setWidth(80);
+	$sheet->getColumnDimension('B')->setWidth(10);
+
+	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для менеджеров за '.MONTH.':');
+	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
+
+	$sql = "SELECT *
+	        FROM `zayav`
+	        WHERE `deleted`=0
+	          AND `dtime_add` LIKE '".MON."%'";
+	$q = query($sql);
+	$zayav = array();
+	while($r = mysql_fetch_assoc($q)) {
+		$ex = explode(' ', $r['dtime_add']);
+		$d = explode('-', $ex[0]);
+		$r['dtime_add'] = $d[2].'.'.$d[1].'.'.$d[0];
+		$zayav[$r['id']] = $r;
+	}
+
+	$zayav = zayav_product_array($zayav);
+
+	$zayav_ids = implode(',', array_keys($zayav));
+
+	//Список зп сотрудников. Берётся из расходов по заявке.
+	$sql = "SELECT `ze`.*
+			FROM `zayav_expense` `ze`,
+				 `zayav` `z`
+			WHERE `ze`.`zayav_id`=`z`.`id`
+			  AND `ze`.`zayav_id` IN (".$zayav_ids.")
+			  AND `ze`.`category_id`=2
+			GROUP BY `ze`.`id`
+			ORDER BY `z`.`id`";
+	$q = query($sql);
+	$zp = array();
+	$worker = array();
+	while($r = mysql_fetch_assoc($q))
+		if($r['worker_id'] && _viewerRules($r['worker_id'], 'RULES_BONUS')) {
+			if(empty($zp[$r['worker_id']]))
+				$zp[$r['worker_id']] = 0;
+			$zp[$r['worker_id']] += $r['sum'];
+			$worker[$r['worker_id']][] = array(
+				'zayav_id' => $r['zayav_id'],
+				'sum' => $r['sum']
+			);
+		}
+
+	//Подробно по каждому сотруднику
 	foreach($worker as $id => $arr) {
 		$sheet->setCellValueByColumnAndRow(0, $line, utf8(_viewer($id, 'name')));
 		$sheet->getStyle('A'.$line)->getFont()->setBold(true);
@@ -379,22 +462,27 @@ function zarplata() {
 		foreach($arr as $r) {
 			$z = $zayav[$r['zayav_id']];
 			$adres = $z['adres'] ? $z['adres'].', ' : '';
-			$sheet->setCellValueByColumnAndRow(0, $line, '№'.$z['id'].' от '.$z['dtime_add'].': '.utf8($adres.zayav_product_spisok($z['product'], 'report')));
+			$sheet->setCellValueByColumnAndRow(0, $line, utf8(_zayavCategory($z, 'head')).' от '.$z['dtime_add'].': '.utf8($adres.zayav_product_spisok($z['product'], 'report')));
 			$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : API_URL.'#zayav_').$z['id']);
 			$sheet->setCellValueByColumnAndRow(1, $line, $r['sum']);
 			$line++;
 		}
-		$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.($line - 1));
+		$sheet->setCellValueByColumnAndRow(0, $line, 'Сумма:');
+		$sheet->setCellValueByColumnAndRow(1, $line, $zp[$id]);
+		$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.$line);
 		$sheet->getStyle('A'.$start.':A'.($line - 1))->getFont()->getColor()->setRGB('000088');
-		$line++;
+		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+		$sheet->getStyle('B'.$line)->getFont()->setBold(true);
+		$line += 2;
 	}
 
 	freeLine($line);
 }
 function incomes() {
-	global $book;
+	global $book, $index;
 
-	$book->setActiveSheetIndex(2);
+	$book->createSheet();
+	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
 	pageSetup('Платежи');
 	$line = 1;
@@ -430,6 +518,7 @@ function incomes() {
 
 	$money = _clientLink($money);
 	$money = _dogNomer($money);
+	$money = _zayavLink($money);
 
 	$start = $line;
 	$sum = 0;
@@ -439,7 +528,9 @@ function incomes() {
 			$sheet->getCell('B'.$line)->setValue(utf8(htmlspecialchars_decode($r['client_fio'])));
 		$sheet->getCell('C'.$line)->setValue(_sumSpace($r['sum']));
 		$sheet->getCell('D'.$line)->setValue(utf8(_income($r['income_id'])));
-		$sheet->getCell('E'.$line)->setValue(($r['dogovor_id'] ? 'Авансовый платеж (договор '.utf8($r['dogovor_nomer']).'). ' : '').utf8(htmlspecialchars_decode($r['prim'])).' ');
+		$head = isset($r['zayav_head']) ? utf8($r['zayav_head']).'. ': '';
+		$avans = $r['dogovor_id'] ? 'Авансовый платеж (договор '.utf8($r['dogovor_nomer']).'). ' : '';
+		$sheet->getCell('E'.$line)->setValue($head.$avans.utf8(htmlspecialchars_decode($r['prim'])).' ');
 		$line++;
 		$sum += $r['sum'];
 	}
@@ -452,12 +543,33 @@ function incomes() {
 	$sheet->getStyle('E'.$start.':E'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
 	$sheet->setCellValue('B'.$line, 'Итог:');
 
+	$line += 2;
+	$sql = "SELECT `i`.*,
+					IFNULL(SUM(`m`.`sum`),0) AS `sum`
+			FROM `setup_income` AS `i`
+				LEFT JOIN `money` AS `m`
+				ON `i`.`id`=`m`.`income_id`
+				 AND `m`.`deleted`=0
+				 AND `m`.`sum`>0
+				 AND `m`.`dtime_add` LIKE '".MON."%'
+			GROUP BY `i`.`id`
+			ORDER BY `i`.`sort`";
+	$q = query($sql);
+	$start = $line;
+	while($r = mysql_fetch_assoc($q)) {
+		$sheet->getCell('B'.$line)->setValue(utf8($r['name']));
+		$sheet->getCell('C'.$line)->setValue($r['sum']);
+		$line++;
+	}
+	$sheet->setSharedStyle(styleContent(), 'B'.$start.':C'.($line - 1));
+
 	freeLine($line);
 }
 function debtors() {
-	global $book;
+	global $book, $index;
 
-	$book->setActiveSheetIndex(3);
+	$book->createSheet();
+	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
 	pageSetup('Должники');
 	$line = 1;
@@ -500,6 +612,84 @@ function debtors() {
 	$sheet->setCellValue('B'.$line, 'Итог:');
 	freeLine($line);
 }
+function xls_expense() {
+	global $book, $index;
+
+	$book->createSheet();
+	$book->setActiveSheetIndex($index++);
+	$sheet = $book->getActiveSheet();
+	pageSetup('Расходы');
+	$line = 1;
+
+	$sheet->getColumnDimension('A')->setWidth(8);
+	$sheet->getColumnDimension('B')->setWidth(14);
+	$sheet->getColumnDimension('C')->setWidth(15);
+	$sheet->getColumnDimension('D')->setWidth(60);
+
+	$sheet->setCellValue('A'.$line, 'Расходы за '.MONTH.':');
+	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
+	$line += 2;
+
+	$sheet->setCellValue('A'.$line, 'Дата');
+	$sheet->setCellValue('B'.$line, 'Счёт');
+	$sheet->setCellValue('C'.$line, 'Сумма');
+	$sheet->setCellValue('D'.$line, 'Описание');
+	$sheet->setSharedStyle(styleHead(), 'A'.$line.':D'.$line);
+	$line++;
+
+	$sql = "SELECT *
+	        FROM `money`
+	        WHERE `deleted`=0
+	          AND `sum`<0
+			  AND `dtime_add` LIKE '".MON."%'
+	        ORDER BY `id`";
+	$q = query($sql);
+	$money = array();
+	while($r = mysql_fetch_assoc($q))
+		$money[$r['id']] = $r;
+
+	$start = $line;
+	$sum = 0;
+	foreach($money as $r) {
+		$sheet->getCell('A'.$line)->setValue(reportData($r['dtime_add']));
+		$sheet->getCell('B'.$line)->setValue(utf8(_invoice($r['invoice_id'])));
+		$sheet->getCell('C'.$line)->setValue(_sumSpace(abs($r['sum'])));
+		$expense = utf8(htmlspecialchars_decode(_expense($r['expense_id'])));
+		$worker = $r['worker_id'] ? ($r['expense_id'] ? ': ' : '').utf8(_viewer($r['worker_id'], 'name')).'. ' : '';
+		$prim = !empty($r['prim']) ? ($r['expense_id'] && !$worker ? ': ' : '').utf8(htmlspecialchars_decode($r['prim'])) : '';
+		$sheet->getCell('D'.$line)->setValue($expense.$worker.$prim);
+		$line++;
+		$sum += $r['sum'];
+	}
+	$sheet->setSharedStyle(styleContent(), 'A'.$start.':D'.$line);
+	$sheet->setSharedStyle(styleResult(), 'A'.$line.':D'.$line);
+	$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+	$sheet->getStyle('C'.$start.':C'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+	$sheet->setCellValue('B'.$line, 'Итог:');
+	$sheet->setCellValue('C'.$line, _sumSpace(abs($sum)));
+
+	$line += 2;
+	$sql = "SELECT `i`.*,
+					IFNULL(SUM(`m`.`sum`),0) AS `sum`
+			FROM `invoice` AS `i`
+				LEFT JOIN `money` AS `m`
+				ON `i`.`id`=`m`.`invoice_id`
+				 AND `m`.`deleted`=0
+				 AND `m`.`sum`<0
+				 AND `m`.`dtime_add` LIKE '".MON."%'
+			GROUP BY `i`.`id`
+			ORDER BY `i`.`id`";
+	$q = query($sql);
+	$start = $line;
+	while($r = mysql_fetch_assoc($q)) {
+		$sheet->getCell('B'.$line)->setValue(utf8($r['name']));
+		$sheet->getCell('C'.$line)->setValue(abs($r['sum']));
+		$line++;
+	}
+	$sheet->setSharedStyle(styleContent(), 'B'.$start.':C'.($line - 1));
+
+	freeLine($line);
+}
 
 require_once '../config.php';
 require_once VKPATH.'excel/PHPExcel.php';
@@ -523,14 +713,12 @@ if(!$validLocale = PHPExcel_Settings::setLocale($locale))
 */
 
 $book = new PHPExcel();
-$book->createSheet();
-$book->createSheet();
-$book->createSheet();
 
 $book->setActiveSheetIndex(0);
 $sheet = $book->getActiveSheet();
 $line = 1;      // Текущая линия
 $colLast = 'L'; // Последняя колонка
+$index = 1;     // Номер создаваемой страницы
 
 pageSetup('Заявки');
 colWidth();
@@ -538,12 +726,14 @@ aboutShow();
 headShow();
 contentShow();
 
-zarplata();
+zpman();
+zpwoman();
 incomes();
+xls_expense();
 debtors();
 
 
-$book->setActiveSheetIndex(0);
+$book->setActiveSheetIndex(4);
 
 header('Content-Type:application/vnd.ms-excel');
 header('Content-Disposition:attachment;filename="report.xls"');

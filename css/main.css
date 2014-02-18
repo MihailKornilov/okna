@@ -36,7 +36,7 @@
 /* Таблица для внесения платежа */
 .income-add-tab{border-spacing:8px}
 .income-add-tab .label{width:150px;text-align:right}
-.income-add-tab .img_edit{position:relative;top:-3px;left:4px}
+.income-add-tab .img_edit{position:relative;top:-4px;left:4px}
 .income-add-tab #prim{width:220px}
 
 
@@ -373,6 +373,7 @@
 .invoice pre{color:#777;font-size:10px;margin:3px 7px}
 .invoice .balans{text-align:right}
 .invoice .img_note{margin-bottom:-2px}
+.invoice ._info{margin:0 10px}
 .invoice #cash-spisok{margin:15px 10px}
 .invoice #cash-spisok span{color:#770}
 .invoice #invoice-spisok{margin:10px 10px 25px}
@@ -495,8 +496,9 @@
 #setup_invoice .type{vertical-align:top}
 #setup_invoice pre{color:#777;font-size:10px;margin:3px 7px}
 
-#setup_income .name{width:170px}
+#setup_income .name{width:160px}
 #setup_income td.name{cursor:move}
+#setup_income .confirm{width:110px;text-align:center}
 #setup_income .money{width:60px;text-align:center}
 #setup_income .del{color:#888;cursor:help}
 #setup_income .set{width:40px}
@@ -507,9 +509,9 @@
 #setup_expense .use{width:55px;text-align:center}
 #setup_expense .set{width:35px}
 
-#setup_zayavrashod .name{width:110px}
-#setup_zayavrashod td.name{cursor:move}
-#setup_zayavrashod .txt{width:75px;text-align:center}
-#setup_zayavrashod .worker{width:80px;text-align:center}
-#setup_zayavrashod .use{width:55px;text-align:center}
-#setup_zayavrashod .set{width:35px}
+#setup_zayavexpense .name{width:110px}
+#setup_zayavexpense td.name{cursor:move}
+#setup_zayavexpense .txt{width:75px;text-align:center}
+#setup_zayavexpense .worker{width:80px;text-align:center}
+#setup_zayavexpense .use{width:55px;text-align:center}
+#setup_zayavexpense .set{width:35px}
