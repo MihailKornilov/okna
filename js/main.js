@@ -1510,7 +1510,7 @@ $(document)
 						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '')
   : '') +
 				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="income_opl">' +
-					'<a href="' + URL + '&p=setup&d=income" class="img_edit' + _tooltip('Перейти к настройке видов платежей', -115) + '</a>' +
+					'<a href="' + URL + '&p=setup&d=income" class="img_edit' + _tooltip('Настройка видов платежей', -85) + '</a>' +
 				'<tr class="tr_confirm dn"><td class="label">Подтверждение:<td><input type="hidden" id="confirm">' +
 				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="11"> руб.' +
 				'<tr><td class="label">Комментарий:<td><input type="text" id="prim" maxlength="100">' +
@@ -1888,7 +1888,7 @@ $(document)
 				indent:40,
 				show:1,
 				top:-47,
-				left:101
+				left:93
 			});
 		}
 	})
@@ -1896,7 +1896,7 @@ $(document)
 		var html =
 				'<table class="salary-tab">' +
 					'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice">' +
-						'<a href="' + URL + '&p=setup&d=invoice" class="img_edit" title="Перейти к настройке счетов"></a>' +
+						'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -56) + '</a>' +
 					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
 					'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
 				'</table>',
@@ -1945,7 +1945,97 @@ $(document)
 				indent:40,
 				show:1,
 				top:-47,
-				left:101
+				left:93
+			});
+		}
+	})
+	.on('click', '.salary .deduct', function() {
+		var html =
+				'<table class="salary-tab">' +
+					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
+					'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
+				'</table>',
+			dialog = _dialog({
+				head:'Внесение вычета из зарплаты',
+				content:html,
+				submit:submit
+			});
+
+		$('#sum').focus();
+		$('#sum,#about').keyEnter(submit);
+
+		function submit() {
+			var send = {
+				op:'salary_deduct',
+				worker:WORKER_ID,
+				sum:$('#sum').val(),
+				about:$('#about').val()
+			};
+			if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function (res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Вычет произведён.');
+						$('#spisok').html(res.html);
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:40,
+				show:1,
+				top:-47,
+				left:93
+			});
+		}
+	})
+	.on('click', '.salary .start-set', function() {
+		var html =
+				'<table class="salary-tab">' +
+					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
+				'</table>',
+			dialog = _dialog({
+				head:'Установка баланса по зарплате сотрудника',
+				content:html,
+				butSubmit:'Применить',
+				submit:submit
+			});
+
+		$('#sum').focus().keyEnter(submit);
+
+		function submit() {
+			var send = {
+				op:'salary_start_set',
+				worker:WORKER_ID,
+				sum:$('#sum').val()
+			};
+			if(!REGEXP_CENA.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function (res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Установка произведёна.');
+						$('#spisok').html(res.html);
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:40,
+				show:1,
+				top:-47,
+				left:93
 			});
 		}
 	})
@@ -2651,11 +2741,11 @@ $(document)
 				var html =
 						'<table id="expense-add-tab">' +
 							'<tr><td class="label">Категория:<TD><INPUT type="hidden" id="cat">' +
-								'<a href="' + URL + '&p=setup&d=expense" class="img_edit" title="Перейти к настройке категорий расходов"></a>' +
+								'<a href="' + URL + '&p=setup&d=expense" class="img_edit' + _tooltip('Настройка категорий расходов', -95) + '</a>' +
 							'<tr class="tr-work dn"><td class="label">Сотрудник:<TD><INPUT type="hidden" id="work">' +
 							'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
 							'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice">' +
-								'<a href="' + URL + '&p=setup&d=invoice" class="img_edit" title="Перейти к настройке счетов"></a>' +
+								'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -56) + '</a>' +
 							'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="11"> руб.' +
 						'</table>',
 					dialog = _dialog({

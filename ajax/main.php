@@ -454,7 +454,7 @@ switch(@$_POST['op']) {
 
 		if($zayav['zakaz_status'] != $status) {
 			$sql = "UPDATE `zayav`
-			        SET ".($status == 2 ? "`status_day`='".$day."'," : '')."
+			        SET `status_day`='".($status == 2 ? $day : '0000-00-00')."',
 			            `zakaz_status`=".$status."
 			        WHERE `id`=".$zayav_id;
 			query($sql);
@@ -623,9 +623,9 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'zamer_status':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) || $_POST['status'] == 0)
+		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) || !$_POST['status'])
 			jsonError();
 
 		$zayav_id = intval($_POST['zayav_id']);
@@ -991,7 +991,7 @@ switch(@$_POST['op']) {
 
 		if($zayav['set_status'] != $status) {
 			$sql = "UPDATE `zayav`
-					SET ".($status == 2 ? "`status_day`='".$day."'," : '')."
+					SET `status_day`='".($status == 2 ? $day : '0000-00-00')."',
 						`set_status`=".$status."
 					WHERE `id`=".$zayav_id;
 			query($sql);
@@ -1050,7 +1050,6 @@ switch(@$_POST['op']) {
 				query($sql);
 			}
 			_zayavBalansUpdate($zayav_id);
-			_salaryBalansUpdate();
 			$changes = '<tr><td>'.$old.'<td>»<td>'.zayav_rashod_spisok($zayav_id);
 			history_insert(array(
 				'type' => 29,
@@ -1612,6 +1611,7 @@ switch(@$_POST['op']) {
 				if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
 					jsonError();
 		$_POST['limit'] = 100;
+		$_POST['income_id'] = 1;
 		$data = income_spisok($_POST);
 		$send['html'] = utf8($data['spisok']);
 		jsonSuccess($send);
@@ -1909,9 +1909,6 @@ switch(@$_POST['op']) {
 			'id' => mysql_insert_id()
 		));
 
-		if($worker)
-			_salaryBalansUpdate();
-
 		history_insert(array(
 			'type' => 32,
 			'value' => abs($sum),
@@ -1947,9 +1944,6 @@ switch(@$_POST['op']) {
 			'id' => $id
 		));
 
-		if($r['worker_id'])
-			_salaryBalansUpdate();
-
 		history_insert(array(
 			'type' => 33,
 			'value' => abs($r['sum']),
@@ -1978,9 +1972,6 @@ switch(@$_POST['op']) {
 					`dtime_del`='0000-00-00 00:00:00'
 				WHERE `id`=".$id;
 		query($sql);
-
-		if($r['worker_id'])
-			_salaryBalansUpdate();
 
 		invoice_history_insert(array(
 			'action' => 8,
@@ -2063,7 +2054,6 @@ switch(@$_POST['op']) {
 					WHERE `id`=".$id;
 			query($sql);
 
-			_salaryBalansUpdate();
 /*
   Остался нерешённым вопрос когда изменяется счёт, внутренний счёт сотрудника тоже изменяется.
 			if($r['sum'] != $sum)
@@ -2160,11 +2150,9 @@ switch(@$_POST['op']) {
 				)";
 		query($sql);
 
-		_salaryBalansUpdate();
-
 		history_insert(array(
 			'type' => 36,
-			'value' => abs($sum),
+			'value' => $sum,
 			'value1' => $about,
 			'value2' => $worker
 		));
@@ -2206,13 +2194,78 @@ switch(@$_POST['op']) {
 			'id' => mysql_insert_id()
 		));
 
-		_salaryBalansUpdate();
-
 		history_insert(array(
 			'type' => 37,
 			'value' => abs($sum),
 			'value1' => $about,
 			'value2' => $worker
+		));
+
+		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
+		jsonSuccess($send);
+		break;
+	case 'salary_deduct':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
+			jsonError();
+		if(empty($_POST['sum']) || !preg_match(REGEXP_NUMERIC, $_POST['sum']))
+			jsonError();
+		$about = win1251(htmlspecialchars(trim($_POST['about'])));
+		$worker = intval($_POST['worker']);
+		$sum = intval($_POST['sum']);
+		$sql = "INSERT INTO `zayav_expense` (
+					`worker_id`,
+					`sum`,
+					`txt`
+				) VALUES (
+					".$worker.",
+					-".$sum.",
+					'".addslashes($about)."'
+				)";
+		query($sql);
+
+		history_insert(array(
+			'type' => 44,
+			'value' => $sum,
+			'value1' => $about,
+			'value2' => $worker
+		));
+
+		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
+		jsonSuccess($send);
+		break;
+	case 'salary_start_set':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
+			jsonError();
+		if(!preg_match(REGEXP_CENA, $_POST['sum']))
+			jsonError();
+
+		$worker = intval($_POST['worker']);
+		$sum = str_replace(',', '.', $_POST['sum']);
+
+		$sql = "SELECT * FROM `vk_user` WHERE `worker`=1 AND `viewer_id`=".$worker;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sMoney = query_value("
+				SELECT IFNULL(SUM(`sum`),0)
+				FROM `money`
+				WHERE `worker_id`=".$worker."
+				  AND `sum`<0
+				  AND !`deleted`");
+		$sExpense = query_value("
+				SELECT IFNULL(SUM(`sum`),0)
+				FROM `zayav_expense`
+				WHERE `worker_id`=".$worker);
+		$start = round($sum - $sMoney - $sExpense, 2);
+
+		query("UPDATE `vk_user` SET `salary_balans_start`=".$start." WHERE `viewer_id`=".$worker);
+
+		xcache_unset(CACHE_PREFIX.'viewer_'.$worker);
+
+		history_insert(array(
+			'type' => 45,
+			'value' => $worker,
+			'value1' => $sum
 		));
 
 		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));

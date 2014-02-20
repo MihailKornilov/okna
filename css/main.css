@@ -403,7 +403,7 @@
 #expense-add-tab{border-spacing:8px}
 #expense-add-tab .label{width:80px;text-align:right}
 #expense-add-tab #about{width:230px}
-#expense-add-tab .img_edit{position:relative;top:-2px;left:4px}
+#expense-add-tab .img_edit{position:relative;top:-4px;left:4px}
 .salary#report .headName{margin:10px}
 .salary #spisok{margin:10px}
 .salary .fio{width:150px}
@@ -421,7 +421,7 @@
 .salary-tab{border-spacing:8px}
 .salary-tab #about{width:230px}
 .salary-tab #day{width:30px}
-.salary-tab .img_edit{position:relative;top:-2px;left:4px}
+.salary-tab .img_edit{position:relative;top:-4px;left:4px}
 
 #report_month{margin:10px 15px}
 #report_month .yr{display:block;font:bold 13px Tahoma}
