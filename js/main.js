@@ -1427,7 +1427,7 @@ $(document)
 		for(n = 1; n < tr.length; n++)
 			tr.eq(n).find('input:first')._check(v);
 	})
-	.on('click', '._money ._check', incomeChoiceSum)
+	.on('click', '.inc ._check', incomeChoiceSum)
 	.on('click', '.income-show', function() {
 		var dialog = _dialog({
 			top:20,
@@ -2055,6 +2055,36 @@ $(document)
 			else
 				next.removeClass('busy');
 		}, 'json');
+	})
+	.on('click', '.salary ._check', function() {
+		var check = $('._check'),
+			n,
+			sp,
+			tr,
+			html = '',
+			count = 0,
+			sum = 0,
+			ids = [];
+		for(n = 0; n < check.length; n++) {
+			sp = check.eq(n);
+			if(sp.find('input').val() == 0)
+				continue;
+			count++;
+			tr = sp.parent().parent();
+			ids.push(tr.attr('val'));
+			sum += tr.find('.sum').html() * 1;
+		}
+		if(count)
+			html = 'Выбран' + _end(count, ['', 'о']) + ' <b>' + count + '</b> платеж' + _end(count, ['', 'а', 'ей']) +
+				   ' на сумму <b>' + sum + '</b> руб.' +
+				   '<a class="salary-list" val="' + ids.join() + '">Распечатать лист выдачи з/п</a>';
+		$('#salary-sel').html(html);
+	})
+	.on('click', '.salary-list', function() {
+		var ids = $(this).attr('val');
+		if(!ids)
+			return;
+		location.href = SITE + '/view/salary_list.php?' + VALUES + '&worker_id=' + WORKER_ID + '&ids=' + ids;
 	})
 
 	.ready(function() {

@@ -1181,7 +1181,7 @@ switch(@$_POST['op']) {
 
 		history_insert(array(
 			'type' => 8,
-			'value' => $r['sum'],
+			'value' => round($r['sum'], 2),
 			'value1' => $r['prim'],
 			'zayav_id' => $r['zayav_id'],
 			'client_id' => $r['client_id']
@@ -1212,7 +1212,7 @@ switch(@$_POST['op']) {
 
 		history_insert(array(
 			'type' => 9,
-			'value' => $r['sum'],
+			'value' => round($r['sum'], 2),
 			'value1' => $r['prim'],
 			'zayav_id' => $r['zayav_id'],
 			'client_id' => $r['client_id']
@@ -1640,6 +1640,8 @@ switch(@$_POST['op']) {
 		if($from == $to)
 			jsonError();
 
+		$invoice_from = $from > 100 ? (_viewerRules($from, 'RULES_CASH') ? 1 : 0) : $from;
+		$invoice_to = $to > 100 ? (_viewerRules($to, 'RULES_CASH') ? 1 : 0) : $to;
 		$sql = "INSERT INTO `invoice_transfer` (
 					`invoice_from`,
 					`invoice_to`,
@@ -1650,8 +1652,8 @@ switch(@$_POST['op']) {
 					`income_ids`,
 					`viewer_id_add`
 				) VALUES (
-					".($from > 100 ? 1 : $from).",
-					".($to > 100  ? 1 : $to).",
+					".$invoice_from.",
+					".$invoice_to.",
 					".($from > 100 ? $from : 0).",
 					".($to > 100  ? $to : 0).",
 					".$sum.",
@@ -1946,7 +1948,7 @@ switch(@$_POST['op']) {
 
 		history_insert(array(
 			'type' => 33,
-			'value' => abs($r['sum']),
+			'value' => round(abs($r['sum']), 2),
 			'value1' => $r['expense_id'],
 			'value2' => $r['prim'],
 			'value3' => $r['worker_id'] ? $r['worker_id'] : ''
@@ -1981,7 +1983,7 @@ switch(@$_POST['op']) {
 
 		history_insert(array(
 			'type' => 34,
-			'value' => abs($r['sum']),
+			'value' => round(abs($r['sum']), 2),
 			'value1' => $r['expense_id'],
 			'value2' => $r['prim'],
 			'value3' => $r['worker_id'] ? $r['worker_id'] : ''
@@ -2079,7 +2081,7 @@ switch(@$_POST['op']) {
 						'<tr><th>Сотрудник:<td>'.($r['worker_id'] ? _viewer($r['worker_id'], 'name') : '').'<td>»<td>'.($worker ? _viewer($worker, 'name') : '').
 						'<tr><th>Описание:<td>'.$r['prim'].'<td>»<td>'.$about.
 						'<tr><th>Со счёта:<td>'._invoice($r['invoice_id']).'<td>»<td>'._invoice($invoice).
-						'<tr><th>Сумма:<td>'.abs($r['sum']).'<td>»<td>'.abs($sum).
+						'<tr><th>Сумма:<td>'.round(abs($r['sum']), 2).'<td>»<td>'.round(abs($sum), 2).
 					'</table>',
 				'value1' => $id,
 				'value2' => $r['dtime_add']

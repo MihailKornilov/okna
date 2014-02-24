@@ -2411,10 +2411,10 @@ function history_types($v) {
 		case 7: return 'Начисление на сумму <b>'.$v['value'].'</b> руб.'.
 						($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 						' по заявке '.$v['zayav_link'].'.';
-		case 8: return 'Удаление начисления на сумму <b>'.$v['value'].'</b> руб.'.
+		case 8: return 'Удаление начисления на сумму <b>'.round($v['value'], 2).'</b> руб.'.
 						($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 						' у заявки '.$v['zayav_link'].'.';
-		case 9: return 'Восстановление начисления на сумму <b>'.$v['value'].'</b> руб.'.
+		case 9: return 'Восстановление начисления на сумму <b>'.round($v['value'], 2).'</b> руб.'.
 						($v['value1'] ? ' <em>('.$v['value1'].')</em>' : '').
 						' у заявки '.$v['zayav_link'].'.';
 
@@ -2627,7 +2627,7 @@ function history_spisok($v=array()) {
 			$time = strtotime($r['dtime_add']);
 			$viewer_id = $r['viewer_id_add'];
 		}
-		$txt .= '<div class="txt">'.history_types($r).'</div>';
+		$txt .= '<li><div class="li">'.history_types($r).'</div>';
 		$key = key($history);
 		if(!$key ||
 			$key == $keyEnd ||
@@ -2636,7 +2636,7 @@ function history_spisok($v=array()) {
 			$send .=
 				'<div class="history_unit">'.
 					'<div class="head">'.FullDataTime($r['dtime_add']).$r['viewer_link'].'</div>'.
-					$txt.
+					'<ul>'.$txt.'</ul>'.
 				'</div>';
 			$txt = '';
 		}
@@ -2671,6 +2671,13 @@ function _invoiceBalans($invoice_id, $start=false) {// Получение текущего баланс
 }//_invoiceBalans()
 function invoice() {
 	$data = cash_spisok();
+	$sql = "SELECT `viewer_id` FROM `vk_user_rules` WHERE `key`='RULES_GETMONEY' AND `value`";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$data['cash_spisok'][] = '{'.
+				'uid:'.$r['viewer_id'].','.
+				'title:"'.addslashes(_viewer($r['viewer_id'], 'name')).'"'.
+			'}';
 	return
 		'<script type="text/javascript">'.
 			'var CASH=['.implode(',', $data['cash']).'],'.
@@ -2767,10 +2774,14 @@ function transfer_spisok() {
 		$send .=
 			'<tr>'.
 				'<td class="sum">'._sumSpace($r['sum']).
-				'<td><span class="type">'._invoice($r['invoice_from']).'</span>'.($r['worker_from'] ? '<br />'._viewer($r['worker_from'], 'name') : '').
-				'<td><span class="type">'._invoice($r['invoice_to']).'</span>'.($r['worker_to'] ? '<br />'._viewer($r['worker_to'], 'name') : '').
+				'<td>'.($r['worker_from'] && _viewerRules($r['worker_from'], 'RULES_CASH') || $r['invoice_from'] ? '<span class="type">'._invoice($r['invoice_from']).'</span>' : '').
+					   ($r['worker_from'] && $r['invoice_from'] ? '<br />' : '').
+					   ($r['worker_from'] ? _viewer($r['worker_from'], 'name') : '').
+				'<td>'.($r['worker_to'] && _viewerRules($r['worker_to'], 'RULES_CASH') || $r['invoice_to'] ? '<span class="type">'._invoice($r['invoice_to']).'</span>' : '').
+					   ($r['worker_to'] && $r['invoice_to'] ? '<br />' : '').
+					   ($r['worker_to'] ? _viewer($r['worker_to'], 'name') : '').
 				'<td class="about">'.($r['income_count'] ? '<a class="income-show" val="'.$r['income_ids'].'">'.$r['income_count'].' платеж'._end($r['income_count'], '', 'а', 'ей').'</a>' : '').
-				'<td class="dtime">'.FullDataTime($r['dtime_add']);
+				'<td class="dtime">'.FullDataTime($r['dtime_add'], 1);
 	$send .= '</table>';
 	return $send;
 }//transfer_spisok()
@@ -2896,34 +2907,36 @@ function invoice_history($v) {
 		$worker = $r['worker_id'] ? _viewer($r['worker_id'], 'link') : '';
 		$expense = $r['expense_id'] ? '<span class="type">'._expense($r['expense_id']).(!$about && !$worker ? '' : ': ').'</span>' : '';
 		//$income = $r['income_id'] ? '<div class="type">'._income($r['income_id']).(empty($about) ? '' : ': ').'</div>' : '';
-		if($r['invoice_from'] && $r['invoice_to']) {
-			if($r['invoice_from'] != $r['invoice_to']) {//Счета не равны, перевод внешний
-				if($r['invoice_id'] == $r['invoice_from'])//Просматриваемый счёт общий - оправитель
-					$about .= 'Отправление на счёт <span class="type">'._invoice($r['invoice_to']).'</span>'.
-							 ($r['worker_to'] ? ' '._viewer($r['worker_to'], 'name') : '').
-							 ($r['worker_from'] ? ' со счёта <span class="type">'._invoice($r['invoice_from']).'</span> '._viewer($r['worker_from'], 'name') : '');
-				if($r['invoice_id'] == $r['invoice_to'])//Просматриваемый счёт общий - получатель
-					$about .= 'Поступление со счёта <span class="type">'._invoice($r['invoice_from']).'</span>'.
-						($r['worker_from'] ? ' '._viewer($r['worker_from'], 'name') : '').
-						($r['worker_to'] ? ' на счёт <span class="type">'._invoice($r['invoice_to']).'</span> '._viewer($r['worker_to'], 'name') : '');
-				if($r['invoice_id'] == $r['worker_from'])//Просматриваемый счёт сотрудника - оправитель
-					$about .= 'Отправление на счёт <span class="type">'._invoice($r['invoice_to']).'</span>';
-				if($r['invoice_id'] == $r['worker_to'])//Просматриваемый счёт сотрудника - оправитель
-					$about .= 'Поступление со счёта <span class="type">'._invoice($r['invoice_from']).'</span>';
-			} else {//Счета равны, перевод внутренний
-				if($r['invoice_id'] == $r['worker_from'])//Просматриваемый счёт сотрудника - оправитель
-					$about .= 'Отправление на счёт <span class="type">'._invoice($r['invoice_to']).'</span> '._viewer($r['worker_to'], 'name');
-				if($r['invoice_id'] == $r['worker_to'])//Просматриваемый счёт сотрудника - получатель
-					$about .= 'Поступление со счёта <span class="type">'._invoice($r['invoice_from']).'</span> '._viewer($r['worker_from'], 'name');
-			}
-			$about .=
-				($r['income_count'] ?
-						' <a class="income-show" val="'.$r['income_ids'].'">'.
-							$r['income_count'].' платеж'._end($r['income_count'], '', 'а', 'ей').
-						'</a>'
-				: '').
-				'.';
+		if($r['invoice_from'] != $r['invoice_to']) {//Счета не равны, перевод внешний
+			if(!$r['invoice_to'])//Деньги были переданы руководителю
+				$about .= 'Передача сотруднику '._viewer($r['worker_to'], 'name');
+			elseif(!$r['invoice_from'])//Деньги были получены от руководителя
+				$about .= 'Получение от сотрудника '._viewer($r['worker_from'], 'name');
+			elseif($r['invoice_id'] == $r['invoice_from'])//Просматриваемый счёт общий - оправитель
+				$about .= 'Отправление на счёт <span class="type">'._invoice($r['invoice_to']).'</span>'.
+						 ($r['worker_to'] ? ' '._viewer($r['worker_to'], 'name') : '').
+						 ($r['worker_from'] ? ' со счёта <span class="type">'._invoice($r['invoice_from']).'</span> '._viewer($r['worker_from'], 'name') : '');
+			elseif($r['invoice_id'] == $r['invoice_to'])//Просматриваемый счёт общий - получатель
+				$about .= 'Поступление со счёта <span class="type">'._invoice($r['invoice_from']).'</span>'.
+					($r['worker_from'] ? ' '._viewer($r['worker_from'], 'name') : '').
+					($r['worker_to'] ? ' на счёт <span class="type">'._invoice($r['invoice_to']).'</span> '._viewer($r['worker_to'], 'name') : '');
+			elseif($r['invoice_id'] == $r['worker_from'])//Просматриваемый счёт сотрудника - оправитель
+				$about .= 'Отправление на счёт <span class="type">'._invoice($r['invoice_to']).'</span>';
+			elseif($r['invoice_id'] == $r['worker_to'])//Просматриваемый счёт сотрудника - оправитель
+				$about .= 'Поступление со счёта <span class="type">'._invoice($r['invoice_from']).'</span>';
+		} else {//Счета равны, перевод внутренний
+			if($r['invoice_id'] == $r['worker_from'])//Просматриваемый счёт сотрудника - оправитель
+				$about .= 'Отправление на счёт <span class="type">'._invoice($r['invoice_to']).'</span> '._viewer($r['worker_to'], 'name');
+			if($r['invoice_id'] == $r['worker_to'])//Просматриваемый счёт сотрудника - получатель
+				$about .= 'Поступление со счёта <span class="type">'._invoice($r['invoice_from']).'</span> '._viewer($r['worker_from'], 'name');
 		}
+		$about .=
+			($r['income_count'] ?
+					' <a class="income-show" val="'.$r['income_ids'].'">'.
+						$r['income_count'].' платеж'._end($r['income_count'], '', 'а', 'ей').
+					'</a>'
+			: '').
+			'.';
 		$sum = '';
 		if($r['sum_prev'] != 0)
 			$sum = _sumSpace($r['sum'] - $r['sum_prev']).
@@ -2958,7 +2971,7 @@ function invoice_history_insert($v) {
 		'worker_id' => empty($v['worker_id']) ? 0 : $v['worker_id'],
 		'invoice_id' => empty($v['invoice_id']) ? 0 : $v['invoice_id']
 	);
-	if($v['worker_id']) //Если существует сотрудник, то он является счётом
+	if($v['worker_id'] && _viewerRules($v['worker_id'], 'RULES_CASH')) //Если существует сотрудник и есть личный счёт, то он является счётом
 		$v['invoice_id'] = $v['worker_id'];
 	if($v['table']) {
 		$r = query_assoc("SELECT * FROM `".$v['table']."` WHERE `id`=".$v['id']);
@@ -2974,21 +2987,38 @@ function invoice_history_insert($v) {
 						invoice_history_insert_sql($r['viewer_id_add'], $v);
 				break;
 			case 'invoice_transfer':
-				if($r['invoice_from'] == $r['invoice_to']) {
+				if($r['invoice_from'] && $r['invoice_to'] && $r['invoice_from'] == $r['invoice_to']) {//внутренний перевод
 					$v['invoice_id'] = $r['worker_from'];
 					invoice_history_insert_sql($r['worker_to'], $v);
-				} else {
-					$v['invoice_id'] = $r['invoice_from'];
-					invoice_history_insert_sql($r['invoice_to'], $v);
-					if($r['worker_from']) {
-						$v['sum'] = $r['sum'] * -1;
-						invoice_history_insert_sql($r['worker_from'], $v);
-						$v['sum'] = $r['sum'] * -1;
-					}
+					$v['sum'] *= -1;
+					break;
+				}
+				if(!$r['invoice_from'] && !$r['invoice_to'])
+					return;
+				if(!$r['invoice_from']) {//взятие средств у руководителя
+					$v['invoice_id'] = $r['invoice_to'];
 					if($r['worker_to'])
 						invoice_history_insert_sql($r['worker_to'], $v);
+					break;
 				}
-				$v['sum'] = $r['sum'] * -1;
+				if(!$r['invoice_to']) {//передача средств руководителю
+					$v['invoice_id'] = $r['invoice_from'];
+					$v['sum'] *= -1;
+					if($r['worker_from'])
+						invoice_history_insert_sql($r['worker_from'], $v);
+					break;
+				}
+				//Передача из банка в наличные и на счета сотрудников
+				$v['invoice_id'] = $r['invoice_from'];
+				invoice_history_insert_sql($r['invoice_to'], $v);
+				if($r['worker_from']) {
+					$v['sum'] *= -1;
+					invoice_history_insert_sql($r['worker_from'], $v);
+					$v['sum'] *= -1;
+				}
+				if($r['worker_to'])
+					invoice_history_insert_sql($r['worker_to'], $v);
+				$v['sum'] *= -1;
 				break;
 			}
 	}
@@ -3393,7 +3423,7 @@ function income_spisok($filter=array()) {
 				' <b>'.$send['all'].'</b> платеж'._end($send['all'], '', 'а', 'ей').
 				' на сумму <b>'._sumSpace($send['sum']).'</b> руб.'.
 			'</div>' : '').
-			'<table class="_spisok _money">'.
+			'<table class="_spisok inc _money">'.
 		(!$filter['zayav_id'] ?
 				'<tr>'.
 					($filter['owner_id'] || $filter['confirm'] ? '<th>'._check('money_all') : '').
@@ -3699,7 +3729,7 @@ function salary_worker($worker_id) {
 function salary_worker_spisok($v) {
 	$filter = array(
 		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
-		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 30,
+		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 50,
 		'worker_id' => !empty($v['worker_id']) && preg_match(REGEXP_NUMERIC, $v['worker_id']) ? intval($v['worker_id']) : 0
 	);
 
@@ -3737,7 +3767,8 @@ function salary_worker_spisok($v) {
 					'<a class="down">Выдать з/п</a> :: '.
 					'<a class="deduct">Внести вычет</a>'.
 				'</div>'.
-			'</div>';
+			'</div>'.
+			'<div id="salary-sel"></div>';
 	}
 
 	$cMoney = query_value("
@@ -3757,7 +3788,8 @@ function salary_worker_spisok($v) {
 
 	if($filter['page'] == 1)
 		$send .= '<table class="_spisok _money">'.
-			'<tr><th>Вид'.
+			'<tr><th>'.
+				'<th>Вид'.
 				'<th>Сумма'.
 				'<th>Описание';
 				//'<th>Дата<br />внесения';
@@ -3765,6 +3797,7 @@ function salary_worker_spisok($v) {
 	$start = ($filter['page'] - 1) * $filter['limit'];
 	$sql = "(SELECT
 				'З/п' AS `type`,
+				0 AS `id`,
 				`sum`,
 				`prim` AS `about`,
 				0 AS `zayav_id`,
@@ -3778,6 +3811,7 @@ function salary_worker_spisok($v) {
 		) UNION (
 			SELECT
 				'Начисление' AS `type`,
+				`e`.`id`,
 			    `e`.`sum`,
 				`txt` AS `about`,
 				`e`.`zayav_id`,
@@ -3793,6 +3827,7 @@ function salary_worker_spisok($v) {
 		) UNION (
 			SELECT
 				'Вычет' AS `type`,
+				`id`,
 			    `sum`,
 				`txt` AS `about`,
 				`zayav_id`,
@@ -3826,7 +3861,7 @@ function salary_worker_spisok($v) {
 	$spisok = _zayavLink($spisok);
 
 	krsort($spisok);
-
+	$curMon = strtotime(strftime('%Y-%m-01'));
 	foreach($spisok as $r) {
 		$about = '';
 		if($r['zayav_id']) {
@@ -3840,11 +3875,15 @@ function salary_worker_spisok($v) {
 					continue;
 			}
 			$about .= $r['zayav_link'].'. Заявка '.$ztype.' '.FullData($zdata, 1);
-		}
+			$old = strtotime($zdata) < $curMon;
+		} else
+			$old = strtotime($r['dtime_add']) < $curMon;
 		$about .= $r['about'];
 
 		$send .=
-			'<tr><td class="type">'.$r['type'].
+			'<tr'.($old ? ' class="old"' : '').' val="'.$r['id'].'">'.
+				'<td>'.($r['id'] ? _check('s'.$r['id']) : '').
+				'<td class="type">'.$r['type'].
 				'<td class="sum">'.round($r['sum'], 2).
 				'<td class="about">'.$about;
 				//'<td class="dtime">'.FullDataTime($r['dtime_add'], 1);

@@ -357,8 +357,9 @@
 .history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
 .history_unit .head{font-size:10px;color:#777}
 .history_unit .head a{font-size:10px;margin-left:10px}
-.history_unit .txt{margin:7px 0 7px 15px}
-.history_unit .changes{margin:0 0 0 15px}
+.history_unit ul{margin:5px 0 7px 25px}
+.history_unit li{margin:0 0 8px;list-style-type:disc;display:list-item}
+.history_unit .li{margin-left:-4px}
 .history_unit .changes *{font-size:10px;color:#777}
 .history_unit .changes th{text-align:right;font-weight:700;vertical-align:top}
 .history_unit .changes td{padding:0 3px;vertical-align:top}
@@ -385,6 +386,7 @@
 .invoice-history .action{width:80px}
 .invoice-history .balans{width:70px;text-align:right}
 .invoice-history .sum-change{font-size:10px;color:#555}
+.income-show{white-space:nowrap}
 .income#report .headName{margin:10px}
 .income .inc-path{margin:15px 10px}
 .income .inc-path._busy{background-position:right center}
@@ -418,6 +420,9 @@
 .salary a.rate-set{color:#d33;float:right}
 .salary a.rate-set:hover{color:#d33}
 .salary .uhead span{color:#888;margin-left:8px}
+.salary #salary-sel{margin-bottom:5px}
+.salary #salary-sel a{float:right}
+.salary .old{background-color:#ddd;opacity:.6}
 .salary-tab{border-spacing:8px}
 .salary-tab #about{width:230px}
 .salary-tab #day{width:30px}
