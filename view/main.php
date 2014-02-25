@@ -148,6 +148,7 @@ function _footer() {
 			'<div id="admin">'.
 				'<a class="debug_toggle'.(DEBUG ? ' on' : '').'">В'.(DEBUG ? 'ы' : '').'ключить Debug</a> :: '.
 				'<a id="cache_clear">Очисить кэш ('.VERSION.')</a> :: '.
+				'<a href="'.SITE.'/_sxdump" target="_blank">sxd</a> :: '.
 				'sql <b>'.$sqlCount.'</b> ('.round($sqlTime, 3).') :: '.
 				'php '.round(microtime(true) - TIME, 3).' :: '.
 				'js <em></em>'.
@@ -2533,6 +2534,9 @@ function history_types($v) {
 		case 45: return 'Установка баланса з/п в сумме <b>'.$v['value1'].'</b> руб. '.
 				 'для сотрудника <u>'._viewer($v['value'], 'name').'</u>. ';
 
+		case 46: return 'Автоматическое начисление з/п сотруднику <u>'._viewer($v['value1'], 'name').'</u> '.
+						'в размере <b>'.$v['value'].'</b> руб. <em>('.$v['value2'].')</em>.';
+
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
 		case 503: return 'В настройках: удаление наименования изделия "'.$v['value'].'".';
@@ -2635,7 +2639,7 @@ function history_spisok($v=array()) {
 			$viewer_id != $history[$key]['viewer_id_add']) {
 			$send .=
 				'<div class="history_unit">'.
-					'<div class="head">'.FullDataTime($r['dtime_add']).$r['viewer_link'].'</div>'.
+					'<div class="head">'.FullDataTime($r['dtime_add']).($r['viewer_id_add'] ? $r['viewer_link'] : '').'</div>'.
 					'<ul>'.$txt.'</ul>'.
 				'</div>';
 			$txt = '';
@@ -2901,8 +2905,8 @@ function invoice_history($v) {
 	foreach($history as $r) {
 		$about = '';
 		if($r['zayav_id'])
-			$about = $r['zayav_link'].'. '.
-					 ($r['dogovor_id'] ? 'Авансовый платёж (договор '.$r['dogovor_nomer'].').' : '');
+			$about = $r['zayav_link'].
+					 ($r['dogovor_id'] ? '. '.'Авансовый платёж (договор '.$r['dogovor_nomer'].')' : '');
 		$about .= $r['prim'];
 		$worker = $r['worker_id'] ? _viewer($r['worker_id'], 'link') : '';
 		$expense = $r['expense_id'] ? '<span class="type">'._expense($r['expense_id']).(!$about && !$worker ? '' : ': ').'</span>' : '';

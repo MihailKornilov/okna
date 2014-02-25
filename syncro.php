@@ -9,6 +9,7 @@ $mysql = array(
 
 define('VKPATH', 'c:/www/nyandoma/vk/');
 define('PATH', 'c:/www/okna/');
+define('SECRET', '');
 define('CACHE_PREFIX', 'okna_');
 
 $_GET['viewer_id'] = 982006;

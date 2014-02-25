@@ -422,7 +422,7 @@
 .salary .uhead span{color:#888;margin-left:8px}
 .salary #salary-sel{margin-bottom:5px}
 .salary #salary-sel a{float:right}
-.salary .old{background-color:#ddd;opacity:.6}
+.salary .old{background-color:#e4e4e4;opacity:.6}
 .salary-tab{border-spacing:8px}
 .salary-tab #about{width:230px}
 .salary-tab #day{width:30px}
