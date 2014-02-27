@@ -10,7 +10,7 @@ function styleHead() {//Рамка для заголовка таблицы
 		),
 		'font' => array(
 			'name' => 'Tahoma',
-			'size' => 5,
+			'size' => 9,
 			'bold' => true
 		),
 		'alignment' => array(
@@ -36,6 +36,24 @@ function styleContent() {//Рамки для содержимого
 		),
 		'alignment' => array(
 			'vertical' => PHPExcel_Style_Alignment::VERTICAL_CENTER
+		),
+		'fill' => array(
+			'type' => PHPExcel_Style_Fill::FILL_SOLID
+		)
+	));
+	return $style;
+}
+function stylePodpis() {//Рамки для содержимого
+	$style = new PHPExcel_Style();
+	$style->applyFromArray(array(
+		'borders' => array(
+			'bottom' => array(
+				'style' => PHPExcel_Style_Border::BORDER_THIN
+			)
+		),
+		'font' => array(
+			'name' => 'Tahoma',
+			'size' => 11
 		),
 		'fill' => array(
 			'type' => PHPExcel_Style_Fill::FILL_SOLID
@@ -98,32 +116,56 @@ function zpPrint() {
 	global $book;
 
 	$sheet = $book->getActiveSheet();
-	$line = 1;
+	$line = 2;
 
-	$sheet->getColumnDimension('A')->setWidth(70);
-	$sheet->getColumnDimension('B')->setWidth(12);
+	$sheet->getColumnDimension('A')->setWidth(12);
+	$sheet->getColumnDimension('B')->setWidth(25);
+	$sheet->getColumnDimension('C')->setWidth(20);
+	$sheet->getColumnDimension('D')->setWidth(10);
+	$sheet->getColumnDimension('E')->setWidth(10);
+	$sheet->getColumnDimension('F')->setWidth(15);
 
-	$sheet->setCellValue('A'.$line, 'Выдача зп - '.utf8(_viewer(WORKER_ID, 'name')).':');
-	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
-	$line++;
+	$abbr = _viewer(WORKER_ID, 'first_name');
+	define('WORKER', utf8(_viewer(WORKER_ID, 'last_name').' '.$abbr[0].'.'));
+	$sheet->setCellValue('A'.$line, WORKER);
+	$sheet->setCellValue('F'.$line, strftime('Дата: %d.%m.%Yг.'));
+	$sheet->getStyle('F'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+	$sheet->getStyle('A'.$line.':F'.$line)->getFont()->setBold(true);
+	$line += 2;
+
+	$sheet->setCellValue('A'.$line, '№ дог.');
+	$sheet->setCellValue('B'.$line, 'Адрес');
+	$sheet->setCellValue('C'.$line, 'Изделие');
+	$sheet->setCellValue('D'.$line, 'Дата '.(BONUS ? 'заяв' : 'уст').'.');
+	$sheet->setCellValue('E'.$line, 'Сумма');
+	$sheet->setCellValue('F'.$line, 'Примечание');
+	$sheet->setSharedStyle(styleHead(), 'A'.$line.':F'.$line);
 	$line++;
 
 	$sql = "SELECT
 				`e`.*,
 				`z`.`dtime_add` `z_add`,
 				`z`.`adres` `adres`,
-				`z`.`status_day`
+				`z`.`status_day`,
+				`z`.`dogovor_id`
 			FROM `zayav_expense` `e`
 				LEFT JOIN `zayav` `z`
 				ON `z`.`id`=`e`.`zayav_id`
 			WHERE `e`.`id` IN (".IDS.")";
 	$q = query($sql);
 	$zp = array();
+	$zayav = array();
 	$sum = 0;
+	$deduct = 0;
 	while($r = mysql_fetch_assoc($q)) {
+		if($r['sum'] < 0) {
+			$deduct += abs($r['sum']);
+			continue;
+		}
 		$sum += $r['sum'];
 		$key = $r['dtime_add'];
-		if($r['zayav_id'])
+		if($r['zayav_id']) {
+			$zayav[$r['zayav_id']] = array();
 			if(BONUS) {
 				$key = $r['z_add'];
 				$r['z_add'] = substr($r['z_add'], 0, 10);
@@ -132,6 +174,7 @@ function zpPrint() {
 				if($key == '0000-00-00')
 					continue;
 			}
+		}
 		$key = strtotime($key);
 		while(isset($zp[$key]))
 			$key--;
@@ -139,30 +182,66 @@ function zpPrint() {
 	}
 
 	$zp = _zayavLink($zp);
-
-//	print_r($zp); exit;
+	$zp = _dogNomer($zp);
+	$zayav = zayav_product_array($zayav);
+//	print_r($zayav); exit;
 
 	ksort($zp);
 	$start = $line;
 	foreach($zp as $r) {
-		$about = '';
-		if($r['zayav_id']) {
-			$d = explode('-', BONUS ? $r['z_add'] : $r['status_day']);
-			$about = utf8($r['zayav_head']).', '.
-					(BONUS ? 'внесено' : 'выполнено').' '.$d[2].'.'.$d[1].'.'.$d[0].
-					($r['adres'] ? ': '.utf8($r['adres']) : '');
-		} elseif($r['sum'] < 0)
-			$about = 'Вычет';
-		if($r['txt'])
-			$about .= ($about ? ': ' : '').utf8($r['txt']);
-		$sheet->setCellValueByColumnAndRow(0, $line, $about);
-		$sheet->setCellValueByColumnAndRow(1, $line, $r['sum']);
+		$sheet->setCellValue('A'.$line, utf8($r['zayav_id'] ? ($r['dogovor_id'] ? $r['dogovor_n'].' ' : '').$r['zayav_vg'] : ''));
+		$sheet->setCellValue('B'.$line, $r['adres'] ? utf8(htmlspecialchars_decode($r['adres'])) : '');
+		$sheet->setCellValue('C'.$line, $r['zayav_id'] ? utf8(zayav_product_spisok($zayav[$r['zayav_id']]['product'], 'report')) : '');
+		$sheet->setCellValue('D'.$line, $r['zayav_id'] ? reportData(BONUS ? $r['z_add'] : $r['status_day']) : '');
+		$sheet->setCellValue('E'.$line, $r['sum']);
 		$line++;
 	}
-	$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.$line);
-	$sheet->setCellValue('A'.$line, 'Итог:');
+	$line += 3;
+
+	$sheet->setSharedStyle(styleContent(), 'A'.$start.':F'.($line + ($deduct ? 2 : 0)));
+
+	//Выравнивание вправо дат
+	$sheet->getStyle('D'.$start.':D'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+
+	if($deduct) {
+		$sheet->mergeCells('A'.$line.':D'.$line);
+		$sheet->setCellValue('A'.$line, 'Всего:');
+		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+		$sheet->setCellValue('E'.$line, $sum);
+		$line++;
+
+		$sheet->mergeCells('A'.$line.':D'.$line);
+		$sheet->setCellValue('A'.$line, 'Вычеты:');
+		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+		$sheet->setCellValue('E'.$line, $deduct);
+		$line++;
+	}
+
+	$sheet->mergeCells('A'.$line.':D'.$line);
+	$sheet->setCellValue('A'.$line, 'Итого к выдаче:');
 	$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-	$sheet->setCellValue('B'.$line, $sum);
+	$sheet->setCellValue('E'.$line, $sum - $deduct);
+
+	$line += 2;
+
+	$sheet->setSharedStyle(stylePodpis(), 'A'.$line.':F'.($line + 2));
+	$sheet->getRowDimension($line)->setRowHeight(21);
+	$sheet->setCellValue('A'.$line, 'Утвердил:');
+	$sheet->setCellValue('F'.$line, 'Губинский Р.Е.');
+	$sheet->getStyle('F'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+	$line++;
+	$sheet->getRowDimension($line)->setRowHeight(21);
+	$sheet->setCellValue('A'.$line, 'Выдал:');
+	$sheet->setCellValue('F'.$line, 'Богарева Н.А.');
+	$sheet->getStyle('F'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+	$line++;
+	$sheet->getRowDimension($line)->setRowHeight(21);
+	$sheet->setCellValue('A'.$line, 'Получил:');
+	$sheet->setCellValue('F'.$line, WORKER);
+	$sheet->getStyle('F'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+
+
+
 	$sheet->getStyle('B'.$line)->getFont()->setBold(true);
 
 }

@@ -976,6 +976,7 @@ function _zayavLink($arr) {
 			$head = _zayavCategory($r, 'head');
 			$arr[$key]['zayav_link'] = '<a'.($r['deleted'] ? ' class="deleted" title="Заявка удалена"' : '').' href="'.URL.'&p=zayav&d=info&id='.$r['id'].'">'.$head.'</a>';
 			$arr[$key]['zayav_head'] = $head;
+			$arr[$key]['zayav_vg'] = _zayavCategory($r, 'vg');;
 			$arr[$key]['zayav_add'] = $r['dtime_add'];
 			$arr[$key]['zayav_status_day'] = $r['status_day'];
 		}
@@ -1074,6 +1075,7 @@ function _zayavCategory($z, $i='type') {// Определение категории заявки
 				'</table>'.
 			'</div>';
 	}
+	$send['vg'] = $dop;
 	return $send[$i];
 }//_zayavCategory()
 function _zayavBalansUpdate($zayav_id) {//Обновление начислений, суммы платежей, дохода заявки
@@ -1608,10 +1610,10 @@ function _zamerStatus($id) {
 function _dogNomer($arr) {//Добавление к списку данный по договору, получаемого по dogovor_id
 	$ids = array(); // идешники договоров
 	$arrIds = array();
-	foreach($arr as $r)
+	foreach($arr as $key => $r)
 		if($r['dogovor_id']) {
 			$ids[$r['dogovor_id']] = 1;
-			$arrIds[$r['dogovor_id']][] = $r['id'];
+			$arrIds[$r['dogovor_id']][] = $key;
 		}
 	if(empty($ids))
 		return $arr;
@@ -1648,8 +1650,8 @@ function zayavDogovorList($zayav_id) {//Список договоров для заявки
 		$reason = $r['reason'] ? "\n".$r['reason'] : '';
 		$title = 'от '.$data.' г. на сумму '.round($r['sum'], 2).' руб.'.$reason;
 		$del = $r['deleted'] ? ' d' : '';
-		$send .= '<b class="dogn'.$del.'" title="'.$title.'">№'.$r['nomer'].'</b> '.
-			'<a class="img_word" href="'.LINK_DOGOVOR.$r['link'].'.doc" title="Распечатать"></a>';
+		$send .= '<b class="dogn'.$del._tooltip($title, -7, 'l').'№'.$r['nomer'].'</b> '.
+			'<a href="'.LINK_DOGOVOR.$r['link'].'.doc" class="img_word'._tooltip('Распечатать', -41).'</a>';
 	}
 	return $send;
 }//zayavDogovorList()
@@ -1878,7 +1880,7 @@ function _attach_form($type, $zayav_id) {
 	'<input type="hidden" name="op" value="attach_upload">'.
 	'<input type="hidden" name="type" class="type" value="'.$type.'">'.
 	'<input type="hidden" name="zayav_id" class="zayav_id" value="'.$zayav_id.'">';
-}
+}//_attach_form()
 
 function dogovorData($v) {//Преобразование даты для договора
 	$d = explode('-', $v);
@@ -2327,9 +2329,7 @@ function report() {
 				'</div>'.
 				$left;
 			break;
-		case 'month':
-			$left = !empty($_GET['m']) && preg_match(REGEXP_YEARMONTH, $_GET['m']) ? report_mon($_GET['m']) : report_month();
-			break;
+		case 'month': $left = report_month(); break;
 		case 'salary':
 			if(!empty($_GET['id']) && preg_match(REGEXP_NUMERIC, $_GET['id']))
 				$left = salary_worker(intval($_GET['id']));
@@ -3634,32 +3634,40 @@ function report_month() {
 	while($r = mysql_fetch_assoc($q))
 		$years[$r['year']][] = $r['mon'];
 
+	$saved = query_ass("SELECT `name`,`link` FROM `attach` WHERE `type`='report'");
+	$savedDtime = query_ass("SELECT `name`,`dtime_add` FROM `attach` WHERE `type`='report'");
+
 	$curYear = strftime('%Y', time());
 	$spisok = '';
 	foreach($years as $y => $r) {
+		if($y < 2014)
+			continue;
 		$months = '';
-		foreach($r as $mon)
-			$months .= '<tr><td><a href="'.URL.'&p=report&d=month&m='.$y.'-'.$mon.'">'._monthDef($mon).'</a>';
-		$spisok .= '<a class="yr">'.$y.'</a><table class="_spisok'.($curYear != $y ? ' dn' : '').'">'.$months.'</table>';
+		foreach($r as $mon) {
+			$mName = _monthDef($mon, 1);
+			$s = isset($saved[$y.'-'.$mon]);
+			$dtime = $s ? '<div class="dtime'._tooltip('Дата создания', -20).FullDataTime($savedDtime[$y.'-'.$mon], 1).'</div>' : '';
+			if($y == 2014 && $mon == 1)
+				$td = '<span class="grey">'.$mName.'</span>';
+			elseif($s)
+				$td = '<a href="'.$saved[$y.'-'.$mon].'">'.$mName.': фиксированный отчёт</a>';
+			else
+				$td = '<a href="'.SITE.'/view/report_month.php?'.VALUES.'&mon='.$y.'-'.$mon.'">'.$mName.': текущий отчёт</a>';
+			$months .= '<tr><td>'.$td.'<td>'.$dtime;
+		}
+		$spisok .= '<a class="yr">'.$y.'</a>'.
+				   '<table class="_spisok'.($curYear != $y ? ' dn' : '').'">'.$months.'</table>';
 	}
 	return
 	'<div id="report_month">'.
 		'<div class="headName">Формирование отчётов за месяц</div>'.
+		'<div class="_info">'.
+			'Отчёты автоматически формируются 1-го числа каждого месяца и становятся фиксированными (неизменяемыми). '.
+			'Если месяц ещё не закончился, есть возможность посмотреть текущий отчёт.'.
+		'</div>'.
 		$spisok.
 	'</div>';
 }//report_month()
-function report_mon($m) {
-	$ex = explode('-', $m);
-	$year = $ex[0];
-	$mon = $ex[1];
-	return
-	'<div id="report_mon">'.
-		'<a href="'.URL.'&p=report&d=month"><< к списку отчётов</a>'.
-		'<div class="headName">Формирование отчёта за '._monthDef($mon).' '.$year.'</div>'.
-		'<a href="'.SITE.'/view/_report.php?'.VALUES.'&mon='.$m.'">Отчёт за месяц</a>'.
-	'</div>';
-
-}//report_month_mon()
 
 function salary() {
 	return

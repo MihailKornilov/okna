@@ -576,7 +576,7 @@ function debtors() {
 
 	$sheet->getColumnDimension('A')->setWidth(5);
 	$sheet->getColumnDimension('B')->setWidth(60);
-	$sheet->getColumnDimension('C')->setWidth(10);
+	$sheet->getColumnDimension('C')->setWidth(15);
 
 	$sheet->setCellValue('A'.$line, 'Должники на '.utf8(FullData(curTime())).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
@@ -590,10 +590,13 @@ function debtors() {
 	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `balans`<0 ORDER BY `fio`";
 	$q = query($sql);
 	$start = $line;
+	$sum = 0;
 	$n = 1;
 	while($r = mysql_fetch_assoc($q)) {
 		$fio = new PHPExcel_RichText();
 		$fio->createText(utf8(htmlspecialchars_decode($r['fio'])));
+		$balans = abs($r['balans']);
+		$sum += $balans;
 		if($r['telefon']) {
 			$tel = $fio->createTextRun(utf8(' ('.htmlspecialchars_decode($r['telefon']).')'));
 			$tel->getFont()->setName('tahoma')
@@ -602,14 +605,14 @@ function debtors() {
 		}
 		$sheet->getCell('A'.$line)->setValue($n++);
 		$sheet->getCell('B'.$line)->setValue($fio);
-		$sheet->getCell('C'.$line)->setValue(abs($r['balans']));
+		$sheet->getCell('C'.$line)->setValue($balans);
 		$line++;
 	}
 	$sheet->setSharedStyle(styleContent(), 'A'.$start.':C'.$line);
 	$sheet->setSharedStyle(styleResult(), 'A'.$line.':C'.$line);
-	$sheet->getStyle('C'.$start.':C'.$line)->getNumberFormat()->setFormatCode('#,#');
-	$sheet->setCellValue('C'.$line, '=SUM(B'.$start.':C'.($line - 1).')');
 	$sheet->setCellValue('B'.$line, 'Итог:');
+	$sheet->setCellValue('C'.$line, _sumSpace($sum));
+
 	freeLine($line);
 }
 function xls_expense() {
@@ -691,15 +694,28 @@ function xls_expense() {
 	freeLine($line);
 }
 
-require_once '../config.php';
+function toMailSend() {
+	mail(CRON_MAIL, 'Cron Evrookna: report_month.php', ob_get_contents());
+}
+function countCronTime() {
+	echo "\n\n----\nExecution time: ".round(microtime(true) - TIME, 3);
+}
+
+set_time_limit(1800);
+define('CRON', !empty($_GET['cron'])); //Если обращение через cron, то сохранение в файл
+
+if(CRON) {
+	ob_start();
+	set_error_handler('toMailSend');
+	register_shutdown_function('countCronTime');
+	register_shutdown_function('toMailSend');
+}
+
+require_once dirname(dirname(__FILE__)).'/config.php';
 require_once VKPATH.'excel/PHPExcel.php';
-set_time_limit(10);
 
 
-if(empty($_GET['mon']) || !preg_match(REGEXP_YEARMONTH, $_GET['mon']))
-	die('Некорректный месяц');
-
-define('MON', $_GET['mon']);
+define('MON', strftime('%Y-%m'), time() - (CRON ? 86400 : 0));
 $ex = explode('-', MON);
 define('MONTH', utf8(_monthDef($ex[1]).' '.$ex[0]));
 define('MON_FULL', utf8(_monthFull($ex[1])));
@@ -720,11 +736,16 @@ $line = 1;      // Текущая линия
 $colLast = 'L'; // Последняя колонка
 $index = 1;     // Номер создаваемой страницы
 
+$key = CACHE_PREFIX.'product';
+$arr = xcache_get($key);
+
+
 pageSetup('Заявки');
 colWidth();
 aboutShow();
 headShow();
 contentShow();
+
 
 zpman();
 zpwoman();
@@ -733,12 +754,27 @@ xls_expense();
 debtors();
 
 
-$book->setActiveSheetIndex(4);
+$book->setActiveSheetIndex(0);
 
-header('Content-Type:application/vnd.ms-excel');
-header('Content-Disposition:attachment;filename="report.xls"');
+if(!CRON) {
+	header('Content-Type:application/vnd.ms-excel');
+	header('Content-Disposition:attachment;filename="report.xls"');
+}
 $writer = PHPExcel_IOFactory::createWriter($book, 'Excel5');
-$writer->save('php://output');
+$writer->save(CRON ? PATH.'files/report/report_month_'.MON.'.xls' : 'php://output');
+
+if(CRON) {
+	$sql = "INSERT INTO `attach` (
+				`type`,
+				`name`,
+				`link`
+			) VALUES (
+				'report',
+				'".MON."',
+				'".SITE."/files/report/report_month_".MON.".xls'
+			)";
+	query($sql);
+}
 
 mysql_close();
 exit;

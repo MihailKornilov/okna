@@ -4,7 +4,7 @@ define('TIME', microtime(true));
 define('DEBUG', @$_COOKIE['debug'] == 1);
 define('DOCUMENT_ROOT', dirname(__FILE__));
 define('NAMES', 'cp1251');
-define('DOMAIN', defined('CRON') ? '' : $_SERVER["SERVER_NAME"]);
+define('DOMAIN', defined('CRON') ? 'okna.nyandoma.ru' : $_SERVER['SERVER_NAME']);
 define('LOCAL', DOMAIN == 'okna');
 define('VIEWER_ID', empty($_GET['viewer_id']) ? 0 : $_GET['viewer_id']);
 define('VALUES', 'viewer_id='.VIEWER_ID.

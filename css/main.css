@@ -431,9 +431,7 @@
 #report_month{margin:10px 15px}
 #report_month .yr{display:block;font:bold 13px Tahoma}
 #report_month ._spisok{margin:3px 0 20px 15px}
-
-#report_mon{margin:10px 15px}
-#report_mon .headName{margin-top:15px}
+#report_month .dtime{color:#888;font-size:10px;text-align:right;cursor:default}
 
 #setup .left{padding:15px}
 #setup .headName{margin:0 0 15px}
