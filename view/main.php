@@ -1715,7 +1715,8 @@ function zayav_info($zayav_id) {
 			'pasp_ovd:"'.(empty($dog) ? $client['pasp_ovd'] : $dog['pasp_ovd']).'",'.
 			'pasp_data:"'.(empty($dog) ? $client['pasp_data'] : $dog['pasp_data']).'",'.
 			'sum:"'.(empty($dog) ? '' : round($dog['sum'], 2)).'",'.
-			'avans:"'.(empty($dog) || $dog['avans'] == 0 ? '' : round($dog['avans'], 2)).'"'.
+			'avans:"'.(empty($dog) || $dog['avans'] == 0 ? '' : round($dog['avans'], 2)).'",'.
+			'cut:""'.
 		'},'.
 		'OPL={'.
 			'from:"zayav",'.
@@ -2536,6 +2537,7 @@ function history_types($v) {
 
 		case 46: return 'Автоматическое начисление з/п сотруднику <u>'._viewer($v['value1'], 'name').'</u> '.
 						'в размере <b>'.$v['value'].'</b> руб. <em>('.$v['value2'].')</em>.';
+		case 47: return 'Зафиксирован отчёт за <a href="'.$v['value1'].'">'.$v['value'].'</a>.';
 
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -3652,7 +3654,7 @@ function report_month() {
 			elseif($s)
 				$td = '<a href="'.$saved[$y.'-'.$mon].'">'.$mName.': фиксированный отчёт</a>';
 			else
-				$td = '<a href="'.SITE.'/view/report_month.php?'.VALUES.'&mon='.$y.'-'.$mon.'">'.$mName.': текущий отчёт</a>';
+				$td = '<a href="'.SITE.'/view/report_month.php?'.VALUES.'">'.$mName.': текущий отчёт</a>';
 			$months .= '<tr><td>'.$td.'<td>'.$dtime;
 		}
 		$spisok .= '<a class="yr">'.$y.'</a>'.
@@ -3800,7 +3802,7 @@ function salary_worker_spisok($v) {
 
 	if($filter['page'] == 1)
 		$send .= '<table class="_spisok _money">'.
-			'<tr><th>'.
+			'<tr><th>'._check('salary_all').
 				'<th>Вид'.
 				'<th>Сумма'.
 				'<th>Описание';
@@ -3874,6 +3876,7 @@ function salary_worker_spisok($v) {
 
 	krsort($spisok);
 	$curMon = strtotime(strftime('%Y-%m-01'));
+	$toAll = ' to-all';
 	foreach($spisok as $r) {
 		$about = '';
 		if($r['zayav_id']) {
@@ -3892,9 +3895,11 @@ function salary_worker_spisok($v) {
 			$old = strtotime($r['dtime_add']) < $curMon;
 		$about .= $r['about'];
 
+		if(!$r['id'] || $old) //если встречается платёж, то дальнейшие начисления общей галочкой не выбираются
+			$toAll = '';
 		$send .=
 			'<tr'.($old ? ' class="old"' : '').' val="'.$r['id'].'">'.
-				'<td>'.($r['id'] ? _check('s'.$r['id']) : '').
+				'<td class="ch'.$toAll.'">'.($r['id'] ? _check('s'.$r['id']) : '').
 				'<td class="type">'.$r['type'].
 				'<td class="sum">'.round($r['sum'], 2).
 				'<td class="about">'.$about;

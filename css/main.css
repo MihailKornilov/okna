@@ -31,7 +31,11 @@
 ._dialog-tab{border-spacing:8px}
 ._dialog-tab input[type="text"]:not(.money){width:210px}
 ._dialog-tab .label{text-align:right}
-
+/* Разбивка платежа на части при заключении договора */
+.cut-money{border-spacing:8px}
+.cut-money .label{text-align:right;width:90px}
+.cut-money input{width:50px}
+.cut-money ._calendar{margin-left:5px}
 
 /* Таблица для внесения платежа */
 .income-add-tab{border-spacing:8px}
@@ -295,7 +299,10 @@
 .zayav-dogovor #nomer{width:40px}
 .zayav-dogovor .prim{font-size:10px;color:#999}
 .zayav-dogovor h1{display:block;font-weight:bold;text-align:center;margin-bottom:3px;color:#444}
+.zayav-dogovor #cut{display:block;text-align:center;padding:10px}
+.zayav-dogovor #cut:hover{background-color:#e9edf1;text-decoration:none}
 .zayav-dogovor #preview{display:block;text-align:center;margin-top:10px}
+.zayav-dogovor .img_del{float:right}
 
 .zayav-rashod-edit{border-spacing:8px}
 
@@ -422,6 +429,7 @@
 .salary .uhead span{color:#888;margin-left:8px}
 .salary #salary-sel{margin-bottom:5px}
 .salary #salary-sel a{float:right}
+.salary .ch{text-align:center}
 .salary .old{background-color:#e4e4e4;opacity:.6}
 .salary-tab{border-spacing:8px}
 .salary-tab #about{width:230px}

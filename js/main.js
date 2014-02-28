@@ -221,8 +221,13 @@ var hashLoc,
 		}, 'json');
 	},
 	dogovorCreate = function(v) {
-		var head = 'Заключение',
-			but = 'Заключить договор';
+		var n,
+			head = 'Заключение',
+			but = 'Заключить договор',
+			cutHead = 'Указать даты очередных платежей',
+			cutn, //Номер платежа при его разбивке на части
+			cutd, //Диалог разбивки платежа
+			cutArr;
 		switch(v) {
 			default: v = 'create';
 			case 'create': break;
@@ -249,8 +254,9 @@ var hashLoc,
 				'<tr><td class="label">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="11" value="' + (DOG.sum ? DOG.sum : '') + '" /> руб.' +
 				'<tr><td class="label">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="11" value="' + (DOG.avans ? DOG.avans : '') + '" /> руб. <span class="prim">(не обязательно)</span>' +
 (v == 'reneg' ? '<tr><td class="label">Причина перезаключения:<td><input type="text" id="reason" />' : '') +
+(v == 'create' ? '<tr><td colspan="2"><a id="cut">' + cutHead + '</a>' : '') +
 				'<tr><td colspan="2">' +
-					'<a id="preview">Предварительный просмотр</a>' +
+					'<a id="preview">Предварительный просмотр договора</a>' +
 					'<form action="' + AJAX_MAIN + '" method="post" id="preview-form" target="_blank"></form>' +
 				'</table>',
 			dialog = _dialog({
@@ -262,6 +268,17 @@ var hashLoc,
 				submit:submit
 			});
 		$('#data_create')._calendar({lost:1});
+		if(v == 'create') {
+			$('#cut')
+				.click(cutCreate)
+				.vkHint({
+					width:180,
+					msg:'Разбить оставшуюся сумму платежа по заявке на части и создать по ним напоминания.',
+					delayShow:400,
+					top:-82,
+					left:118
+				});
+		}
 		$('#preview').click(function() {
 			var send = valuesTest('preview');
 			if(send) {
@@ -297,6 +314,95 @@ var hashLoc,
 			else if(v == 'reneg' && !send.reason) err('Не указана причина перезаключения договора', 'reason', type);
 			else return send;
 			return false;
+		}
+		function cutCreate() {
+			var sum = REGEXP_CENA.test($('#sum').val()) ? $('#sum').val() : 0,
+				avans = REGEXP_CENA.test($('#avans').val()) ? $('#avans').val() : 0,
+				s = sum - avans,
+				html =
+					'<table class="cut-money">' +
+						'<tr><td class="label">Исходная сумма:<td><u>' + s + '</u> руб.' +
+						'<tr id="cut-add"><td><td><a>Добавить поле</a>' +
+						'<tr><td class="label">Итоговая сумма:<td><b id="cut-itog">' + s + '</b> руб.' +
+					'</table>';
+			cutd = _dialog({
+				head:'Разбивка платежа на части',
+				content:html,
+				butSubmit:'Применить',
+				submit:cutSubmit
+			});
+			cutn = 1;
+			cutArr = [];
+			if(DOG.cut) {
+				var arr = DOG.cut.split(',');
+				for(n = 0; n < arr.length; n++) {
+					var r = arr[n].split(':');
+					cutArr.push([r[0],r[1]]);
+					cutAdd();
+				}
+			} else
+				cutAdd();
+			cutItog();
+			$('#cut-add a').click(cutAdd);
+		}
+		function cutAdd() {
+			var arr = cutArr[cutn - 1],
+				html = '<tr><td class="label">' + cutn + '-й платёж:' +
+						   '<td><input type="text" class="cutsum" id="i' + cutn + '" maxlength="7" value="' + (arr ? arr[0] : '') + '"> руб. ' +
+							   '<input type="hidden" id="d' + cutn + '" value="' + (arr ? arr[1] : '') + '">';
+			$('#cut-add').before(html);
+			if(cutn == 1 && !cutArr[0])
+				$('#i1').val($('#cut-itog').html());
+			$('#i' + cutn).focus().keyup(cutItog);
+			$('#d' + cutn)._calendar();
+			cutn++;
+		}
+		function cutItog() {
+			var inp = $('.cutsum'),
+				sum = 0,
+				val,
+				arr = [];
+			for(n = 0; n < inp.length; n++) {
+				val = $.trim(inp.eq(n).val());
+				if(!val || val == 0)
+					continue;
+				if(!REGEXP_CENA.test(val)) {
+					sum = false;
+					break;
+				}
+				sum += val * 1;
+				arr.push((val * 1) + ':' + inp.eq(n).next().find('input').val());
+			}
+			if(sum === false)
+				sum = Math.round(sum * 100) / 100;
+			$('#cut-itog').html(sum);
+			return sum === false ? 'error' : arr;
+		}
+		function cutSubmit() {
+			var cut = cutItog();
+			if(cut == 'error') {
+				cutd.bottom.vkHint({
+					msg:'<span class="red">Некорректно заполнено поле платежа</span>',
+					top:-47,
+					left:84,
+					indent:50,
+					show:1,
+					remove:1
+				});
+				return;
+			}
+			DOG.cut = cut.join();
+			var len = cut.length;
+			$('#cut').html(!len ? cutHead :
+								 'Указан' + _end(len, ['а', 'ы']) + ' дат' + _end(len, ['а', 'ы']) + ' для ' + len + _end(len, ['-го', '-х', '-и']) +
+								 ' платеж' + _end(len, ['а', 'ей']) + '. <u>Изменить</u><div class="img_del' + _tooltip('Отменить разбивку', -61) + '</div>');
+			if(len)
+				$('#cut .img_del').click(function(e) {
+					e.stopPropagation();
+					DOG.cut = '';
+					$('#cut').html(cutHead);
+				});
+			cutd.close();
 		}
 		function err(msg, id, type) {
 			dialog.bottom.vkHint({
@@ -413,6 +519,30 @@ var hashLoc,
 				$('#monthList').html(res.mon);
 			}
 		}, 'json');
+	},
+	salaryCheck = function() {
+		var check = $('._check'),
+			n,
+			sp,
+			tr,
+			html = '',
+			count = 0,
+			sum = 0,
+			ids = [];
+		for(n = 0; n < check.length; n++) {
+			sp = check.eq(n);
+			if(sp.find('input').val() == 0 || sp.attr('id') == 'salary_all_check')
+				continue;
+			count++;
+			tr = sp.parent().parent();
+			ids.push(tr.attr('val'));
+			sum += tr.find('.sum').html() * 1;
+		}
+		if(count)
+			html = 'Выбран' + _end(count, ['', 'о']) + ' <b>' + count + '</b> платеж' + _end(count, ['', 'а', 'ей']) +
+				' на сумму <b>' + sum + '</b> руб.' +
+				'<a class="salary-list" val="' + ids.join() + '">Распечатать лист выдачи з/п</a>';
+		$('#salary-sel').html(html);
 	};
 
 $.fn.clientSel = function(o) {
@@ -2056,29 +2186,15 @@ $(document)
 				next.removeClass('busy');
 		}, 'json');
 	})
-	.on('click', '.salary ._check', function() {
-		var check = $('._check'),
+	.on('click', '.salary ._check:not(#salary_all_check)', salaryCheck)
+	.on('click', '.salary #salary_all_check', function() {
+		var t = $(this),
 			n,
-			sp,
-			tr,
-			html = '',
-			count = 0,
-			sum = 0,
-			ids = [];
-		for(n = 0; n < check.length; n++) {
-			sp = check.eq(n);
-			if(sp.find('input').val() == 0)
-				continue;
-			count++;
-			tr = sp.parent().parent();
-			ids.push(tr.attr('val'));
-			sum += tr.find('.sum').html() * 1;
-		}
-		if(count)
-			html = 'Выбран' + _end(count, ['', 'о']) + ' <b>' + count + '</b> платеж' + _end(count, ['', 'а', 'ей']) +
-				   ' на сумму <b>' + sum + '</b> руб.' +
-				   '<a class="salary-list" val="' + ids.join() + '">Распечатать лист выдачи з/п</a>';
-		$('#salary-sel').html(html);
+			v = t.find('input').val();
+		var all = $('.to-all');
+		for(n = 0; n < all.length; n++)
+			all.eq(n).find('._check input:first')._check(v);
+		salaryCheck();
 	})
 	.on('click', '.salary-list', function() {
 		var ids = $(this).attr('val');
@@ -2314,8 +2430,8 @@ $(document)
 				func:function(v) {
 					if(v == 1)
 						dogovorCreate('edit');
-					if(v == 2)
-						dogovorCreate('reneg');
+					//if(v == 2)
+					//	dogovorCreate('reneg');
 				}
 			});
 

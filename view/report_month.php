@@ -309,7 +309,7 @@ function zpman() {
 	$sheet->getColumnDimension('A')->setWidth(80);
 	$sheet->getColumnDimension('B')->setWidth(10);
 
-	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для установщиков за '.MONTH.':');
+	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для установщиков за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
@@ -408,7 +408,7 @@ function zpwoman() {
 	$sheet->getColumnDimension('A')->setWidth(80);
 	$sheet->getColumnDimension('B')->setWidth(10);
 
-	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для менеджеров за '.MONTH.':');
+	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для менеджеров за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
@@ -493,7 +493,7 @@ function incomes() {
 	$sheet->getColumnDimension('D')->setWidth(25);
 	$sheet->getColumnDimension('E')->setWidth(60);
 
-	$sheet->setCellValue('A'.$line, 'Платежи за '.MONTH.':');
+	$sheet->setCellValue('A'.$line, 'Платежи за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
@@ -629,7 +629,7 @@ function xls_expense() {
 	$sheet->getColumnDimension('C')->setWidth(15);
 	$sheet->getColumnDimension('D')->setWidth(60);
 
-	$sheet->setCellValue('A'.$line, 'Расходы за '.MONTH.':');
+	$sheet->setCellValue('A'.$line, 'Расходы за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
@@ -717,7 +717,7 @@ require_once VKPATH.'excel/PHPExcel.php';
 
 define('MON', strftime('%Y-%m'), time() - (CRON ? 86400 : 0));
 $ex = explode('-', MON);
-define('MONTH', utf8(_monthDef($ex[1]).' '.$ex[0]));
+define('MONTH', _monthDef($ex[1]).' '.$ex[0]);
 define('MON_FULL', utf8(_monthFull($ex[1])));
 define('YEAR', $ex[0]);
 
@@ -764,6 +764,7 @@ $writer = PHPExcel_IOFactory::createWriter($book, 'Excel5');
 $writer->save(CRON ? PATH.'files/report/report_month_'.MON.'.xls' : 'php://output');
 
 if(CRON) {
+	$link = SITE.'/files/report/report_month_'.MON.'.xls';
 	$sql = "INSERT INTO `attach` (
 				`type`,
 				`name`,
@@ -771,9 +772,14 @@ if(CRON) {
 			) VALUES (
 				'report',
 				'".MON."',
-				'".SITE."/files/report/report_month_".MON.".xls'
+				'".$link."'
 			)";
 	query($sql);
+	history_insert(array(
+		'type' => 47,
+		'value' => MONTH,
+		'value1' => $link
+	));
 }
 
 mysql_close();
