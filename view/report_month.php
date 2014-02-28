@@ -181,6 +181,9 @@ function contentShow() {
 		$zayav[$r['id']] = $r;
 	}
 
+	if(empty($zayav))
+		return;
+
 	$zayav = _dogNomer($zayav);
 	$zayav = _clientLink($zayav);
 	$zayav = zayav_product_array($zayav);
@@ -326,6 +329,9 @@ function zpman() {
 		$zayav[$r['id']] = $r;
 	}
 
+	if(empty($zayav))
+		return;
+
 	$zayav = zayav_product_array($zayav);
 
 	$zayav_ids = implode(',', array_keys($zayav));
@@ -424,6 +430,9 @@ function zpwoman() {
 		$r['dtime_add'] = $d[2].'.'.$d[1].'.'.$d[0];
 		$zayav[$r['id']] = $r;
 	}
+
+	if(empty($zayav))
+		return;
 
 	$zayav = zayav_product_array($zayav);
 
@@ -656,7 +665,7 @@ function xls_expense() {
 	foreach($money as $r) {
 		$sheet->getCell('A'.$line)->setValue(reportData($r['dtime_add']));
 		$sheet->getCell('B'.$line)->setValue(utf8(_invoice($r['invoice_id'])));
-		$sheet->getCell('C'.$line)->setValue(_sumSpace(abs($r['sum'])));
+		$sheet->getCell('C'.$line)->setValue(abs($r['sum']));
 		$expense = utf8(htmlspecialchars_decode(_expense($r['expense_id'])));
 		$worker = $r['worker_id'] ? ($r['expense_id'] ? ': ' : '').utf8(_viewer($r['worker_id'], 'name')).'. ' : '';
 		$prim = !empty($r['prim']) ? ($r['expense_id'] && !$worker ? ': ' : '').utf8(htmlspecialchars_decode($r['prim'])) : '';
@@ -667,7 +676,6 @@ function xls_expense() {
 	$sheet->setSharedStyle(styleContent(), 'A'.$start.':D'.$line);
 	$sheet->setSharedStyle(styleResult(), 'A'.$line.':D'.$line);
 	$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-	$sheet->getStyle('C'.$start.':C'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$sheet->setCellValue('B'.$line, 'Итог:');
 	$sheet->setCellValue('C'.$line, _sumSpace(abs($sum)));
 
@@ -701,7 +709,7 @@ function countCronTime() {
 	echo "\n\n----\nExecution time: ".round(microtime(true) - TIME, 3);
 }
 
-set_time_limit(1800);
+set_time_limit(2500);
 define('CRON', !empty($_GET['cron'])); //Если обращение через cron, то сохранение в файл
 
 if(CRON) {
@@ -715,7 +723,7 @@ require_once dirname(dirname(__FILE__)).'/config.php';
 require_once VKPATH.'excel/PHPExcel.php';
 
 
-define('MON', strftime('%Y-%m'), time() - (CRON ? 86400 : 0));
+define('MON', strftime('%Y-%m', time() - (CRON ? 86400 : 0)));
 $ex = explode('-', MON);
 define('MONTH', _monthDef($ex[1]).' '.$ex[0]);
 define('MON_FULL', utf8(_monthFull($ex[1])));
@@ -736,25 +744,20 @@ $line = 1;      // Текущая линия
 $colLast = 'L'; // Последняя колонка
 $index = 1;     // Номер создаваемой страницы
 
-$key = CACHE_PREFIX.'product';
-$arr = xcache_get($key);
-
-
 pageSetup('Заявки');
 colWidth();
 aboutShow();
 headShow();
 contentShow();
 
-
 zpman();
 zpwoman();
 incomes();
-xls_expense();
 debtors();
-
+xls_expense();
 
 $book->setActiveSheetIndex(0);
+
 
 if(!CRON) {
 	header('Content-Type:application/vnd.ms-excel');

@@ -1111,6 +1111,8 @@ function zayav_product_test($product) {// Проверка корректности данных изделий п
 	return empty($send) ? false : $send;
 }//zayav_product_test()
 function zayav_product_array($arr) {//Добавление к элементам массива заявок массив product
+	if(empty($arr))
+		return array();
 	$sql = "SELECT * FROM `zayav_product` WHERE `zayav_id` IN (".implode(',', array_keys($arr)).") ORDER BY `id`";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
@@ -3639,7 +3641,10 @@ function report_month() {
 	$saved = query_ass("SELECT `name`,`link` FROM `attach` WHERE `type`='report'");
 	$savedDtime = query_ass("SELECT `name`,`dtime_add` FROM `attach` WHERE `type`='report'");
 
-	$curYear = strftime('%Y', time());
+	$curYear = intval(strftime('%Y'));
+	$curMon = strftime('%m');
+	if(empty($years[$curYear]) || end($years[$curYear]) != $curMon)
+		$years[$curYear][] = $curMon;
 	$spisok = '';
 	foreach($years as $y => $r) {
 		if($y < 2014)
