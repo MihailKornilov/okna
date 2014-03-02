@@ -1348,6 +1348,23 @@ switch(@$_POST['op']) {
 			_zayavBalansUpdate($v['zayav_id']);
 		}
 
+		if($v['cut'])
+			foreach(explode(',', $v['cut']) as $r) {
+				$ex = explode(':', $r);
+				$sql = "INSERT INTO `remind` (
+							`client_id`,
+							`zayav_id`,
+							`txt`,
+							`day`
+						) VALUES (
+							".$v['zayav_id'].",
+							".$v['client_id'].",
+							'".round(str_replace(',', '.', $ex[0]), 2)."',
+							'".$ex[1]."'
+						)";
+				query($sql);
+			}
+
 		dogovor_print($dog_id);
 
 		jsonSuccess();

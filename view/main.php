@@ -630,10 +630,7 @@ function _clientLink($arr, $fio=0) {//Добавление имени и ссылки клиента в массив
 		unset($clientArr[0]);
 	}
 	if(!empty($clientArr)) {
-		$sql = "SELECT
-					`id`,
-					`fio`,
-					`deleted`
+		$sql = "SELECT *
 		        FROM `client`
 				WHERE `id` IN (".implode(',', $clientArr).")";
 		$q = query($sql);
@@ -646,6 +643,7 @@ function _clientLink($arr, $fio=0) {//Добавление имени и ссылки клиента в массив
 			foreach($ass[$r['id']] as $id) {
 				$arr[$id]['client_link'] = '<a'.($r['deleted'] ? ' class="deleted" title="Клиент удалён"' : '').' href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
 				$arr[$id]['client_fio'] = $r['fio'];
+				$arr[$id]['client_tel'] = $r['telefon'];
 			}
 	}
 	return $arr;
@@ -1902,6 +1900,12 @@ function dogovorFilter($v) {
 		return 'Ошибка: некорректно указана сумма по договору.';
 	if(!empty($v['avans']) && !preg_match(REGEXP_CENA, $v['avans']))
 		return 'Ошибка: некорректно указан авансовый платёж.';
+	if(!empty($v['cut']))
+		foreach(explode(',', $v['cut']) as $r) {
+			$ex = explode(':', $r);
+			if(!preg_match(REGEXP_CENA, $v['sum']) || $ex[0] == 0 || !preg_match(REGEXP_DATE, $ex[1]))
+				return 'Ошибка: некорректные данные при разбивке платежа.';
+		}
 	$send = array(
 		'id' => intval($v['id']),
 		'zayav_id' => intval($v['zayav_id']),
@@ -1917,6 +1921,7 @@ function dogovorFilter($v) {
 		'pasp_adres' => htmlspecialchars(trim($v['pasp_adres'])),
 		'pasp_ovd' => htmlspecialchars(trim($v['pasp_ovd'])),
 		'pasp_data' => htmlspecialchars(trim($v['pasp_data'])),
+		'cut' => $v['cut'],
 		'reason' => htmlspecialchars(trim($v['reason']))
 	);
 
@@ -2160,7 +2165,8 @@ function remindDayLeft($d) {
 	if($dayLeft < 0)
 		return 'Просрочен'._end($dayLeft * -1, ' ', 'о ').($dayLeft * -1)._end($dayLeft * -1, ' день', ' дня', ' дней');
 	if($dayLeft > 2)
-		return 'Остал'._end($dayLeft, 'ся ', 'ось ').$dayLeft._end($dayLeft, ' день', ' дня', ' дней');
+		return 'Остал'._end($dayLeft, 'ся ', 'ось ').$dayLeft._end($dayLeft, ' день', ' дня', ' дней').
+			   '<span class="oday">('.FullData($d, 1).')</span>';
 	switch($dayLeft) {
 		default:
 		case 0: return 'Выполнить сегодня';
@@ -2177,11 +2183,16 @@ function remindDayLeftBg($d) {
 	return 'ddf';
 }
 function remind_days() {
-	$sql = "SELECT DATE_FORMAT(`zamer_dtime`,'%Y-%m-%d') AS `day`
-			FROM `zayav`
-			WHERE `deleted`=0
-			  AND `zamer_status`=1
-			GROUP BY DATE_FORMAT(`zamer_dtime`,'%d')";
+	$sql = "(SELECT DATE_FORMAT(`zamer_dtime`,'%Y-%m-%d') AS `day`
+				FROM `zayav`
+				WHERE !`deleted`
+				  AND `zamer_status`=1
+				GROUP BY DATE_FORMAT(`zamer_dtime`,'%d')
+			) UNION (
+				SELECT `day`
+				FROM `remind`
+				GROUP BY `day`
+			)";
 	$q = query($sql);
 	$days = array();
 	while($r = mysql_fetch_assoc($q))
@@ -2226,31 +2237,77 @@ function remind() {
 	'</div>';
 }//remind()
 function remind_spisok($filter=array()) {
-	$cond = "`deleted`=0 AND `zamer_status`=1";
-	if(isset($filter['day']))
-		$cond .= " AND `zamer_dtime` LIKE '".$filter['day']."%'";
-	$sql = "SELECT *
+	$sql = "(SELECT
+				'zamer' AS `type`,
+				'zamer_status' AS `action`,
+				`id`,
+				`client_id`,
+				`id` AS `zayav_id`,
+				`zamer_duration`,
+				`zamer_dtime`,
+				CONCAT('Заявка на замер №',`id`) AS `txt`,
+				DATE_FORMAT(`zamer_dtime`,'%Y-%m-%d') AS `day`
 			FROM `zayav`
-			WHERE ".$cond."
-			ORDER BY `zamer_dtime`";
+			WHERE !`deleted`
+			  AND `zamer_status`=1
+			  ".(isset($filter['day']) ? "AND `zamer_dtime` LIKE '".$filter['day']."%'" : '')."
+		) UNION (
+			SELECT
+				'cut' AS `type`,
+				'' AS `action`,
+				`id`,
+				`client_id`,
+				`zayav_id`,
+				'' AS `zamer_duration`,
+				'' AS `zamer_dtime`,
+				`txt`,
+				`day`
+			FROM `remind`
+			WHERE `id`
+			".(isset($filter['day']) ? "AND `day` LIKE '".$filter['day']."%'" : '')."
+		)
+		ORDER BY `day`";
 	$q = query($sql);
 	if(!mysql_num_rows($q))
 		return 'Напоминаний нет.';
 	$remind = array();
+	$zayav = array();
 	while($r = mysql_fetch_assoc($q)) {
 		$remind[$r['id']] = $r;
+		$zayav[$r['zayav_id']] = $r['zayav_id'];
 	}
+	if(!empty($zayav)) {
+		$sql = "SELECT * FROM `zayav` WHERE `id` IN (".implode(',', array_keys($zayav)).")";
+		$q = query($sql);
+		while($r = mysql_fetch_assoc($q))
+			$zayav[$r['id']] = $r;
+		$zayav = _dogNomer($zayav);
+		$zayav = _clientLink($zayav);
+	}
+
 	$send = '';
 	foreach($remind as $r) {
+		$z = $zayav[$r['zayav_id']];
 		$send .=
 		'<div class="remind_unit">'.
-			'<a class="head" '.
-			   'href="'.URL.'&p=zayav&d=info&id='.$r['id'].'" '.
-			   'style="background-color:#'.remindDayLeftBg($r['zamer_dtime']).'">'.
-					'Заявка на замер №'.$r['id'].
-			'</a>'.
-			'<div class="to">Дата: '.FullDataTime($r['zamer_dtime']).'<span class="dur">'._zamerDuration($r['zamer_duration']).'</span></div>'.
-			'<div class="day_left">'.remindDayLeft($r['zamer_dtime']).'<a class="action zamer_status" val="'.$r['id'].'">Действие</a></div>'.
+			'<div class="head" style="background-color:#'.remindDayLeftBg($r['day']).'">'.
+				'<a href="'.URL.'&p=zayav&d=info&id='.$r['zayav_id'].'">'._zayavCategory($z, 'head').'</a>'.
+				($r['type'] == 'cut' ?
+					': Платёж <b>'.$r['txt'].'</b> руб. Дог.'.$z['dogovor_n'].'. '
+				: '').
+			'</div>'.
+			'<table class="to">'.
+		($r['type'] == 'zamer' ?
+				'<tr><td class="label">Дата:'.
+					'<td>'.FullDataTime($r['zamer_dtime']).
+						'<span class="dur">'._zamerDuration($r['zamer_duration']).'</span>'
+		: '').
+				'<tr><td class="label">Клиент:<td>'.$z['client_link'].($z['client_tel'] ? ', '.$z['client_tel'] : '').
+			'</table>'.
+			'<div class="day_left">'.
+				remindDayLeft($r['day']).
+				'<a class="action '.$r['action'].'" val="'.$r['id'].'">Действие</a>'.
+			'</div>'.
 		'</div>';
 	}
 

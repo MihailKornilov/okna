@@ -305,6 +305,7 @@ var hashLoc,
 				data_create:$('#data_create').val(),
 				sum:$('#sum').val(),
 				avans:$('#avans').val(),
+				cut:DOG.cut,
 				reason:v == 'reneg' ? $('#reason').val() : ''
 			};
 			if(!send.fio) err('Не указано Фио клиента', 'fio', type);

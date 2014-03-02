@@ -348,11 +348,14 @@
 #remind .ftab{border-spacing:10px}
 #remind .ftd{vertical-align:top;padding:0 5px}
 #remind .fcur.ftd{border:#cec solid 1px;background-color:#e8ffe8}
-.remind_unit{margin:0 10px;padding-bottom:20px}
-.remind_unit .head{display:block;padding:5px 8px;font-size:13px;font-weight:700}
-.remind_unit .to{margin:4px 8px}
+.remind_unit{margin:0 10px 10px;border-bottom:#f1f1f1 solid 1px}
+.remind_unit .head{padding:5px 8px;font-size:12px;color:#444}
+.remind_unit .head *{font-size:12px}
+.remind_unit .to{border-spacing:2px;margin:4px 6px}
+.remind_unit .label{width:45px}
 .remind_unit .dur{margin-left:10px;color:#777}
 .remind_unit .day_left{margin:4px 8px;color:#884}
+.remind_unit .oday{color:#999;margin-left:10px}
 .remind_unit .action{float:right}
 .remind_unit:not(:hover) .action{display:none}
 
