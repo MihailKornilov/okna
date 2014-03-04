@@ -326,11 +326,13 @@
 .zayav-status .label{color:#444;margin:10px 0 3px 20px}
 .zayav-status #day_calendar{color:#444;margin-left:20px}
 .zayav-status .c1{background-color:#E8E8FF}
-.zayav-status .c2{background-color:#CCFFCC}
-.zayav-status .c3{background-color:#FFDDDD}
+.zayav-status .c2{background-color:#CFC}
+.zayav-status .c3{background-color:#FDD}
 .zayav-status.busy *{color:#888;background-color:#EEE}
 .zayav-status .zstab{border-spacing:8px;display:none}
 .zayav-status .zamer_table{position:relative;top:-4px;left:10px}
+
+.remind-status .c0{background-color:#ddd}
 
 
 

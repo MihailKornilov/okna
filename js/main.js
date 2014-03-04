@@ -254,7 +254,7 @@ var hashLoc,
 				'<tr><td class="label">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="11" value="' + (DOG.sum ? DOG.sum : '') + '" /> руб.' +
 				'<tr><td class="label">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="11" value="' + (DOG.avans ? DOG.avans : '') + '" /> руб. <span class="prim">(не обязательно)</span>' +
 (v == 'reneg' ? '<tr><td class="label">Причина перезаключения:<td><input type="text" id="reason" />' : '') +
-(v == 'create' ? '<tr><td colspan="2"><a id="cut">' + cutHead + '</a>' : '') +
+				'<tr><td colspan="2"><a id="cut"></a>' +
 				'<tr><td colspan="2">' +
 					'<a id="preview">Предварительный просмотр договора</a>' +
 					'<form action="' + AJAX_MAIN + '" method="post" id="preview-form" target="_blank"></form>' +
@@ -268,17 +268,16 @@ var hashLoc,
 				submit:submit
 			});
 		$('#data_create')._calendar({lost:1});
-		if(v == 'create') {
-			$('#cut')
-				.click(cutCreate)
-				.vkHint({
-					width:180,
-					msg:'Разбить оставшуюся сумму платежа по заявке на части и создать по ним напоминания.',
-					delayShow:400,
-					top:-82,
-					left:118
-				});
-		}
+		$('#cut')
+			.click(cutCreate)
+			.vkHint({
+				width:180,
+				msg:'Разбить оставшуюся сумму платежа по заявке на части и создать по ним напоминания.',
+				delayShow:400,
+				top:-82,
+				left:118
+			});
+		cutHeadPrint();
 		$('#preview').click(function() {
 			var send = valuesTest('preview');
 			if(send) {
@@ -394,17 +393,21 @@ var hashLoc,
 			}
 			DOG.cut = cut.join();
 			var len = cut.length;
+			cutHeadPrint();
+			cutd.close();
+		}
+		function cutHeadPrint() {
+			var len = DOG.cut ? DOG.cut.split(',').length : 0;
 			$('#cut').html(!len ? cutHead :
-								 'Указан' + _end(len, ['а', 'ы']) + ' дат' + _end(len, ['а', 'ы']) + ' для ' + len + _end(len, ['-го', '-х', '-и']) +
-								 ' платеж' + _end(len, ['а', 'ей']) + '. <u>Изменить</u><div class="img_del' + _tooltip('Отменить разбивку', -61) + '</div>');
+				'Указан' + _end(len, ['а', 'ы']) + ' дат' + _end(len, ['а', 'ы']) + ' для ' + len + _end(len, ['-го', '-х', '-и']) +
+				' платеж' + _end(len, ['а', 'ей']) + '. <u>Изменить</u><div class="img_del' + _tooltip('Отменить разбивку', -61) + '</div>');
 			if(len)
 				$('#cut .img_del').click(function(e) {
 					e.stopPropagation();
 					DOG.cut = '';
 					$('#cut').html(cutHead);
 				});
-			cutd.close();
-		}
+		};
 		function err(msg, id, type) {
 			dialog.bottom.vkHint({
 				msg:'<span class="red">' + msg + '</span>',
@@ -1403,6 +1406,64 @@ $(document)
 					p.removeClass('busy');
 			}, 'json');
 		});
+	})
+
+	.on('click', '.cut_status', function() {
+		var t = $(this),
+			html =
+			'<div class="zayav-status remind-status">' +
+				'<div class="st c1" val="1">' +
+					'Указать другой день' +
+					'<div class="about">Перенести напоминание на другой день.</div>' +
+				'</div>' +
+				'<div class="st c2" val="2">' +
+					'Выполнено' +
+					'<div class="about">Задание выполнено успешно.</div>' +
+				'</div>' +
+				'<div class="st c0" val="0">' +
+					'Отмена' +
+					'<div class="about">Отмена напоминания по какой-либо причине.</div>' +
+				'</div>' +
+				'<table class="zstab">' +
+					'<tr><td class="label">Новый день:<td><input type="hidden" id="remind_day" />' +
+					'<tr><td><td><div class="vkButton"><button>Применить</button></div>' +
+				'</table>' +
+			'</div>',
+			dialog = _dialog({
+				top:30,
+				head:'Изменение статуса напоминания',
+				content:html,
+				butSubmit:'',
+				butCancel:'Закрыть'
+			});
+		$('#remind_day')._calendar();
+		$('.st').click(function() {
+			var	v = $(this).attr('val');
+			if(v == 1) {
+				$('.c2,.c3').hide();
+				$('.zstab').show();
+			} else
+				submit(v);
+		});
+		$('.remind-status .vkButton').click(function() {
+			$(this).addClass('busy');
+			submit(1);
+		});
+		function submit(status) {
+			var send = {
+				op:'remind_status',
+				id:t.attr('val'),
+				status:status,
+				day:$('#remind_day').val()
+			};
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					dialog.close();
+					_msg('Данные изменены!');
+					$('.left').html(res.html);
+				}
+			}, 'json');
+		}
 	})
 
 	.on('click', '#history_next', function() {

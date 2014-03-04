@@ -1250,6 +1250,7 @@ switch(@$_POST['op']) {
 					`pasp_data`,
 					`sum`,
 					`avans`,
+					`cut`,
 					`link`,
 					`viewer_id_add`
 				) VALUES (
@@ -1266,6 +1267,7 @@ switch(@$_POST['op']) {
 					'".addslashes($v['pasp_data'])."',
 					".$v['sum'].",
 					".$v['avans'].",
+					'".$v['cut']."',
 					'".time().'_dogovor_'.$v['nomer'].'_'.$v['data_create']."',
 					".VIEWER_ID."
 				)";
@@ -1357,8 +1359,8 @@ switch(@$_POST['op']) {
 							`txt`,
 							`day`
 						) VALUES (
-							".$v['zayav_id'].",
 							".$v['client_id'].",
+							".$v['zayav_id'].",
 							'".round(str_replace(',', '.', $ex[0]), 2)."',
 							'".$ex[1]."'
 						)";
@@ -1395,6 +1397,7 @@ switch(@$_POST['op']) {
 					`pasp_data`='".addslashes($v['pasp_data'])."',
 					`sum`=".$v['sum'].",
 					`avans`=".$v['avans'].",
+					`cut`='".$v['cut']."',
 					`link`='".time().'_dogovor_'.$v['nomer'].'_'.$v['data_create']."'
 				WHERE `id`=".$dog['id'];
 		query($sql);
@@ -1457,6 +1460,26 @@ switch(@$_POST['op']) {
 		_zayavBalansUpdate($v['zayav_id']);
 
 		unlink(PATH_DOGOVOR.$dog['link'].'.doc');
+
+
+		if($v['cut'])
+			foreach(explode(',', $v['cut']) as $r) {
+				$ex = explode(':', $r);
+				$sql = "INSERT INTO `remind` (
+							`client_id`,
+							`zayav_id`,
+							`txt`,
+							`day`
+						) VALUES (
+							".$v['client_id'].",
+							".$v['zayav_id'].",
+							'".round(str_replace(',', '.', $ex[0]), 2)."',
+							'".$ex[1]."'
+						)";
+				query($sql);
+			}
+		else
+			query("DELETE FROM `remind` WHERE `zayav_id`=".$v['zayav_id']);
 
 		$changes = '';
 		if($dog['fio'] != $v['fio'])
@@ -1539,6 +1562,45 @@ switch(@$_POST['op']) {
 			'noweek' => 1,
 			'func' => 'remind_days'
 		)));
+		jsonSuccess($send);
+		break;
+	case 'remind_status':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']) && !$_POST['id'])
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) && !$_POST['status'])
+			jsonError();
+		if(!preg_match(REGEXP_DATE, $_POST['day']) && !$_POST['day'])
+			jsonError();
+		$id = intval($_POST['id']);
+		$day = $_POST['day'];
+		$status = intval($_POST['status']);
+
+		if(!$r = query_assoc("SELECT * FROM `remind` WHERE `id`=".$id))
+			jsonError();
+
+		if($r['status'] != $status || $status == 1) {
+			$sql = "UPDATE `remind`
+			        SET `status`=".$status."
+						".($status == 1 ? ",`day`='".$day."'" : '')."
+			        WHERE `id`=".$id;
+			query($sql);
+			if($status == 1 && $r['day'] != $day)
+				history_insert(array(
+					'type' => 48,
+					'value' => $day,
+					'zayav_id' => $r['zayav_id'],
+					'client_id' => $r['client_id']
+				));
+			if($status != 1)
+				history_insert(array(
+					'type' => 49,
+					'value' => $status == 2 ? 'выполнено' : 'отменено',
+					'zayav_id' => $r['zayav_id'],
+					'client_id' => $r['client_id']
+				));
+		}
+
+		$send['html'] = utf8(remind_spisok());
 		jsonSuccess($send);
 		break;
 

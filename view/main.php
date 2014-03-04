@@ -1716,7 +1716,7 @@ function zayav_info($zayav_id) {
 			'pasp_data:"'.(empty($dog) ? $client['pasp_data'] : $dog['pasp_data']).'",'.
 			'sum:"'.(empty($dog) ? '' : round($dog['sum'], 2)).'",'.
 			'avans:"'.(empty($dog) || $dog['avans'] == 0 ? '' : round($dog['avans'], 2)).'",'.
-			'cut:""'.
+			'cut:"'.(empty($dog) ? '' : $dog['cut']).'"'.
 		'},'.
 		'OPL={'.
 			'from:"zayav",'.
@@ -1905,6 +1905,8 @@ function dogovorFilter($v) {
 			$ex = explode(':', $r);
 			if(!preg_match(REGEXP_CENA, $v['sum']) || $ex[0] == 0 || !preg_match(REGEXP_DATE, $ex[1]))
 				return 'Ошибка: некорректные данные при разбивке платежа.';
+			if(strtotime($ex[1]) < TODAY_UNIXTIME)
+				return 'Ошибка: в разбивке платежа указан устаревший день.';
 		}
 	$send = array(
 		'id' => intval($v['id']),
@@ -2254,7 +2256,7 @@ function remind_spisok($filter=array()) {
 		) UNION (
 			SELECT
 				'cut' AS `type`,
-				'' AS `action`,
+				'cut_status' AS `action`,
 				`id`,
 				`client_id`,
 				`zayav_id`,
@@ -2263,7 +2265,7 @@ function remind_spisok($filter=array()) {
 				`txt`,
 				`day`
 			FROM `remind`
-			WHERE `id`
+			WHERE `status`=1
 			".(isset($filter['day']) ? "AND `day` LIKE '".$filter['day']."%'" : '')."
 		)
 		ORDER BY `day`";
@@ -2592,11 +2594,14 @@ function history_types($v) {
 			($v['value1'] ? '<em>('.$v['value1'].')</em> ' : '').
 			'у сотрудника <u>'._viewer($v['value2'], 'name').'</u>.';
 		case 45: return 'Установка баланса з/п в сумме <b>'.$v['value1'].'</b> руб. '.
-				 'для сотрудника <u>'._viewer($v['value'], 'name').'</u>. ';
+				        'для сотрудника <u>'._viewer($v['value'], 'name').'</u>. ';
 
 		case 46: return 'Автоматическое начисление з/п сотруднику <u>'._viewer($v['value1'], 'name').'</u> '.
 						'в размере <b>'.$v['value'].'</b> руб. <em>('.$v['value2'].')</em>.';
 		case 47: return 'Зафиксирован отчёт за <a href="'.$v['value1'].'">'.$v['value'].'</a>.';
+
+		case 48: return 'Указан новый день: <u>'.FullData($v['value']).'</u> для напоминания в заявке '.$v['zayav_link'].'.';
+		case 49: return 'Напоминание <u>'.$v['value'].'</u> в заявке '.$v['zayav_link'].'.';
 
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -3655,7 +3660,7 @@ function expense_spisok($filter=array()) {
 	$sql = "SELECT *
 			FROM `money`
 			WHERE ".$cond."
-			ORDER BY `dtime_add` ASC
+			ORDER BY `dtime_add` DESC
 			LIMIT ".$start.",".$limit;
 	$q = query($sql);
 	$rashod = array();
