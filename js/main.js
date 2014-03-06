@@ -407,7 +407,7 @@ var hashLoc,
 					DOG.cut = '';
 					$('#cut').html(cutHead);
 				});
-		};
+		}
 		function err(msg, id, type) {
 			dialog.bottom.vkHint({
 				msg:'<span class="red">' + msg + '</span>',
@@ -543,10 +543,26 @@ var hashLoc,
 			sum += tr.find('.sum').html() * 1;
 		}
 		if(count)
-			html = 'Выбран' + _end(count, ['', 'о']) + ' <b>' + count + '</b> платеж' + _end(count, ['', 'а', 'ей']) +
+			html = 'Выбран' + _end(count, ['', 'о']) + ' <b>' + count + '</b> запис' + _end(count, ['ь', 'и', 'ей']) +
 				' на сумму <b>' + sum + '</b> руб.' +
 				'<a class="salary-list" val="' + ids.join() + '">Распечатать лист выдачи з/п</a>';
 		$('#salary-sel').html(html);
+	},
+	salarySpisok = function() {
+		MON = $('#salmon').val() * 1;
+		YEAR = $('#year').val();
+		var send = {
+			op:'salary_spisok',
+			worker_id:WORKER_ID,
+			year:$('#year').val(),
+			mon:$('#salmon').val()
+		};
+		$.post(AJAX_MAIN, send, function (res) {
+			if(res.success) {
+				$('.headName em').html(MONTH_DEF[MON] + ' ' + YEAR);
+				$('#spisok').html(res.html);
+			}
+		}, 'json');
 	};
 
 $.fn.clientSel = function(o) {
@@ -2044,6 +2060,8 @@ $(document)
 				'<table class="salary-tab">' +
 					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
 					'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="50">' +
+					'<tr><td class="label">Месяц:<td><input type="hidden" id="tabmon" value="' + MON + '" /> ' +
+													'<input type="hidden" id="tabyear" value="' + YEAR + '" />' +
 				'</table>',
 			dialog = _dialog({
 				head:'Внесение начисления для сотрудника',
@@ -2053,12 +2071,22 @@ $(document)
 
 		$('#sum').focus();
 		$('#sum,#about').keyEnter(submit);
+		$('#tabmon')._select({
+			width:80,
+			spisok:MON_SPISOK
+		});
+		$('#tabyear')._select({
+			width:60,
+			spisok:YEAR_SPISOK
+		});
 		function submit() {
 			var send = {
 				op:'salary_up',
 				worker:WORKER_ID,
 				sum:$('#sum').val(),
-				about:$('#about').val()
+				about:$('#about').val(),
+				mon:$('#tabmon').val(),
+				year:$('#tabyear').val()
 			};
 			if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
 			else {
@@ -2087,10 +2115,12 @@ $(document)
 	.on('click', '.salary .down', function() {
 		var html =
 				'<table class="salary-tab">' +
-					'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice">' +
+					'<tr><td class="label">Со счёта:<TD><input type="hidden" id="invoice">' +
 						'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -56) + '</a>' +
-					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
-					'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
+					'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="8"> руб.' +
+					'<tr><td class="label">Описание:<td><input type="text" id="about" maxlength="100">' +
+					'<tr><td class="label">Месяц:<td><input type="hidden" id="tabmon" value="' + MON + '" /> ' +
+													'<input type="hidden" id="tabyear" value="' + YEAR + '" />' +
 				'</table>',
 			dialog = _dialog({
 				head:'Выдача зарплаты сотруднику',
@@ -2107,6 +2137,14 @@ $(document)
 			}
 		});
 		$('#sum,#about').keyEnter(submit);
+		$('#tabmon')._select({
+			width:80,
+			spisok:MON_SPISOK
+		});
+		$('#tabyear')._select({
+			width:60,
+			spisok:YEAR_SPISOK
+		});
 
 		function submit() {
 			var send = {
@@ -2114,7 +2152,9 @@ $(document)
 				worker:WORKER_ID,
 				invoice:$('#invoice').val() * 1,
 				sum:$('#sum').val(),
-				about:$('#about').val()
+				about:$('#about').val(),
+				mon:$('#tabmon').val(),
+				year:$('#tabyear').val()
 			};
 			if(!send.invoice) err('Укажите с какого счёта производится выдача.');
 			else if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
@@ -2144,8 +2184,10 @@ $(document)
 	.on('click', '.salary .deduct', function() {
 		var html =
 				'<table class="salary-tab">' +
-					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
-					'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
+					'<tr><td class="label">Сумма:<TD><input type="text" id="sum" class="money" maxlength="8"> руб.' +
+					'<tr><td class="label">Описание:<TD><input type="text" id="about" maxlength="100">' +
+					'<tr><td class="label">Месяц:<td><input type="hidden" id="tabmon" value="' + MON + '" /> ' +
+																'<input type="hidden" id="tabyear" value="' + YEAR + '" />' +
 				'</table>',
 			dialog = _dialog({
 				head:'Внесение вычета из зарплаты',
@@ -2155,13 +2197,22 @@ $(document)
 
 		$('#sum').focus();
 		$('#sum,#about').keyEnter(submit);
-
+		$('#tabmon')._select({
+			width:80,
+			spisok:MON_SPISOK
+		});
+		$('#tabyear')._select({
+			width:60,
+			spisok:YEAR_SPISOK
+		});
 		function submit() {
 			var send = {
 				op:'salary_deduct',
 				worker:WORKER_ID,
 				sum:$('#sum').val(),
-				about:$('#about').val()
+				about:$('#about').val(),
+				mon:$('#tabmon').val(),
+				year:$('#tabyear').val()
 			};
 			if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
 			else {
@@ -2231,23 +2282,6 @@ $(document)
 			});
 		}
 	})
-	.on('click', '.salary ._next', function() {
-		var next = $(this),
-			send = {
-				op:'salary_spisok',
-				page:$(this).attr('val'),
-				worker_id:WORKER_ID
-			};
-		if(next.hasClass('busy'))
-			return;
-		next.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				next.after(res.html).remove();
-			else
-				next.removeClass('busy');
-		}, 'json');
-	})
 	.on('click', '.salary ._check:not(#salary_all_check)', salaryCheck)
 	.on('click', '.salary #salary_all_check', function() {
 		var t = $(this),
@@ -2263,6 +2297,62 @@ $(document)
 		if(!ids)
 			return;
 		location.href = SITE + '/view/salary_list.php?' + VALUES + '&worker_id=' + WORKER_ID + '&ids=' + ids;
+	})
+	.on('click', '.salary .zp_del', function() {
+		var t = $(this),
+			dialog = _dialog({
+				top:110,
+				width:250,
+				head:'Удаление з/п',
+				content:'<CENTER>Подтвердите удаление записи.</CENTER>',
+				butSubmit:'Удалить',
+				submit:submit
+			});
+		while(t[0].tagName != 'TR')
+			t = t.parent();
+		function submit() {
+			var send = {
+				op:'expense_del',
+				id:t.attr('val')
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					dialog.close();
+					_msg('Удалено.');
+					t.remove();
+				} else
+					dialog.abort();
+			}, 'json');
+		}
+	})
+	.on('click', '.salary .ze_del', function() {
+		var t = $(this),
+			dialog = _dialog({
+				top:110,
+				width:250,
+				head:'Удаление',
+				content:'<CENTER>Подтвердите удаление записи.</CENTER>',
+				butSubmit:'Удалить',
+				submit:submit
+			});
+		while(t[0].tagName != 'TR')
+			t = t.parent();
+		function submit() {
+			var send = {
+				op:'salary_del',
+				id:t.attr('val')
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					dialog.close();
+					_msg('Удалено.');
+					t.remove();
+				} else
+					dialog.abort();
+			}, 'json');
+		}
 	})
 
 	.ready(function() {
@@ -2951,6 +3041,9 @@ $(document)
 							'<tr><td class="label">Категория:<TD><INPUT type="hidden" id="cat">' +
 								'<a href="' + URL + '&p=setup&d=expense" class="img_edit' + _tooltip('Настройка категорий расходов', -95) + '</a>' +
 							'<tr class="tr-work dn"><td class="label">Сотрудник:<TD><INPUT type="hidden" id="work">' +
+							'<tr class="tr-work dn"><td class="label">Месяц:' +
+													'<td><input type="hidden" id="tabmon" value="' + ((new Date()).getMonth() + 1) + '" /> ' +
+														'<input type="hidden" id="tabyear" value="' + ((new Date()).getFullYear()) + '" />' +
 							'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
 							'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice">' +
 								'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -56) + '</a>' +
@@ -2985,7 +3078,14 @@ $(document)
 					}
 				});
 				$('#sum,#about').keyEnter(submit);
-
+				$('#tabmon')._select({
+					width:80,
+					spisok:MON_SPISOK
+				});
+				$('#tabyear')._select({
+					width:60,
+					spisok:YEAR_SPISOK
+				});
 				function submit() {
 					var send = {
 						op:'expense_add',
@@ -2993,7 +3093,9 @@ $(document)
 						about:$('#about').val(),
 						worker:$('#work').val(),
 						invoice:$('#invoice').val() * 1,
-						sum:$('#sum').val()
+						sum:$('#sum').val(),
+						mon:$('#tabmon').val(),
+						year:$('#tabyear').val()
 					};
 					if(!send.category && !send.about) { err('Выберите категорию или укажите описание.'); $('#about').focus(); }
 					else if(!send.invoice) err('Укажите с какого счёта производится оплата.');
@@ -3168,6 +3270,14 @@ $(document)
 						remove:1
 					});
 				}
+			});
+		}
+		if($('#report.salary').length) {
+			$('#year').years({
+				func:salarySpisok
+			});
+			$('#salmon')._radio({
+				func:salarySpisok
 			});
 		}
 	});

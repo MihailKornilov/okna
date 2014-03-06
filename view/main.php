@@ -2393,9 +2393,11 @@ function report() {
 			break;
 		case 'month': $left = report_month(); break;
 		case 'salary':
-			if(!empty($_GET['id']) && preg_match(REGEXP_NUMERIC, $_GET['id']))
+			if(!empty($_GET['id']) && preg_match(REGEXP_NUMERIC, $_GET['id'])) {
 				$left = salary_worker(intval($_GET['id']));
-			else
+				$right = '<input type="hidden" id="year" />'.
+						 _radio('salmon', _monthDef(0, 1), strftime('%m'), 1);
+			} else
 				$left = salary();
 			break;
 	}
@@ -2602,6 +2604,9 @@ function history_types($v) {
 
 		case 48: return 'Указан новый день: <u>'.FullData($v['value']).'</u> для напоминания в заявке '.$v['zayav_link'].'.';
 		case 49: return 'Напоминание <u>'.$v['value'].'</u> в заявке '.$v['zayav_link'].'.';
+
+		case 50: return 'Удаление начисления з/п в сумме <b>'.$v['value'].'</b> руб. у сотрудника <u>'._viewer($v['value1'], 'name').'</u>.';
+		case 51: return 'Удаление вычета з/п в сумме <b>'.$v['value'].'</b> руб. у сотрудника <u>'._viewer($v['value1'], 'name').'</u>.';
 
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -3593,7 +3598,14 @@ function expenseMonthSum($v=array()) {
 }//expenseMonthSum()
 function expense() {
 	$data = expense_spisok();
+	$year = array();
+	for($n = 2014; $n <= strftime('%Y'); $n++)
+		$year[$n] = $n;
 	return
+	'<script type="text/javascript">'.
+		'var MON_SPISOK='._selJson(_monthDef(0, 1)).','.
+			'YEAR_SPISOK='._selJson($year).';'.
+	'</script>'.
 	'<div class="headName">Список расходов организации<a class="add">Новый расход</a></div>'.
 	'<div id="spisok">'.$data['spisok'].'</div>';
 }//expense()
@@ -3798,189 +3810,161 @@ function salary_worker($worker_id) {
 		return 'Сотрудника не существует.';
 	if(_viewerRules($worker_id, 'RULES_NOSALARY'))
 		return 'У сотрудника <u>'._viewer($worker_id, 'name').'</u> не начисляется зарплата.';
+	$year = array();
+	for($n = 2014; $n <= strftime('%Y'); $n++)
+		$year[$n] = $n;
 	return
 		'<script type="text/javascript">'.
 			'var WORKER_ID='.$worker_id.','.
+				'MON='.intval(strftime('%m')).','.
+				'MON_SPISOK='._selJson(_monthDef(0, 1)).','.
+				'YEAR='.strftime('%Y').','.
+				'YEAR_SPISOK='._selJson($year).','.
 				'RATE='.round(_viewer($worker_id, 'rate'), 2).','.
 				'RATE_DAY='._viewer($worker_id, 'rate_day').';'.
 		'</script>'.
-		'<div class="headName">История по зарплате для сотрудника '._viewer($worker_id, 'name').'</div>'.
+		'<div class="headName">'._viewer($worker_id, 'name').': история з/п за <em>'._monthDef(strftime('%m'), 1).' '.strftime('%Y').'</em>.</div>'.
 		'<div id="spisok">'.salary_worker_spisok(array('worker_id'=>$worker_id)).'</div>';
 }//salary_worker()
 function salary_worker_spisok($v) {
 	$filter = array(
-		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
-		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 50,
-		'worker_id' => !empty($v['worker_id']) && preg_match(REGEXP_NUMERIC, $v['worker_id']) ? intval($v['worker_id']) : 0
+		'worker_id' => !empty($v['worker_id']) && preg_match(REGEXP_NUMERIC, $v['worker_id']) ? intval($v['worker_id']) : 0,
+		'mon' => empty($v['mon']) ? strftime('%Y-%m') : $v['mon']
 	);
 
 	if(!$filter['worker_id'])
 		return 'Некорректный id сотрудника';
 
-	$send = '';
-	if($filter['page'] == 1) {
-		$start = _viewer($filter['worker_id'], 'salary_balans_start');
-		if($start != -1) {
-			$sMoney = query_value("
-				SELECT IFNULL(SUM(`sum`),0)
-				FROM `money`
-				WHERE `worker_id`=".$filter['worker_id']."
-				  AND `sum`<0
-				  AND !`deleted`");
-			$sExpense = query_value("
-				SELECT IFNULL(SUM(`sum`),0)
-				FROM `zayav_expense`
-				WHERE `worker_id`=".$filter['worker_id']);
-			$balans = round($sMoney + $sExpense + $start, 2);
-			$balans = '<b style="color:#'.($balans < 0 ? 'A00' : '090').'">'.$balans.'</b> руб.';
-		} else
-			$balans = '<a class="start-set">установить</a>';
-		$rate = _viewer($filter['worker_id'], 'rate');
-		$send =
-			'<div class="uhead">'.
-				'<h1>'.
-					'Ставка: '.($rate != 0 ? '<b>'.round($rate, 2).'</b> руб.<span>('._viewer($filter['worker_id'], 'rate_day').'-е число месяца)</span>' : 'нет').
-					'<a class="rate-set">Изменить ставку</a>'.
-				'</h1>'.
-				'Баланс: '.$balans.
-				'<div class="a">'.
-					'<a class="up">Начислить</a> :: '.
-					'<a class="down">Выдать з/п</a> :: '.
-					'<a class="deduct">Внести вычет</a>'.
-				'</div>'.
-			'</div>'.
-			'<div id="salary-sel"></div>';
-	}
+	define('BONUS', _viewerRules($filter['worker_id'], 'RULES_BONUS'));
 
-	$cMoney = query_value("
-		SELECT COUNT(`id`)
-		FROM `money`
-		WHERE `worker_id`=".$filter['worker_id']."
-		  AND `sum`<0
-		  AND `deleted`=0");
-	$cExpense = query_value("
-		SELECT COUNT(`id`)
-		FROM `zayav_expense`
-		WHERE `worker_id`=".$filter['worker_id']);
-
-	$all = $cMoney + $cExpense;
-	if(!$all)
-		return $send.'Список пуст.';
-
-	if($filter['page'] == 1)
-		$send .= '<table class="_spisok _money">'.
-			'<tr><th>'._check('salary_all').
-				'<th>Вид'.
-				'<th>Сумма'.
-				'<th>Описание';
-				//'<th>Дата<br />внесения';
-
-	$start = ($filter['page'] - 1) * $filter['limit'];
-	$sql = "(SELECT
-				'З/п' AS `type`,
-				0 AS `id`,
-				`sum`,
-				`prim` AS `about`,
-				0 AS `zayav_id`,
-				`dtime_add`,
-				'0000-00-00' AS `status_day`,
-				'0000-00-00' AS `zayav_add`
+	$start = _viewer($filter['worker_id'], 'salary_balans_start');
+	if($start != -1) {
+		$sMoney = query_value("
+			SELECT IFNULL(SUM(`sum`),0)
 			FROM `money`
 			WHERE `worker_id`=".$filter['worker_id']."
 			  AND `sum`<0
-			  AND !`deleted`
+			  AND !`deleted`");
+		$sExpense = query_value("
+			SELECT IFNULL(SUM(`sum`),0)
+			FROM `zayav_expense`
+			WHERE `worker_id`=".$filter['worker_id']);
+		$balans = round($sMoney + $sExpense + $start, 2);
+		$balans = '<b style="color:#'.($balans < 0 ? 'A00' : '090').'">'.$balans.'</b> руб.';
+	} else
+		$balans = '<a class="start-set">установить</a>';
+	$rate = _viewer($filter['worker_id'], 'rate');
+	$send =
+		'<div class="uhead">'.
+			'<h1>'.
+				'Ставка: '.($rate != 0 ? '<b>'.round($rate, 2).'</b> руб.<span>('._viewer($filter['worker_id'], 'rate_day').'-е число месяца)</span>' : 'нет').
+				'<a class="rate-set">Изменить ставку</a>'.
+			'</h1>'.
+			'Баланс: '.$balans.
+			'<div class="a">'.
+				'<a class="up">Начислить</a> :: '.
+				'<a class="down">Выдать з/п</a> :: '.
+				'<a class="deduct">Внести вычет</a>'.
+			'</div>'.
+		'</div>'.
+		'<div id="salary-sel"></div>';
+
+	$sql = "(SELECT
+				'З/п' AS `type`,
+				`id`,
+				`sum`,
+				`prim` AS `about`,
+				0 AS `zayav_id`,
+				`mon`,
+				' zp_del' AS `del`
+			FROM `money`
+			WHERE !`deleted`
+			  AND `worker_id`=".$filter['worker_id']."
+			  AND `sum`<0
+			  AND `mon` LIKE '".$filter['mon']."%'
 		) UNION (
 			SELECT
 				'Начисление' AS `type`,
 				`e`.`id`,
 			    `e`.`sum`,
-				`txt` AS `about`,
+				'".(BONUS ? 'от' : 'уст:')."' AS `about`,
 				`e`.`zayav_id`,
-				`e`.`dtime_add`,
-				`z`.`status_day`,
-				`z`.`dtime_add` AS `zayav_add`
-			FROM `zayav_expense` `e`
-				LEFT JOIN `zayav` `z`
-				ON `z`.`id`=`e`.`zayav_id`
+				`z`.`".(BONUS ? 'dtime_add' : 'status_day')."` AS `mon`,
+				'' AS `del`
+			FROM `zayav_expense` `e`,
+				 `zayav` `z`
+			WHERE `z`.`id`=`e`.`zayav_id`
+			  AND `z`.`".(BONUS ? 'dtime_add' : 'status_day')."` LIKE '".$filter['mon']."%'
+			  AND `e`.`worker_id`=".$filter['worker_id']."
+			  AND `e`.`sum`>0
+			  AND `mon`='0000-00-00'
+			GROUP BY `e`.`id`
+		) UNION (
+			SELECT
+				'Начисление' AS `type`,
+				`id`,
+			    `sum`,
+				`txt` AS `about`,
+				0 AS `zayav_id`,
+				`mon`,
+				' ze_del' AS `del`
+			FROM `zayav_expense`
 			WHERE `worker_id`=".$filter['worker_id']."
 			  AND `sum`>0
-			GROUP BY `e`.`id`
+			  AND `mon` LIKE '".$filter['mon']."%'
 		) UNION (
 			SELECT
 				'Вычет' AS `type`,
 				`id`,
 			    `sum`,
 				`txt` AS `about`,
-				`zayav_id`,
-				`dtime_add`,
-				'0000-00-00' AS `status_day`,
-				'0000-00-00' AS `zayav_add`
+				0 AS `zayav_id`,
+				`mon`,
+				' ze_del' AS `del`
 			FROM `zayav_expense`
 			WHERE `worker_id`=".$filter['worker_id']."
 			  AND `sum`<0
+			  AND `mon` LIKE '".$filter['mon']."%'
 		)
-		ORDER BY `dtime_add` DESC
-		LIMIT ".$start.",".$filter['limit'];
+		ORDER BY `mon` DESC";
 	$q = query($sql);
+	if(!mysql_num_rows($q))
+		return $send.'<div class="_empty">Список пуст.</div>';
 	$spisok = array();
 	while($r = mysql_fetch_assoc($q)) {
-		$key = $r['dtime_add'];
-		if($r['zayav_id'])
-			if(_viewerRules($v['worker_id'], 'RULES_BONUS'))
-				$key = $r['zayav_add'];
-			else {
-				$key = $r['status_day'];
-				if($key == '0000-00-00')
-					continue;
-			}
+		$key = $r['mon'];
 		$key = strtotime($key);
 		while(isset($spisok[$key]))
-			$key--;
+			$key++;
 		$spisok[$key] = $r;
 	}
 
 	$spisok = _zayavLink($spisok);
 
+	$send .= '<table class="_spisok _money">'.
+		'<tr><th>'._check('salary_all').
+			'<th>Вид'.
+			'<th>Сумма'.
+			'<th>Описание'.
+			'<th>';
+
+
 	krsort($spisok);
-	$curMon = strtotime(strftime('%Y-%m-01'));
 	$toAll = ' to-all';
 	foreach($spisok as $r) {
-		$about = '';
-		if($r['zayav_id']) {
-			if(_viewerRules($v['worker_id'], 'RULES_BONUS')) {
-				$ztype = 'внесена';
-				$zdata = $r['zayav_add'];
-			} else {
-				$ztype = 'выполнена';
-				$zdata = $r['zayav_status_day'];
-				if($zdata == '0000-00-00')
-					continue;
-			}
-			$about .= $r['zayav_link'].'. Заявка '.$ztype.' '.FullData($zdata, 1);
-			$old = strtotime($zdata) < $curMon;
-		} else
-			$old = strtotime($r['dtime_add']) < $curMon;
-		$about .= $r['about'];
-
-		if(!$r['id'] || $old) //если встречается платёж, то дальнейшие начисления общей галочкой не выбираются
+		$about = $r['zayav_id'] ? $r['zayav_link'].' '.$r['about'].' '.FullData($r['mon'], 1) : $r['about'];
+		if($r['type'] == 'З/п') //если встречается платёж, то дальнейшие начисления общей галочкой не выбираются
 			$toAll = '';
 		$send .=
-			'<tr'.($old ? ' class="old"' : '').' val="'.$r['id'].'">'.
-				'<td class="ch'.$toAll.'">'.($r['id'] ? _check('s'.$r['id']) : '').
+			'<tr val="'.$r['id'].'">'.
+				'<td class="ch'.$toAll.'">'.($r['type'] != 'З/п' ? _check('s'.$r['id']) : '').
 				'<td class="type">'.$r['type'].
 				'<td class="sum">'.round($r['sum'], 2).
-				'<td class="about">'.$about;
-				//'<td class="dtime">'.FullDataTime($r['dtime_add'], 1);
+				'<td class="about">'.$about.
+				'<td class="ed">'.
+					($r['del'] ? '<div class="img_del'.$r['del']._tooltip('Удалить', -29).'</div>' : '');
 	}
-	if($start + $filter['limit'] < $all) {
-		$c = $all - $start - $filter['limit'];
-		$c = $c > $filter['limit'] ? $filter['limit'] : $c;
-		$send .=
-			'<tr class="_next" val="'.($filter['page'] + 1).'"><td colspan="5">'.
-				'<span>Показать ещё '.$c.' запис'._end($c, 'ь', 'и', 'ей').'</span>';
-	}
-	if($filter['page'] == 1)
-		$send .= '</table>';
+	$send .= '</table>';
 	return $send;
 }//salary_worker_spisok()
 

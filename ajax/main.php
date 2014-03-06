@@ -970,9 +970,9 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'set_status':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && $_POST['zayav_id'] == 0)
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) || $_POST['status'] == 0)
+		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) || !$_POST['status'])
 			jsonError();
 
 		$zayav_id = intval($_POST['zayav_id']);
@@ -1961,6 +1961,10 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(empty($_POST['invoice']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice']))
 			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
+			jsonError();
 		$category = intval($_POST['category']);
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		if(!$category && empty($about))
@@ -1968,18 +1972,23 @@ switch(@$_POST['op']) {
 		$worker = intval($_POST['worker']);
 		$invoice = intval($_POST['invoice']);
 		$sum = str_replace(',', '.', $_POST['sum']);
+		$mon = $category == 1 ? $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']).'-'.strftime('%d') : '0000-00-00';
+		$about = ($category == 1 ? _monthDef($_POST['mon']).' '.$_POST['year'].($about ? ', ' : '') : '').$about;
 		$sql = "INSERT INTO `money` (
 					`sum`,
 					`prim`,
 					`invoice_id`,
 					`expense_id`,
-					`worker_id`,`viewer_id_add`
+					`worker_id`,
+					`mon`,
+					`viewer_id_add`
 				) VALUES (
 					-".$sum.",
 					'".addslashes($about)."',
 					".$invoice.",
 					".$category.",
 					".$worker.",
+					'".$mon."',
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -2217,17 +2226,24 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(empty($_POST['sum']) || !preg_match(REGEXP_NUMERIC, $_POST['sum']))
 			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
+			jsonError();
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		$worker = intval($_POST['worker']);
 		$sum = intval($_POST['sum']);
+		$mon = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']);
 		$sql = "INSERT INTO `zayav_expense` (
 					`worker_id`,
 					`sum`,
-					`txt`
+					`txt`,
+					`mon`
 				) VALUES (
 					".$worker.",
 					".$sum.",
-					'".addslashes($about)."'
+					'".addslashes($about)."',
+					'".$mon.'-'.strftime('%d')."'
 				)";
 		query($sql);
 
@@ -2238,7 +2254,10 @@ switch(@$_POST['op']) {
 			'value2' => $worker
 		));
 
-		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
+		$send['html'] = utf8(salary_worker_spisok(array(
+			'worker_id'=>$worker,
+			'mon' => $mon
+		)));
 		jsonSuccess($send);
 		break;
 	case 'salary_down':
@@ -2248,16 +2267,23 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(empty($_POST['invoice']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice']))
 			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
+			jsonError();
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		$worker = intval($_POST['worker']);
 		$invoice = intval($_POST['invoice']);
 		$sum = intval($_POST['sum']) * -1;
+		$mon = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']);
+		$about = _monthDef($_POST['mon']).' '.$_POST['year'].($about ? ', ' : '').$about;
 		$sql = "INSERT INTO `money` (
 					`sum`,
 					`prim`,
 					`invoice_id`,
 					`expense_id`,
 					`worker_id`,
+					`mon`,
 					`viewer_id_add`
 				) VALUES (
 					".$sum.",
@@ -2265,6 +2291,7 @@ switch(@$_POST['op']) {
 					".$invoice.",
 					1,
 					".$worker.",
+					'".$mon.'-'.strftime('%d')."',
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -2282,7 +2309,10 @@ switch(@$_POST['op']) {
 			'value2' => $worker
 		));
 
-		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
+		$send['html'] = utf8(salary_worker_spisok(array(
+			'worker_id' => $worker,
+			'mon' => $mon
+		)));
 		jsonSuccess($send);
 		break;
 	case 'salary_deduct':
@@ -2290,17 +2320,24 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(empty($_POST['sum']) || !preg_match(REGEXP_NUMERIC, $_POST['sum']))
 			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
+			jsonError();
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		$worker = intval($_POST['worker']);
 		$sum = intval($_POST['sum']);
+		$mon = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']);
 		$sql = "INSERT INTO `zayav_expense` (
 					`worker_id`,
 					`sum`,
-					`txt`
+					`txt`,
+					`mon`
 				) VALUES (
 					".$worker.",
 					-".$sum.",
-					'".addslashes($about)."'
+					'".addslashes($about)."',
+					'".$mon.'-'.strftime('%d')."'
 				)";
 		query($sql);
 
@@ -2311,7 +2348,10 @@ switch(@$_POST['op']) {
 			'value2' => $worker
 		));
 
-		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
+		$send['html'] = utf8(salary_worker_spisok(array(
+			'worker_id'=>$worker,
+			'mon' => $mon
+		)));
 		jsonSuccess($send);
 		break;
 	case 'salary_start_set':
@@ -2353,8 +2393,35 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'salary_spisok':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
+			jsonError();
+		$_POST['mon'] = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').$_POST['mon'];
 		$send['html'] = utf8(salary_worker_spisok($_POST));
 		jsonSuccess($send);
+		break;
+	case 'salary_del':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+			jsonError();
+		$id = intval($_POST['id']);
+
+		$sql = "SELECT *
+				FROM `zayav_expense`
+				WHERE `id`=".$id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "DELETE FROM `zayav_expense` WHERE `id`=".$id;
+		query($sql);
+
+		history_insert(array(
+			'type' => $r['sum'] > 0 ? 50 : 51,
+			'value' => round(abs($r['sum']), 2),
+			'value1' => $r['worker_id']
+		));
+
+		jsonSuccess();
 		break;
 
 	case 'pin_enter':

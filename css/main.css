@@ -419,6 +419,7 @@
 #expense-add-tab #about{width:230px}
 #expense-add-tab .img_edit{position:relative;top:-4px;left:4px}
 .salary#report .headName{margin:10px}
+.salary#report .headName em{font-size:12px;font-weight:bold}
 .salary #spisok{margin:10px}
 .salary .fio{width:150px}
 .salary .rate{text-align:right}
@@ -434,8 +435,9 @@
 .salary .uhead span{color:#888;margin-left:8px}
 .salary #salary-sel{margin-bottom:5px}
 .salary #salary-sel a{float:right}
-.salary .ch{text-align:center}
-.salary .old{background-color:#e4e4e4;opacity:.6}
+.salary .years{margin-top:25px}
+.salary .ch{text-align:center;width:14px}
+.salary ._empty{margin:0}
 .salary-tab{border-spacing:8px}
 .salary-tab #about{width:230px}
 .salary-tab #day{width:30px}
