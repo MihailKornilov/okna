@@ -14,8 +14,9 @@ ob_start();
 register_shutdown_function('countCronTime');
 register_shutdown_function('toMailSend');
 
-define('YEAR', strftime('%Y'));
-define('MON', _monthDef(strftime('%m')));
+$time = strtotime(strftime('%Y-%m-01 00:00:00')) - 10000;
+define('YEAR', strftime('%Y', $time));
+define('MON', _monthDef(strftime('%m', $time)));
 define('DAY', intval(strftime('%d')));
 
 $sql = "SELECT * FROM `vk_user` WHERE `worker`=1 AND `rate`>0 AND `rate_day`=".DAY;
@@ -25,11 +26,13 @@ while($r = mysql_fetch_assoc($q)) {
 	$sql = "INSERT INTO `zayav_expense` (
 				`worker_id`,
 				`sum`,
-				`txt`
+				`txt`,
+				`mon`
 			) VALUES (
 				".$r['viewer_id'].",
 				".$r['rate'].",
-				'".$about."'
+				'".$about."',
+				'".strftime('%Y-%m-%d', $time)."'
 			)";
 	query($sql);
 	history_insert(array(

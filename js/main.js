@@ -543,24 +543,29 @@ var hashLoc,
 			sum += tr.find('.sum').html() * 1;
 		}
 		if(count)
-			html = 'Выбран' + _end(count, ['', 'о']) + ' <b>' + count + '</b> запис' + _end(count, ['ь', 'и', 'ей']) +
+			html = 'Выбран' + _end(count, ['а', 'о']) + ' <b>' + count + '</b> запис' + _end(count, ['ь', 'и', 'ей']) +
 				' на сумму <b>' + sum + '</b> руб.' +
 				'<a class="salary-list" val="' + ids.join() + '">Распечатать лист выдачи з/п</a>';
 		$('#salary-sel').html(html);
 	},
 	salarySpisok = function() {
+		if($('.headName').hasClass('_busy'))
+			return;
 		MON = $('#salmon').val() * 1;
 		YEAR = $('#year').val();
 		var send = {
 			op:'salary_spisok',
 			worker_id:WORKER_ID,
-			year:$('#year').val(),
-			mon:$('#salmon').val()
+			year:YEAR,
+			mon:MON
 		};
+		$('.headName').addClass('_busy');
 		$.post(AJAX_MAIN, send, function (res) {
+			$('.headName').removeClass('_busy');
 			if(res.success) {
 				$('.headName em').html(MONTH_DEF[MON] + ' ' + YEAR);
 				$('#spisok').html(res.html);
+				$('#monthList').html(res.month);
 			}
 		}, 'json');
 	};
@@ -1456,7 +1461,7 @@ $(document)
 		$('.st').click(function() {
 			var	v = $(this).attr('val');
 			if(v == 1) {
-				$('.c2,.c3').hide();
+				$('.c2,.c0').hide();
 				$('.zstab').show();
 			} else
 				submit(v);

@@ -119,11 +119,11 @@ function zpPrint() {
 	$line = 2;
 
 	$sheet->getColumnDimension('A')->setWidth(12);
-	$sheet->getColumnDimension('B')->setWidth(25);
+	$sheet->getColumnDimension('B')->setWidth(22);
 	$sheet->getColumnDimension('C')->setWidth(20);
-	$sheet->getColumnDimension('D')->setWidth(10);
-	$sheet->getColumnDimension('E')->setWidth(10);
-	$sheet->getColumnDimension('F')->setWidth(15);
+	$sheet->getColumnDimension('D')->setWidth(9);
+	$sheet->getColumnDimension('E')->setWidth(8);
+	$sheet->getColumnDimension('F')->setWidth(21);
 
 	$abbr = _viewer(WORKER_ID, 'first_name');
 	define('WORKER', utf8(_viewer(WORKER_ID, 'last_name').' '.$abbr[0].'.'));
@@ -194,6 +194,7 @@ function zpPrint() {
 		$sheet->setCellValue('C'.$line, $r['zayav_id'] ? utf8(zayav_product_spisok($zayav[$r['zayav_id']]['product'], 'report')) : '');
 		$sheet->setCellValue('D'.$line, $r['zayav_id'] ? reportData(BONUS ? $r['z_add'] : $r['status_day']) : '');
 		$sheet->setCellValue('E'.$line, $r['sum']);
+		$sheet->setCellValue('F'.$line, utf8($r['txt']));
 		$line++;
 	}
 	$line += 3;

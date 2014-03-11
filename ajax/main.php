@@ -2393,12 +2393,20 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'salary_spisok':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['worker_id']))
+			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
 			jsonError();
-		$_POST['mon'] = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').$_POST['mon'];
+
+		$worker_id = intval($_POST['worker_id']);
+		$year = intval($_POST['year']);
+		$mon = intval($_POST['mon']);
+
+		$_POST['mon'] = $year.'-'.($mon < 10 ? 0 : '').$mon;
 		$send['html'] = utf8(salary_worker_spisok($_POST));
+		$send['month'] = utf8(salary_monthList($worker_id, $year, $mon));
 		jsonSuccess($send);
 		break;
 	case 'salary_del':

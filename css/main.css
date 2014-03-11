@@ -129,6 +129,7 @@
 
 /* Информация о клиенте */
 #clientInfo .left{padding-bottom:10px}
+#clientInfo ._info{margin:10px;font-weight:bold;text-align:center;background-color:#fee;color:red}
 #clientInfo .fio{color:#31618C;font-size:12px;font-weight:bold;margin:15px 5px 5px 20px}
 #clientInfo .cinf{border-spacing:4px;margin:0 10px 0 26px}
 #clientInfo .cinf .label{width:60px}
@@ -203,6 +204,7 @@
 	box-shadow: 0 0 5px rgba(0,0,0,0.2);
 }
 .zayav_unit:hover{border:#bbb solid 1px;box-shadow: 0 0 5px rgba(0,0,0,0.4)}
+.zayav_unit .zdel{text-align:center;color:red;margin-top:3px;font-weight:bold}
 .zayav_unit em{background:#FFC;border-bottom:1px solid #FE2}
 .zayav_unit .name em{font-size:12px;font-weight:bold}
 .zayav_unit .name{display:block;font-size:12px;font-weight:700;margin:5px 0 0 8px}
@@ -230,6 +232,7 @@
 #zayav ._empty{margin-right:6px;}
 
 /* Информация о заявке */
+.zayav-info ._info{margin:10px;font-weight:bold;text-align:center;background-color:#fee;color:red}
 .zayav-info .delete{float:right;margin-top:4px;color:#933}
 .zayav-info:not(.h) .histories,.zayav-info.h .content{display:none}
 .zayav-info .content{margin:10px}
@@ -420,6 +423,7 @@
 #expense-add-tab .img_edit{position:relative;top:-4px;left:4px}
 .salary#report .headName{margin:10px}
 .salary#report .headName em{font-size:12px;font-weight:bold}
+.salary#report .headName._busy{background-position:right center}
 .salary #spisok{margin:10px}
 .salary .fio{width:150px}
 .salary .rate{text-align:right}
@@ -438,6 +442,7 @@
 .salary .years{margin-top:25px}
 .salary .ch{text-align:center;width:14px}
 .salary ._empty{margin:0}
+.salary #monthList em{float:right;font-size:10px}
 .salary-tab{border-spacing:8px}
 .salary-tab #about{width:230px}
 .salary-tab #day{width:30px}
