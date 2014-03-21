@@ -409,6 +409,11 @@ function _mainLinks() {
 	$cRemind = query_value("SELECT COUNT(*) FROM `remind` WHERE `status`=1 AND `day`<='".$cur."'");
 	$cRemind += query_value("SELECT COUNT(*) FROM `zayav` WHERE !`deleted` AND `zamer_status`=1 AND `zamer_dtime`<='".$cur." 23:59:59'");
 
+	if(VIEWER_ADMIN && $count = query_value("SELECT COUNT(`id`) FROM `invoice_transfer` WHERE !`invoice_to` AND `worker_to` AND !`confirm`"))
+		define('TRANSFER_CONFIRM', $count);
+	else
+		define('TRANSFER_CONFIRM', 0);
+
 	$links = array(
 		array(
 			'name' => 'Клиенты',
@@ -426,7 +431,7 @@ function _mainLinks() {
 			'show' => 1
 		),
 		array(
-			'name' => 'Отчёты',
+			'name' => 'Отчёты'.(TRANSFER_CONFIRM ? ' (<b>'.TRANSFER_CONFIRM.'</b>)' : ''),
 			'page' => 'report',
 			'show' => 1
 		),
@@ -2343,7 +2348,7 @@ function report() {
 	$def = 'history';
 	$pages = array(
 		'history' => 'История действий',
-		'money' => 'Деньги',
+		'money' => 'Деньги'.(TRANSFER_CONFIRM ? ' (<b>'.TRANSFER_CONFIRM.'</b>)' : ''),
 		'month' => 'Полный отчёт по месяцам',
 		'salary' => 'Зарплата сотрудников'
 	);
@@ -2407,7 +2412,7 @@ function report() {
 				'<div id="dopLinks">'.
 					'<a class="link'.($d1 == 'income' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=income">Платежи</a>'.
 					'<a class="link'.($d1 == 'expense' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=expense">Расходы</a>'.
-					'<a class="link'.($d1 == 'invoice' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=invoice">Счета</a>'.
+					'<a class="link'.($d1 == 'invoice' ? ' sel' : '').'" href="'.URL.'&p=report&d=money&d1=invoice">Счета'.(TRANSFER_CONFIRM ? ' (<b>'.TRANSFER_CONFIRM.'</b>)' : '').'</a>'.
 				'</div>'.
 				$left;
 			break;
@@ -2629,6 +2634,8 @@ function history_types($v) {
 		case 50: return 'Удаление начисления з/п в сумме <b>'.$v['value'].'</b> руб. у сотрудника <u>'._viewer($v['value1'], 'name').'</u>.';
 		case 51: return 'Удаление вычета з/п в сумме <b>'.$v['value'].'</b> руб. у сотрудника <u>'._viewer($v['value1'], 'name').'</u>.';
 
+		case 52: return 'Подтвержден'._end($v['value'], '', 'ы').' <a class="transfer-show" val="'.$v['value1'].'">'.$v['value'].' перевод'._end($v['value'], '', 'а', 'ов').'</a>.';
+
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
 		case 503: return 'В настройках: удаление наименования изделия "'.$v['value'].'".';
@@ -2787,10 +2794,16 @@ function invoice() {
 			'<a href="'.URL.'&p=setup&d=invoice" class="add">Управление счетами</a>'.
 		'</div>'.
 		'<div id="confirm-info">'.income_confirm_info().'</div>'.
+	(TRANSFER_CONFIRM ? //Подтверждение переводов руководителю
+		'<div class="_info">'.
+			'Есть переводы, требующие подтверждения: <b>'.TRANSFER_CONFIRM.'</b>. '.
+			'<a class="transfer-confirm">Подтвердить</a>'.
+		'</div>'
+	: '').
 		'<div id="cash-spisok">'.$data['spisok'].'</div>'.
 		'<div id="invoice-spisok">'.invoice_spisok().'</div>'.
 		'<div class="headName">История переводов</div>'.
-		'<div id="transfer-spisok">'.transfer_spisok().'</div>';
+		'<div class="transfer-spisok">'.transfer_spisok().'</div>';
 }//invoice()
 function income_confirm_info() {
 	if(!$confirm = query_value("SELECT COUNT(`id`) FROM `money` WHERE !`deleted` AND `confirm`"))
@@ -2857,11 +2870,24 @@ function invoice_spisok() {
 	$send .= '</table>';
 	return $send;
 }//invoice_spisok()
-function transfer_spisok() {
-	$sql = "SELECT * FROM `invoice_transfer` ORDER BY `id` DESC";
+function transfer_spisok($v=array()) {
+	$v = array(
+	//	'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
+	//	'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 15,
+		'confirm' => !empty($v['confirm']) && preg_match(REGEXP_NUMERIC, $v['confirm']) ? $v['confirm'] : 0,
+		'ids' => !empty($v['ids']) ? $v['ids'] : ''
+	);
+	$sql = "SELECT *
+	        FROM `invoice_transfer`
+	        WHERE `id`
+	        ".($v['confirm'] ? "AND !`invoice_to` AND `worker_to` AND !`confirm`" : '')."
+	        ".($v['ids'] ? "AND `id` IN (".$v['ids'].")" : '')."
+	        ORDER BY `id` DESC";
 	$q = query($sql);
 	$send = '<table class="_spisok _money">'.
-		'<tr><th>Cумма'.
+		'<tr>'.
+			($v['confirm'] ? '<th>' : '').
+			'<th>Cумма'.
 			'<th>Со счёта'.
 			'<th>На счёт'.
 			'<th>Подробно'.
@@ -2869,6 +2895,7 @@ function transfer_spisok() {
 	while($r = mysql_fetch_assoc($q))
 		$send .=
 			'<tr>'.
+				($v['confirm'] ? '<td>'._check($r['id'].'_') : '').
 				'<td class="sum">'._sumSpace($r['sum']).
 				'<td>'.($r['worker_from'] && _viewerRules($r['worker_from'], 'RULES_CASH') || $r['invoice_from'] ? '<span class="type">'._invoice($r['invoice_from']).'</span>' : '').
 					   ($r['worker_from'] && $r['invoice_from'] ? '<br />' : '').
@@ -2876,6 +2903,7 @@ function transfer_spisok() {
 				'<td>'.($r['worker_to'] && _viewerRules($r['worker_to'], 'RULES_CASH') || $r['invoice_to'] ? '<span class="type">'._invoice($r['invoice_to']).'</span>' : '').
 					   ($r['worker_to'] && $r['invoice_to'] ? '<br />' : '').
 					   ($r['worker_to'] ? _viewer($r['worker_to'], 'name') : '').
+					   (!$r['invoice_to'] && $r['worker_to'] ? '<br /><span class="confirm'.($r['confirm'] ? '' : ' no').'">'.($r['confirm'] ? '' : 'не ').'подтверждено</span>' : '').
 				'<td class="about">'.($r['income_count'] ? '<a class="income-show" val="'.$r['income_ids'].'">'.$r['income_count'].' платеж'._end($r['income_count'], '', 'а', 'ей').'</a>' : '').
 				'<td class="dtime">'.FullDataTime($r['dtime_add'], 1);
 	$send .= '</table>';
@@ -3063,6 +3091,7 @@ function invoice_history_insert($v) {
 		'action' => $v['action'],
 		'table' => empty($v['table']) ? '' : $v['table'],
 		'id' => empty($v['id']) ? 0 : $v['id'],
+		'sum' => empty($v['sum']) ? 0 : $v['sum'],
 		'sum_prev' => empty($v['sum_prev']) ? 0 : $v['sum_prev'],
 		'worker_id' => empty($v['worker_id']) ? 0 : $v['worker_id'],
 		'invoice_id' => empty($v['invoice_id']) ? 0 : $v['invoice_id']

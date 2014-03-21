@@ -1641,17 +1641,17 @@ $(document)
 			tr.eq(n).find('input:first')._check(v);
 	})
 	.on('click', '.inc ._check', incomeChoiceSum)
-	.on('click', '.income-show', function() {
+	.on('click', '.transfer-show', function() {
 		var dialog = _dialog({
 			top:20,
 			width:480,
-			head:'Просмотр платежей',
+			head:'Просмотр подтверждённых переводов',
 			load:1,
 			butSubmit:'',
 			butCancel:'Закрыть'
 		});
 		var send = {
-			op:'income_transfer_show',
+			op:'transfer_show',
 			ids:$(this).attr('val')
 		};
 		$.post(AJAX_MAIN, send, function(res) {
@@ -1711,6 +1711,82 @@ $(document)
 				left:143
 			});
 		}
+	})
+	.on('click', '.transfer-confirm', function() {
+		var dialog = _dialog({
+			top:20,
+			width:520,
+			head:'Подтверждение переводов',
+			load:1,
+			butSubmit:'Подтвердить',
+			submit:submit
+		});
+		var send = {
+			op:'transfer_confirm_get'
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				dialog.content.html(res.html);
+			else
+				dialog.loadError();
+		}, 'json');
+		function submit() {
+			var ch = dialog.content.find('._check'),
+				ids = [];
+			for(var n = 0; n < ch.length; n++) {
+				var inp = ch.eq(n).find('input');
+				if(inp.val() == 1)
+					ids.push(inp.attr('id').split('_')[0]);
+			}
+			if(!ids.length) {
+				err('Платежи не выбраны');
+				return;
+			}
+			var send = {
+				op:'transfer_confirm',
+				ids:ids.join()
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					$('#invoice-spisok').html(res.i);
+					dialog.close();
+					_msg('Переводы подтверждены.');
+				}
+				else
+					dialog.abort();
+			}, 'json');
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				remove:1,
+				indent:50,
+				show:1,
+				top:-48,
+				left:163
+			});
+		}
+	})
+	.on('click', '.income-show', function() {
+		var dialog = _dialog({
+			top:20,
+			width:480,
+			head:'Просмотр платежей',
+			load:1,
+			butSubmit:'',
+			butCancel:'Закрыть'
+		});
+		var send = {
+			op:'income_transfer_show',
+			ids:$(this).attr('val')
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				dialog.content.html(res.html);
+			else
+				dialog.loadError();
+		}, 'json');
 	})
 
 	.on('click', '.income-add', function() {
@@ -3257,7 +3333,7 @@ $(document)
 							if(res.success) {
 								$('#cash-spisok').html(res.c);
 								$('#invoice-spisok').html(res.i);
-								$('#transfer-spisok').html(res.t);
+								$('.transfer-spisok').html(res.t);
 								dialog.close();
 								_msg('Перевод произведён.');
 							} else

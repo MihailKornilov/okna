@@ -585,23 +585,34 @@ function debtors() {
 
 	$sheet->getColumnDimension('A')->setWidth(5);
 	$sheet->getColumnDimension('B')->setWidth(60);
-	$sheet->getColumnDimension('C')->setWidth(15);
+	$sheet->getColumnDimension('C')->setWidth(12);
+	$sheet->getColumnDimension('D')->setWidth(15);
 
 	$sheet->setCellValue('A'.$line, 'Должники на '.utf8(FullData(curTime())).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
 	$sheet->setCellValue('B'.$line, 'ФИО');
-	$sheet->setCellValue('C'.$line, 'Сумма');
-	$sheet->setSharedStyle(styleHead(), 'A'.$line.':C'.$line);
+	$sheet->setCellValue('C'.$line, 'Договор');
+	$sheet->setCellValue('D'.$line, 'Сумма');
+	$sheet->setSharedStyle(styleHead(), 'A'.$line.':D'.$line);
 	$line++;
 
 	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `balans`<0 ORDER BY `fio`";
 	$q = query($sql);
+	$client = array();
+	while($r = mysql_fetch_assoc($q))
+		$client[$r['id']] = $r;
+
+	if(empty($client))
+		return;
+
+	$dog = query_ass("SELECT `client_id`,`nomer` FROM `zayav_dogovor` WHERE !`deleted` AND `client_id` IN (".implode(',', array_keys($client)).")");
+
 	$start = $line;
 	$sum = 0;
 	$n = 1;
-	while($r = mysql_fetch_assoc($q)) {
+	foreach($client as $id => $r) {
 		$fio = new PHPExcel_RichText();
 		$fio->createText(utf8(htmlspecialchars_decode($r['fio'])));
 		$balans = abs($r['balans']);
@@ -614,13 +625,17 @@ function debtors() {
 		}
 		$sheet->getCell('A'.$line)->setValue($n++);
 		$sheet->getCell('B'.$line)->setValue($fio);
-		$sheet->getCell('C'.$line)->setValue($balans);
+		if(isset($dog[$id]))
+			$sheet->getCell('C'.$line)->setValue($dog[$id]);
+		$sheet->getCell('D'.$line)->setValue($balans);
 		$line++;
 	}
-	$sheet->setSharedStyle(styleContent(), 'A'.$start.':C'.$line);
-	$sheet->setSharedStyle(styleResult(), 'A'.$line.':C'.$line);
-	$sheet->setCellValue('B'.$line, 'Итог:');
-	$sheet->setCellValue('C'.$line, _sumSpace($sum));
+	$sheet->setSharedStyle(styleContent(), 'A'.$start.':D'.$line);
+	$sheet->setSharedStyle(styleResult(), 'A'.$line.':D'.$line);
+	$sheet->getStyle('B'.$start.':B'.$line)->getAlignment()->setWrapText(true);
+	$sheet->setCellValue('C'.$line, 'Итог:');
+	$sheet->getStyle('C'.$start.':C'.($line - 1))->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+	$sheet->setCellValue('D'.$line, _sumSpace($sum));
 
 	freeLine($line);
 }
@@ -753,8 +768,8 @@ contentShow();
 zpman();
 zpwoman();
 incomes();
-debtors();
 xls_expense();
+debtors();
 
 $book->setActiveSheetIndex(0);
 

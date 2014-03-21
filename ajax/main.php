@@ -1820,6 +1820,53 @@ switch(@$_POST['op']) {
 		$send['i'] = utf8(invoice_spisok());
 		jsonSuccess($send);
 		break;
+	case 'transfer_confirm_get':
+		if(!VIEWER_ADMIN)
+			jsonError();
+		$send['html'] = utf8('<div class="transfer-spisok">'.transfer_spisok(array('confirm'=>1)).'</div>');
+		jsonSuccess($send);
+		break;
+	case 'transfer_confirm':
+		if(!VIEWER_ADMIN)
+			jsonError();
+		if(empty($_POST['ids']))
+			jsonError();
+		$ids = $_POST['ids'];
+		$ex = explode(',', $ids);
+		$ass = array();
+		foreach($ex as $id) {
+			if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
+				jsonError();
+			$ass[$id] = 1;
+		}
+		$sql = "SELECT `id` FROM `invoice_transfer` WHERE !`invoice_to` AND `worker_to` AND !`confirm` AND `id` IN (".$ids.")";
+		$q = query($sql);
+		if(count($ex) != mysql_num_rows($q))
+			jsonError();
+		while($r = mysql_fetch_assoc($q))
+			if(!$ass[$r['id']])
+				jsonError();
+		foreach($ex as $id)
+			query("UPDATE `invoice_transfer` SET `confirm`=1 WHERE `id`=".$id);
+
+		history_insert(array(
+			'type' => 52,
+			'value' => count($ex),
+			'value1' => $ids
+		));
+
+		$send['i'] = utf8(invoice_spisok());
+		jsonSuccess($send);
+		break;
+	case 'transfer_show':
+		if(empty($_POST['ids']))
+			jsonError();
+		foreach(explode(',', $_POST['ids']) as $id)
+			if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
+				jsonError();
+		$send['html'] = utf8('<div class="transfer-spisok">'.transfer_spisok(array('ids'=>$_POST['ids'])).'</div>');
+		jsonSuccess($send);
+		break;
 	case 'invoice_history':
 		if(empty($_POST['invoice_id']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
 			jsonError();
