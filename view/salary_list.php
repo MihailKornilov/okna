@@ -157,9 +157,12 @@ function zpPrint() {
 	$zayav = array();
 	$sum = 0;
 	$deduct = 0;
+	$deduct_about = array();
 	while($r = mysql_fetch_assoc($q)) {
 		if($r['sum'] < 0) {
 			$deduct += abs($r['sum']);
+			if($r['txt'])
+				$deduct_about[] = $r['txt'];
 			continue;
 		}
 		$sum += $r['sum'];
@@ -215,6 +218,7 @@ function zpPrint() {
 		$sheet->setCellValue('A'.$line, 'Вычеты:');
 		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 		$sheet->setCellValue('E'.$line, $deduct);
+		$sheet->setCellValue('F'.$line, utf8(implode(', ', $deduct_about)));
 		$line++;
 	}
 
@@ -222,6 +226,7 @@ function zpPrint() {
 	$sheet->setCellValue('A'.$line, 'Итого к выдаче:');
 	$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$sheet->setCellValue('E'.$line, $sum - $deduct);
+	$sheet->getStyle('F'.$start.':F'.$line)->getAlignment()->setWrapText(true);
 
 	$line += 2;
 

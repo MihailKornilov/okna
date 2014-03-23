@@ -135,22 +135,6 @@ var hashLoc,
 			}
 		}, 'json');
 	},
-	clientZayavFilter = function() {
-		return {
-			client:CLIENT.id,
-			status:$('#status').val()
-		};
-	},
-	clientZayavSpisokLoad = function() {
-		var send = clientZayavFilter();
-		send.op = 'client_zayav_load';
-		$('#dopLinks').addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			$('#dopLinks').removeClass('busy');
-			$('#zayav_result').html(res.all);
-			$('#zayav_spisok').html(res.html);
-		}, 'json');
-	},
 
 	zayavZamerDtime = function(v) {
 		v = $.extend({
@@ -202,17 +186,15 @@ var hashLoc,
 	},
 	zayavFilter = function() {
 		return {
+			op:'zayav_spisok',
 			category:$('#zayav').attr('val'),
 			product:$('#product_id').val(),
 			status:$('#status').val()
 		};
 	},
 	zayavSpisok = function() {
-		var send = zayavFilter();
-		//$('.condLost')[(send.find ? 'add' : 'remove') + 'Class']('hide');
-		send.op = 'zayav_spisok';
 		$('#mainLinks').addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
+		$.post(AJAX_MAIN, zayavFilter(), function(res) {
 			$('#mainLinks').removeClass('busy');
 			if(res.success) {
 				$('#zayav .result').html(res.result);
@@ -931,19 +913,18 @@ $(document)
 		if(next.hasClass('busy'))
 			return;
 		var send = zayavFilter();
-		send.op = 'zayav_next';
 		send.page = next.attr('val');
 		next.addClass('busy');
 		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success)
-				next.after(res.html).remove();
+				next.after(res.spisok).remove();
 			else
 				next.removeClass('busy');
 		}, 'json');
 	})
 	.on('click', '#zayav .filter_clear', function() {
 		$('.find-hide').removeClass('dn');
-		window.zFind.clear();
+		$('#find')._search('clear');
 		$('#product_id')._select(0);
 		zayavSpisok();
 	})
@@ -1429,7 +1410,73 @@ $(document)
 		});
 	})
 
-	.on('click', '.cut_status', function() {
+	.on('click', '.remind-add', function() {
+		var html =
+				'<table class="remind-add-tab">' +
+					(window.ZAYAV ? '<tr><td class="label">Заявка:<td><b>' + ZAYAV.head + '</b>' : '') +
+					(window.CLIENT ? '<tr><td class="label">Клиент:<td>' + CLIENT.fio : '') +
+					'<tr><td class="label top">Описание:<td><textarea id="txt"></textarea>' +
+					'<tr><td class="label">День выполнения:<TD><INPUT type="hidden" id="day" />' +
+					'<tr><td class="label">Личное:<TD><INPUT type="hidden" id="private" />' +
+				'</table>' +
+				'<input type="hidden" id="client_id" value="' + (window.CLIENT ? CLIENT.id : 0) + '">' +
+				'<input type="hidden" id="zayav_id" value="' + (window.ZAYAV ? ZAYAV.id : 0) + '">',
+			dialog = _dialog({
+				top:40,
+				width:420,
+				head:'Внесение нового напоминания',
+				content:html,
+				submit:submit
+			});
+
+		$('#txt').autosize().focus();
+		$('#day')._calendar();
+		$('#private')._check();
+		$('#private_check').vkHint({
+			msg:'Напоминание сможете<br />видеть только Вы.',
+			top:-71,
+			left:-11,
+			indent:'left',
+			delayShow:1000
+		});
+
+		function submit() {
+			var send = {
+				op:'remind_add',
+				from:window.ZAYAV ? 'zayav' : (window.CLIENT ? 'client' : ''),
+				client_id:$('#client_id').val(),
+				zayav_id:$('#zayav_id').val(),
+				txt:$.trim($('#txt').val()),
+				day:$('#day').val(),
+				private:$('#private').val()
+			};
+			if(!send.txt) {
+				err('Не указано описание');
+				$('#txt').focus();
+			} else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						dialog.close();
+						_msg('Напоминание внесено');
+						$('.remind_spisok').html(res.html);
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<SPAN class="red">' + msg + '</SPAN>',
+				top:-48,
+				left:126,
+				indent:40,
+				show:1,
+				remove:1
+			});
+		}
+	})
+	.on('click', '.remind_status', function() {
 		var t = $(this),
 			html =
 			'<div class="zayav-status remind-status">' +
@@ -1447,6 +1494,7 @@ $(document)
 				'</div>' +
 				'<table class="zstab">' +
 					'<tr><td class="label">Новый день:<td><input type="hidden" id="remind_day" />' +
+					'<tr><td class="label">Причина:<td><input type="text" id="reason" />' +
 					'<tr><td><td><div class="vkButton"><button>Применить</button></div>' +
 				'</table>' +
 			'</div>',
@@ -1473,18 +1521,40 @@ $(document)
 		function submit(status) {
 			var send = {
 				op:'remind_status',
+				from:window.ZAYAV ? 'zayav' : (window.CLIENT ? 'client' : ''),
 				id:t.attr('val'),
 				status:status,
-				day:$('#remind_day').val()
+				day:$('#remind_day').val(),
+				reason:$('#reason').val()
 			};
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success) {
 					dialog.close();
 					_msg('Данные изменены!');
-					$('.left').html(res.html);
+					$('.remind_spisok').html(res.html);
 				}
 			}, 'json');
 		}
+	})
+	.on('click', '.remind_history', function() {
+		var t = $(this),
+			send = {
+				op:'remind_history',
+				id:t.attr('val')
+			},
+			hist = $('#ru' + send.id + ' .hist');
+		if(hist.hasClass('_busy'))
+			return;
+		if(hist.html()) {
+			hist.slideToggle(300);
+			return;
+		}
+		hist.html('&nbsp;').addClass('_busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			hist.removeClass('_busy');
+			if(res.success)
+				hist.html(res.html);
+		}, 'json');
 	})
 
 	.on('click', '#history_next', function() {
@@ -1725,9 +1795,10 @@ $(document)
 			op:'transfer_confirm_get'
 		};
 		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				dialog.content.html(res.html);
-			else
+			if(res.success) {
+				var html = res.html + '<div class="transfer-about">Описание: <input type="text" id="about" /></div>';
+				dialog.content.html(html);
+			} else
 				dialog.loadError();
 		}, 'json');
 		function submit() {
@@ -1744,7 +1815,8 @@ $(document)
 			}
 			var send = {
 				op:'transfer_confirm',
-				ids:ids.join()
+				ids:ids.join(),
+				about:$('#about').val()
 			};
 			dialog.process();
 			$.post(AJAX_MAIN, send, function(res) {
@@ -1796,7 +1868,7 @@ $(document)
 	            '<tr><td class="label">Клиент:<td>' + OPL.client_fio +
 				'<tr><td class="label">Заявка:' +
 					'<td><input type="hidden" id="zayav_id" value="' + (OPL.zayav_id ? OPL.zayav_id : 0) + '">' +
-						(OPL.zayav_id ? '<b>№' + OPL.zayav_id + '</b>' : '')
+						(OPL.zayav_id ? '<b>' + OPL.zayav_head + '</b>' : '')
   : '') +
 				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="income_opl">' +
 					'<a href="' + URL + '&p=setup&d=income" class="img_edit' + _tooltip('Настройка видов платежей', -85) + '</a>' +
@@ -2495,7 +2567,7 @@ $(document)
 				$('#zayav_filter').css('display', val == 'zayav' ? 'block' : 'none');
 				$('#zayav_spisok').css('display', val == 'zayav' ? 'block' : 'none');
 				$('#income_spisok').css('display', val == 'money' ? 'block' : 'none');
-				$('#remind_spisok').css('display', val == 'remind' ? 'block' : 'none');
+				$('.remind_spisok').css('display', val == 'remind' ? 'block' : 'none');
 				$('#comments').css('display', val == 'comm' ? 'block' : 'none');
 				$('#histories').css('display', val == 'hist' ? 'block' : 'none');
 			});
@@ -2583,17 +2655,29 @@ $(document)
 					}, 'json');
 				}
 			});
-			$('#status').rightLink(clientZayavSpisokLoad);
 		}
 
 		if($('#zayav').length) {
-			window.zFind = $('#find')._search({
-				width:153,
-				focus:1,
-				txt:'Быстрый поиск...',
-				enter:1,
-				func:zayavFindFast
-			});
+			$('#find')
+				._search({
+					width:153,
+					focus:1,
+					txt:'Быстрый поиск...',
+					enter:1,
+					func:zayavFindFast
+				})
+				.vkHint({
+					width:220,
+					msg:'<b>Быстрый поиск</b> производится одновременно по всем категориям заявок. ' +
+						'Учитываются поля: номер договора, номера ВГ, Ж, Д, адрес установки, ' +
+						'Фио и телефоны клиентов и порядковый номер заявки. ' +
+						'Другие условия фильтра игонрируются.',
+					ugol:'top',
+					indent:'right',
+					delayShow:1000,
+					top:45,
+					left:384
+				});
 			$('#status').rightLink(zayavSpisok);
 			var spisok = [];
 			for(var n = 0; n < PRODUCT_IDS.length; n++) {

@@ -297,18 +297,6 @@ switch(@$_POST['op']) {
 		));
 		jsonSuccess();
 		break;
-	case 'client_zayav_load':
-		$data = zayav_data(1, zayavfilter($_POST), 10);
-		$send['all'] = utf8(zayav_count($data['all'], 0));
-		$send['html'] = utf8(zayav_spisok($data));
-		jsonSuccess($send);
-		break;
-	case 'client_zayav_next':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$send['html'] = utf8(zayav_spisok(zayav_data(intval($_POST['page']), zayavfilter($_POST), 10)));
-		jsonSuccess($send);
-		break;
 
 	case 'zakaz_add':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
@@ -1065,16 +1053,9 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'zayav_spisok':
-		$data = zayav_spisok($_POST['category'], 1, zayavFilter($_POST));
+		$data = zayav_spisok($_POST['category'], $_POST);
 		$send['result'] = utf8($data['result']);
 		$send['spisok'] = utf8($data['spisok']);
-		jsonSuccess($send);
-		break;
-	case 'zayav_next':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['page']))
-			jsonError();
-		$data = zayav_spisok($_POST['category'], intval($_POST['page']), zayavFilter($_POST));
-		$send['html'] = utf8($data['spisok']);
 		jsonSuccess($send);
 		break;
 	case 'zayav_findfast':
@@ -1354,17 +1335,23 @@ switch(@$_POST['op']) {
 			foreach(explode(',', $v['cut']) as $r) {
 				$ex = explode(':', $r);
 				$sql = "INSERT INTO `remind` (
+							`cut`,
 							`client_id`,
 							`zayav_id`,
 							`txt`,
 							`day`
 						) VALUES (
+							1,
 							".$v['client_id'].",
 							".$v['zayav_id'].",
 							'".round(str_replace(',', '.', $ex[0]), 2)."',
 							'".$ex[1]."'
 						)";
 				query($sql);
+				remind_history_add(array(
+					'remind_id' => mysql_insert_id(),
+					'day' => $ex[1]
+				));
 			}
 
 		dogovor_print($dog_id);
@@ -1578,29 +1565,87 @@ switch(@$_POST['op']) {
 		if(!$r = query_assoc("SELECT * FROM `remind` WHERE `id`=".$id))
 			jsonError();
 
-		if($r['status'] != $status || $status == 1) {
+		if($r['status'] != $status || $status == 1 && $r['day'] != $day) {
 			$sql = "UPDATE `remind`
 			        SET `status`=".$status."
 						".($status == 1 ? ",`day`='".$day."'" : '')."
 			        WHERE `id`=".$id;
 			query($sql);
-			if($status == 1 && $r['day'] != $day)
-				history_insert(array(
-					'type' => 48,
-					'value' => $day,
-					'zayav_id' => $r['zayav_id'],
-					'client_id' => $r['client_id']
-				));
-			if($status != 1)
-				history_insert(array(
-					'type' => 49,
-					'value' => $status == 2 ? 'выполнено' : 'отменено',
-					'zayav_id' => $r['zayav_id'],
-					'client_id' => $r['client_id']
-				));
+			remind_history_add(array(
+				'remind_id' => $r['id'],
+				'status' => $status,
+				'day' => ($status == 1 ? $day : ''),
+				'txt' => $_POST['reason']
+			));
 		}
 
-		$send['html'] = utf8(remind_spisok());
+		$v = array();
+		if($_POST['from'] == 'client')
+			$v['client_id'] = $r['client_id'];
+		if($_POST['from'] == 'zayav')
+			$v['zayav_id'] = $r['zayav_id'];
+		$send['html'] = utf8(remind_spisok($v));
+
+		jsonSuccess($send);
+		break;
+	case 'remind_add':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
+			jsonError();
+		if(!preg_match(REGEXP_DATE, $_POST['day']))
+			jsonError();
+		if(!preg_match(REGEXP_BOOL, $_POST['private']))
+			jsonError();
+
+		$client_id = intval($_POST['client_id']);
+		$zayav_id = intval($_POST['zayav_id']);
+		$txt = win1251(htmlspecialchars(trim($_POST['txt'])));
+		$day = $_POST['day'];
+		$private = intval($_POST['private']);
+
+		if($zayav_id && !$client_id)
+			$client_id = query_value("SELECT `client_id` FROM `zayav` WHERE `id`=".$zayav_id);
+
+		$sql = "INSERT INTO `remind` (
+					`client_id`,
+					`zayav_id`,
+					`txt`,
+					`day`,
+					`private`,
+					`viewer_id_add`
+				) VALUES (
+					".$client_id.",
+					".$zayav_id.",
+					'".addslashes($txt)."',
+					'".$day."',
+					".$private.",
+					".VIEWER_ID."
+				)";
+		query($sql);
+		remind_history_add(array(
+			'remind_id' => mysql_insert_id(),
+			'day' => $day
+		));
+
+		$v = array();
+		if($_POST['from'] == 'client')
+			$v['client_id'] = $client_id;
+		if($_POST['from'] == 'zayav')
+			$v['zayav_id'] = $zayav_id;
+		$send['html'] = utf8(remind_spisok($v));
+
+		jsonSuccess($send);
+		break;
+	case 'remind_history':
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']) && !$_POST['id'])
+			jsonError();
+		$id = intval($_POST['id']);
+
+		if(!$r = query_assoc("SELECT * FROM `remind` WHERE `id`=".$id))
+			jsonError();
+
+		$send['html'] = utf8(remind_history($id));
 		jsonSuccess($send);
 		break;
 
@@ -1839,6 +1884,9 @@ switch(@$_POST['op']) {
 				jsonError();
 			$ass[$id] = 1;
 		}
+
+		$about = win1251(htmlspecialchars(trim($_POST['about'])));
+
 		$sql = "SELECT `id` FROM `invoice_transfer` WHERE !`invoice_to` AND `worker_to` AND !`confirm` AND `id` IN (".$ids.")";
 		$q = query($sql);
 		if(count($ex) != mysql_num_rows($q))
@@ -1847,12 +1895,13 @@ switch(@$_POST['op']) {
 			if(!$ass[$r['id']])
 				jsonError();
 		foreach($ex as $id)
-			query("UPDATE `invoice_transfer` SET `confirm`=1 WHERE `id`=".$id);
+			query("UPDATE `invoice_transfer` SET `confirm`=1,`about`='".addslashes($about)."' WHERE `id`=".$id);
 
 		history_insert(array(
 			'type' => 52,
 			'value' => count($ex),
-			'value1' => $ids
+			'value1' => $ids,
+			'value2' => $about
 		));
 
 		$send['i'] = utf8(invoice_spisok());

@@ -144,8 +144,8 @@
 #clientInfo ._next{margin:5px 10px 0 10px}
 #clientInfo #income_spisok,#clientInfo #histories{margin:10px;display:none}
 #clientInfo #income_spisok ._empty{margin:0;padding:60px 10px}
-#clientInfo #comments,#clientInfo #remind_spisok{margin:0 10px;display:none}
-#clientInfo #remind_spisok ._empty{margin:10px 0;padding:60px 10px}
+#clientInfo .remind_spisok{margin:10px 8px;display:none}
+#clientInfo #comments{margin:0 10px;display:none}
 #clientInfo .right{width:145px;height:auto}
 #clientInfo .cdel{color:red}
 
@@ -268,7 +268,9 @@
 .zayav-info .img_word{margin:0 15px -4px -2px}
 .zayav-info .mainright{vertical-align:top;width:230px;border-left:#E9EDF1 solid 1px}
 .zayav-info .mainright .headBlue{margin:0}
+.zayav-info .remind_spisok{margin-top:5px}
 .zayav-info .acc-sum{margin:7px}
+.zayav-info .mon{margin-top:15px}
 .zayav-info .mon em{float:right;margin:0 5px}
 .zayav-info .sum.acc{color:#07a;cursor:default}
 .zayav-info .sum.opl{color:#090;cursor:default}
@@ -336,15 +338,17 @@
 .zayav-status .zamer_table{position:relative;top:-4px;left:10px}
 
 .remind-status .c0{background-color:#ddd}
+.remind-status #reason{width:220px}
 
 
 
 
 
 
+#remind #buttonCreate{margin-bottom:10px}
 #remind:not(.y) .full{display:none}
 #remind.y .tabLR{display:none}
-#remind .left{padding-top:10px}
+#remind .left{padding:10px}
 #remind .right{width:155px}
 #remind .goyear{display:inline-block;margin-top:15px}
 #remind .full{margin-left:40px}
@@ -353,16 +357,28 @@
 #remind .ftab{border-spacing:10px}
 #remind .ftd{vertical-align:top;padding:0 5px}
 #remind .fcur.ftd{border:#cec solid 1px;background-color:#e8ffe8}
-.remind_unit{margin:0 10px 10px;border-bottom:#f1f1f1 solid 1px}
+.remind_unit{margin-bottom:10px;border-bottom:#f1f1f1 solid 1px}
 .remind_unit .head{padding:5px 8px;font-size:12px;color:#444}
 .remind_unit .head *{font-size:12px}
+.remind_unit .private{color:#933;font-weight:bold;text-shadow: 0 0 3px #a66}
 .remind_unit .to{border-spacing:2px;margin:4px 6px}
 .remind_unit .label{width:45px}
 .remind_unit .dur{margin-left:10px;color:#777}
 .remind_unit .day_left{margin:4px 8px;color:#884}
 .remind_unit .oday{color:#999;margin-left:10px}
-.remind_unit .action{float:right}
-.remind_unit:not(:hover) .action{display:none}
+.remind_unit .action{float:right;color:red}
+.remind_unit .remind_history{float:right;color:gray}
+.remind_unit tt{float:right;margin:0 4px}
+.remind_unit:not(:hover) tt,
+.remind_unit:not(:hover) .action,
+.remind_unit:not(:hover) .remind_history{display:none}
+.remind_unit .hist{margin:3px 7px;text-align:center}
+.remind_unit .hist *{font-size:10px;color:#707070}
+.remind_unit .hist table{width:100%;border-collapse:collapse}
+.remind_unit .hist td{padding:2px 4px;border:#ddd solid 1px;text-align:left}
+.remind-add-tab{border-spacing:10px}
+.remind-add-tab .label{width:100px;text-align:right}
+.remind-add-tab #txt{width:240px;height:40px}
 
 
 /* Îò÷¸òû */
@@ -396,6 +412,8 @@
 .invoice .transfer-spisok{margin:10px}
 .transfer-spisok .confirm{font-size:10px;color:#090}
 .transfer-spisok .confirm.no{color:red}
+.transfer-about{margin-top:10px}
+.transfer-about input{width:350px}
 .invoice-transfer{border-spacing:10px}
 .invoice-transfer .income-choice{margin-left:10px}
 .income_choice_sum{margin-top:10px}
