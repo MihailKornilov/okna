@@ -406,7 +406,7 @@ function _mainLinks() {
 	global $html;
 
 	$cur = strftime('%Y-%m-%d');
-	$cRemind = query_value("SELECT COUNT(*) FROM `remind` WHERE `status`=1 AND `day`<='".$cur."'");
+	$cRemind = query_value("SELECT COUNT(*) FROM `remind` WHERE `status`=1 AND `day`<='".$cur."' AND (`private`=0 OR `private`=1 AND `viewer_id_add`=".VIEWER_ID.")");
 	$cRemind += query_value("SELECT COUNT(*) FROM `zayav` WHERE !`deleted` AND `zamer_status`=1 AND `zamer_dtime`<='".$cur." 23:59:59'");
 
 	if(VIEWER_ADMIN && $count = query_value("SELECT COUNT(`id`) FROM `invoice_transfer` WHERE !`invoice_to` AND `worker_to` AND !`confirm`"))
@@ -666,14 +666,14 @@ function clientBalansUpdate($client_id) {//Обновление баланса клиента
 }//clientBalansUpdate()
 
 function clientFilter($v) {
-	$filter = array(
+	return array(
 		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? intval($v['page']) : 1,
 		'fast' => !empty($v['fast']) && preg_match(REGEXP_WORDFIND, win1251($v['fast'])) ? win1251(htmlspecialchars(trim($v['fast']))) : '',
 		'dolg' => !empty($v['dolg']) && preg_match(REGEXP_BOOL, $v['dolg']) ? intval($v['dolg']) : 0,
 		'note' => !empty($v['note']) && preg_match(REGEXP_BOOL, $v['note']) ? intval($v['note']) : 0,
+		'zayav_cat' => !empty($v['zayav_cat']) && preg_match(REGEXP_NUMERIC, $v['zayav_cat']) ? intval($v['zayav_cat']) : 0,
 		'product_id' => !empty($v['product_id']) && preg_match(REGEXP_NUMERIC, $v['product_id']) ? intval($v['product_id']) : 0
 	);
-	return $filter;
 }//clientFilter()
 function client_data($filter=array()) {
 	$filter = clientFilter($filter);
@@ -695,6 +695,7 @@ function client_data($filter=array()) {
 		if($engRus)
 			$regEngRus = '/('.$engRus.')/i';
 	} else {
+		$cids = array();
 		if($filter['dolg'])
 			$cond .= " AND `balans`<0";
 		if($filter['product_id']) {
@@ -704,16 +705,32 @@ function client_data($filter=array()) {
 			        WHERE `z`.`deleted`=0
 			          AND `z`.`id`=`p`.`zayav_id`
 			          AND `p`.`product_id`=".$filter['product_id'];
-			$ids = query_ids($sql);
-			$cond .= " AND `id` IN (".$ids.")";
+			foreach(explode(',', query_ids($sql)) as $id)
+				$cids[$id] = $id;
+		}
+		if($filter['zayav_cat']) {
+			$cnd = '';
+			switch($filter['zayav_cat']) {
+				case 1: $cnd = "AND !`dogovor_require` AND `zakaz_status`"; break;
+				case 2: $cnd = "AND !`dogovor_require` AND (`zamer_status`=1 OR `zamer_status`=3)"; break;
+				case 3: $cnd = "AND !`dogovor_id` AND `dogovor_require`"; break;
+				case 4: $cnd = "AND !`dogovor_require` AND `set_status`";
+			}
+			if($cnd) {
+				$sql = "SELECT DISTINCT `client_id` FROM `zayav` WHERE !`deleted` ".$cnd;
+				foreach(explode(',', query_ids($sql)) as $id)
+					$cids[$id] = $id;
+			}
 		}
 		if($filter['note']) {
 			$sql = "SELECT DISTINCT `table_id`
 					FROM `vk_comment`
 					WHERE `status`=1 AND `table_name`='client'";
-			$ids = query_ids($sql);
-			$cond .= " AND `id` IN (".$ids.")";
+			foreach(explode(',', query_ids($sql)) as $id)
+				$cids[$id] = $id;
 		}
+		if(!empty($cids))
+			$cond .= " AND `id` IN (".implode(',', $cids).")";
 	}
 
 	$all = query_value("SELECT COUNT(`id`) AS `all` FROM `client` WHERE ".$cond." LIMIT 1");
@@ -812,6 +829,8 @@ function client_list() {
 					'<div class="filter">'.
 						_check('dolg', 'Должники').
 						_check('note', 'Есть заметки').
+						'<div class="findHead">Категории заявок</div>'.
+						'<input type="hidden" id="zayav_cat">'.
 						'<div class="findHead">Заказывались изделия</div>'.
 						'<input type="hidden" id="product_id">'.
 					'</div>'.
@@ -1213,7 +1232,7 @@ function zayav_rashod_spisok($zayav_id, $type='html') {//Получение списка расход
 	foreach($arr as $r) {
 		$send .= '<tr><td class="name">'._zayavRashod($r['category_id']).
 					 '<td>'.(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
-							(_zayavRashod($r['category_id'], 'worker') && $r['worker_id'] ? _viewer($r['worker_id'], 'link') : '').
+							(_zayavRashod($r['category_id'], 'worker') && $r['worker_id'] ? _viewer($r['worker_id'], 'name') : '').
 					 '<td class="sum">'.$r['sum'].' р.';
 		$json[] = '['.
 					$r['category_id'].',"'.
@@ -1286,8 +1305,8 @@ function zayav() {
 
 	$zakazCount = query_value("SELECT COUNT(`id`) AS `all`
 	                         FROM `zayav`
-	                         WHERE `deleted`=0
-	                           AND `dogovor_require`=0
+	                         WHERE !`deleted`
+	                           AND !`dogovor_require`
 	                           AND `zakaz_status`=1
 							 LIMIT 1");
 	$zamerCount = query_value("SELECT COUNT(`id`) AS `all`
@@ -1346,28 +1365,28 @@ function zayav_spisok($category, $v=array()) {
 
 	switch($category) {
 		case 'zakaz':
-			$cond = "`deleted`=0
-		         AND `dogovor_require`=0
+			$cond = "!`deleted`
+		         AND !`dogovor_require`
 	 	         AND `zakaz_status`>0";
 			if($filter['status'])
 				$cond .= " AND `zakaz_status`=".$filter['status'];
 			break;
 		case 'zamer':
-			$cond = "`deleted`=0
-				 AND `dogovor_require`=0
+			$cond = "!`deleted`
+				 AND !`dogovor_require`
 				 AND (`zamer_status`=1 OR `zamer_status`=3)";
 			if($filter['status'])
 				$cond .= " AND `zamer_status`=".$filter['status'];
 			break;
 		case 'dog':
-			$cond = "`deleted`=0
-				 AND `dogovor_id`=0
-				 AND `dogovor_require`=1";
+			$cond = "!`deleted`
+				 AND !`dogovor_id`
+				 AND `dogovor_require`";
 			break;
 		case 'set':
-			$cond = "`deleted`=0
-			     AND `dogovor_require`=0
-	             AND `set_status`>0";
+			$cond = "!`deleted`
+			     AND !`dogovor_require`
+	             AND `set_status`";
 			if($filter['status'])
 				$cond .= " AND `set_status`=".$filter['status'];
 			break;
@@ -1819,7 +1838,7 @@ function zayav_info($zayav_id) {
 							'<td><span class="zamer-dtime" title="'._zamerDuration($z['zamer_duration']).'">'.
 									FullDataTime($z['zamer_dtime']).
 								'</span>'.
-								($z['zamer_status'] == 1 ? '<span class="zamer-left">'.remindDayLeft($z['zamer_dtime']).'</span>' : '').
+								($z['zamer_status'] == 1 ? '<span class="zamer-left">'.remindDayLeft(1, $z['zamer_dtime']).'</span>' : '').
 								'<a class="zamer_table" val="'.$z['id'].'">Таблица замеров</a>'
 		       : '').
 
@@ -1955,6 +1974,12 @@ function _attach_form($type, $zayav_id) {
 	'<input type="hidden" name="zayav_id" class="zayav_id" value="'.$zayav_id.'">';
 }//_attach_form()
 
+/*
+function wordSm($sm) {//Перевод сантиметров в твипсы
+	$twips = round($sm * 567);
+	return $twips;
+}//wordSm()
+*/
 function dogovorData($v) {//Преобразование даты для договора
 	$d = explode('-', $v);
 	return $d[2].'/'.$d[1].'/'.$d[0].' г.';
@@ -2013,6 +2038,73 @@ function dogovorFilter($v) {
 
 	return $send;
 }//dogovorFilter()
+/*
+function dogovor_print_($dog_id) {
+	$v = $dog_id;
+	$cash_id = 0;
+	if(!is_array($v)) {
+		$v = query_assoc("SELECT * FROM `zayav_dogovor` WHERE `deleted`=0 AND `id`=".$dog_id);
+		if($v['avans'] > 0)
+			$cash_id = query_value("SELECT `id` FROM `money` WHERE `deleted`=0 AND `dogovor_id`=".$v['id']." LIMIT 1");
+	}
+
+	$g = query_assoc("SELECT * FROM `setup_global` LIMIT 1");
+
+	$ex = explode(' ', $v['fio']);
+	$fioPodpis = $ex[0].' '.
+		(isset($ex[1]) ? ' '.$ex[1][0].'.' : '').
+		(isset($ex[2]) ? ' '.$ex[2][0].'.' : '');
+
+	$dopl = $v['sum'] - $v['avans'];
+	$adres = $v['pasp_adres'] ? $v['pasp_adres'] : $v['adres'];
+
+	require_once VKPATH.'word/PHPWord.php';
+
+	$b = array('bold' => true);
+	$r = array('align' => 'right');
+
+	$word = new PHPWord();
+	$section = $word->createSection(array(
+		'orientation' => null,
+		'marginLeft' => wordSm(1),
+		'marginRight' => wordSm(2),
+		'marginTop' => wordSm(1),
+		'marginBottom' => wordSm(1)
+	));
+
+	$headNameStyle = array(
+		'bold' => true,
+		'name' => 'Arial',
+		'size' => 10
+	);
+	$headNamePar = array(
+		'align'=>'center',
+		'spaceBefore' => wordSm(2.4),
+		'spaceAfter' => wordSm(0.47)
+	);
+	$section->addText(utf8('ДОГОВОР №').$v['nomer'], $headNameStyle, $headNamePar);
+
+	$table = $section->addTable();
+	$table->addRow();
+	$table->addCell(wordSm(10))->addText(utf8('Город Няндома'), $b);
+	$table->addCell(wordSm(8))->addText(utf8(dogovorData($v['data_create'])), $b, $r);
+
+	$section->addText(utf8(
+		'Общество с ограниченной ответственностью «Территория Комфорта», '.
+		'в лице менеджера по продажам, Билоченко Юлия Александровна, действующей на основании доверенности, '.
+		'с одной стороны, и '.$v['fio'].($adres ? ', '.$adres : '').', именуемый в дальнейшем «Заказчик», с другой стороны, '.
+		'заключили настоящий договор, далее «Договор», о нижеследующем:'
+	), null, array('align'=>'both','spacing'=>wordSm(0.005)));
+
+
+
+
+	header('Content-Type:application/vnd.ms-word');
+	header('Content-Disposition:attachment;filename="dogovor.doc"');
+	$writer = PHPWord_IOFactory::createWriter($word, 'Word2007');
+	$writer->save('php://output');
+}//dogovor_print()
+*/
 function dogovor_print($dog_id) {
 	require_once(VKPATH.'clsMsDocGenerator.php');
 
@@ -2234,7 +2326,11 @@ function cashmemoParagraph($id) {
 
 // ---===! remind !===--- Секция напоминаний
 
-function remindDayLeft($d) {
+function remindDayLeft($status, $d) {
+	if($status == 2)
+		return 'Выполнено';
+	if($status == 0)
+		return 'Отменено';
 	$dayLeft = floor((strtotime($d) - TODAY_UNIXTIME) / 3600 / 24);
 	if($dayLeft < 0)
 		return 'Просрочен'._end($dayLeft * -1, ' ', 'о ').($dayLeft * -1)._end($dayLeft * -1, ' день', ' дня', ' дней');
@@ -2248,10 +2344,14 @@ function remindDayLeft($d) {
 		case 2: return 'Выполнить послезавтра';
 	}
 }//remindDayLeft()
-function remindDayLeftBg($d) {
+function remindDayLeftBg($status, $d) {
+	if($status == 2)
+		return '9f9';
+	if($status == 0)
+		return 'ddd';
 	$dayLeft = floor((strtotime($d) - TODAY_UNIXTIME) / 3600 / 24);
 	if($dayLeft < 0)
-		return 'f99';
+		return 'faa';
 	if($dayLeft == 0)
 		return 'ffa';
 	return 'ddf';
@@ -2265,6 +2365,8 @@ function remind_days() {
 			) UNION (
 				SELECT `day`
 				FROM `remind`
+				WHERE `status`=1
+				  AND (`private`=0 OR `private`=1 AND `viewer_id_add`=".VIEWER_ID.")
 				GROUP BY `day`
 			)";
 	$q = query($sql);
@@ -2299,6 +2401,12 @@ function remind() {
 	unset($data['month']);
 	unset($data['norewind']);
 
+	$status = array(
+		1 => 'Активные',
+		2 => 'Выполнены',
+		0 => 'Отменены'
+	);
+
 	return
 	'<div id="remind">'.
 		'<table class="tabLR">'.
@@ -2307,6 +2415,8 @@ function remind() {
 					'<div id="buttonCreate" class="remind-add"><a>Новое напоминание</a></div>'.
 					_calendarFilter($data).
 					'<a class="goyear">Календарь на год</a>'.
+					'<div class="findHead">Статус</div>'.
+					_radio('status', $status, 1, 1).
 		'</table>'.
 		'<div class="full"><div class="fhead">Календарь напоминаний: 2014 </div>'.$fullCalendar.'</div>'.
 	'</div>';
@@ -2316,9 +2426,9 @@ function remindFilter($v) {
 		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? intval($v['page']) : 1,
 		'client_id' => !empty($v['client_id']) && preg_match(REGEXP_NUMERIC, $v['client_id']) ? intval($v['client_id']) : 0,
 		'zayav_id' => !empty($v['zayav_id']) && preg_match(REGEXP_NUMERIC, $v['zayav_id']) ? intval($v['zayav_id']) : 0,
-		'day' => !empty($v['day']) && preg_match(REGEXP_DATA, $v['day']) ? intval($v['day']) : '',
+		'day' => !empty($v['day']) ? $v['day'] : '',
 		'private' => !empty($v['private']) && preg_match(REGEXP_BOOL, $v['private']) ? intval($v['private']) : 0,
-		'status' => !empty($v['status']) && preg_match(REGEXP_NUMERIC, $v['status']) ? intval($v['status']) : 1
+		'status' => isset($v['status']) && preg_match(REGEXP_NUMERIC, $v['status']) ? intval($v['status']) : 1
 	);
 }//remindFilter()
 function remind_spisok($v=array()) {
@@ -2360,6 +2470,7 @@ function remind_spisok($v=array()) {
 			".($filter['day'] ? "AND `day` LIKE '".$filter['day']."%'" : '')."
 			".($filter['client_id'] ? "AND `client_id`=".$filter['client_id'] : '')."
 			".($filter['zayav_id'] ? "AND `zayav_id`=".$filter['zayav_id'] : '')."
+			  AND (`private`=0 OR `private`=1 AND `viewer_id_add`=".VIEWER_ID.")
 		)
 		ORDER BY `day`";
 	$q = query($sql);
@@ -2387,7 +2498,7 @@ function remind_spisok($v=array()) {
 		$z = $zayav[$r['zayav_id']];
 		$send .=
 		'<div class="remind_unit" id="ru'.$r['id'].'">'.
-			'<div class="head" style="background-color:#'.remindDayLeftBg($r['day']).'">'.
+			'<div class="head" style="background-color:#'.remindDayLeftBg($r['status'], $r['day']).'">'.
 				($r['private'] ? '<span class="private">Личное:</span> ' : '').
 				($r['zayav_id'] && !$filter['zayav_id'] ? '<a href="'.URL.'&p=zayav&d=info&id='.$r['zayav_id'].'">'._zayavCategory($z, 'head').'</a>: ' : '').
 				($r['cut'] ? 'Платёж <b>'.$r['txt'].'</b> руб. Дог.'.$z['dogovor_n'].'. ' : '').
@@ -2402,7 +2513,7 @@ function remind_spisok($v=array()) {
 				($z['client_id'] ? '<tr><td class="label">Клиент:<td>'.$z['client_link'].($z['client_tel'] ? ', '.$z['client_tel'] : '') : '').
 			'</table>'.
 			'<div class="day_left">'.
-				remindDayLeft($r['day']).
+				remindDayLeft($r['status'], $r['day']).
 				'<a class="remind_history" val="'.$r['id'].'">История</a>'.
 				($filter['status'] == 1 ? '<tt> :: </tt><a class="action '.$r['action'].'" val="'.$r['id'].'">Действие</a>' : '').
 			'</div>'.
@@ -2415,7 +2526,7 @@ function remind_spisok($v=array()) {
 function remind_history_add($v) {
 	$v = array(
 		'remind_id' => $v['remind_id'],
-		'status' => !empty($v['status']) ? $v['status'] : 1,
+		'status' => isset($v['status']) ? $v['status'] : 1,
 		'day' => !empty($v['day']) ? $v['day'] : '0000-00-00',
 		'txt' => !empty($v['txt']) ? win1251(htmlspecialchars(trim($v['txt']))) : ''
 	);
@@ -2453,7 +2564,7 @@ function remind_history($remind_id) {
 						($r['txt'] ? '<br />Причина: '.$r['txt'].'.' : '');
 					break;
 				case 2: $about = 'Напоминание выполнено.'; break;
-				case 3: $about = 'Напоминание отменено.'; break;
+				case 0: $about = 'Напоминание отменено.'; break;
 			}
 		$send .=
 			'<tr><td>'.FullDataTime($r['dtime_add'], 1).
@@ -2652,8 +2763,8 @@ function history_types($v) {
 			($v['zayav_id'] ? ' у заявки '.$v['zayav_link'] : '').
 			'.';
 
-		case 13: return 'В настройках: добавление нового сотрудника '._viewer($v['value'], 'link').'.';
-		case 14: return 'В настройках: удаление сотрудника '._viewer($v['value'], 'link').'.';
+		case 13: return 'В настройках: добавление нового сотрудника <u>'._viewer($v['value'], 'name').'</u>.';
+		case 14: return 'В настройках: удаление сотрудника <u>'._viewer($v['value'], 'name').'</u>.';
 
 		case 15: return 'Изменение информации о дате или продолжительности замера '.$v['zayav_link'].':<div class="changes">'.$v['value1'].'</div>';
 		case 16: return 'Замер '.$v['zayav_link'].' выполнен и отправлен на заключение договора.';
@@ -2697,17 +2808,17 @@ function history_types($v) {
 		case 32: return 'Внесение расхода организации: '.
 			($v['value1'] ? '<span class="oplata">'._expense($v['value1']).'</span> ' : '').
 			($v['value2'] ? '<em>('.$v['value2'].')</em> ' : '').
-			($v['value3'] ? _viewer($v['value3'], 'link').' ' : '').
+			($v['value3'] ? '<u>'._viewer($v['value3'], 'name').'</u> ' : '').
 			'на сумму <b>'.$v['value'].'</b> руб.';
 		case 33: return 'Удаление расхода организации: '.
 			($v['value1'] ? '<span class="oplata">'._expense($v['value1']).'</span> ' : '').
 			($v['value2'] ? '<em>('.$v['value2'].')</em> ' : '').
-			($v['value3'] ? 'для сотрудника '._viewer($v['value3'], 'link').' ' : '').
+			($v['value3'] ? 'для сотрудника <u>'._viewer($v['value3'], 'name').'</u> ' : '').
 			'на сумму <b>'.$v['value'].'</b> руб.';
 		case 34: return 'Восстановление расхода организации: '.
 			($v['value1'] ? '<span class="oplata">'._expense($v['value1']).'</span> ' : '').
 			($v['value2'] ? '<em>('.$v['value2'].')</em> ' : '').
-			($v['value3'] ? 'для сотрудника '._viewer($v['value3'], 'link').' ' : '').
+			($v['value3'] ? 'для сотрудника <u>'._viewer($v['value3'], 'name').'</u> ' : '').
 			'на сумму <b>'.$v['value'].'</b> руб.';
 		case 35: return 'Изменение данных расхода от '.FullDataTime($v['value2']).':<div class="changes">'.$v['value'].'</div>';
 
@@ -3154,7 +3265,7 @@ function invoice_history($v) {
 					 ($r['dogovor_id'] ? '. '.'Авансовый платёж (договор '.$r['dogovor_nomer'].')' : '').
 					 ' ';
 		$about .= $r['prim'].' ';
-		$worker = $r['worker_id'] ? _viewer($r['worker_id'], 'link').' ' : '';
+		$worker = $r['worker_id'] ? '<u>'._viewer($r['worker_id'], 'name').'</u> ' : '';
 		$expense = $r['expense_id'] ? '<span class="type">'._expense($r['expense_id']).(!trim($about) && !$worker ? '' : ': ').'</span> ' : '';
 		//$income = $r['income_id'] ? '<div class="type">'._income($r['income_id']).(empty($about) ? '' : ': ').'</div>' : '';
 		if($r['invoice_from'] != $r['invoice_to']) {//Счета не равны, перевод внешний
@@ -3733,13 +3844,16 @@ function expense_right() {
 	      AND `m`.`deleted`=0
 	      AND `m`.`sum`<0
 	    ORDER BY `u`.`dtime_add`");
+	$invoice = array(0=>'Любой счёт');
+	foreach(_invoice() as $id => $r)
+		$invoice[$id] = $r['name'];
 	return '<script type="text/javascript">var WORKERS='.$workers.';</script>'.
 	'<div class="findHead">Категория</div>'.
 	'<input type="hidden" id="category">'.
 	'<div class="findHead">Сотрудник</div>'.
 	'<input type="hidden" id="worker">'.
 	'<div class="findHead">Счёт</div>'.
-	'<input type="hidden" id="invoice_id">'.
+	_radio('invoice_id', $invoice, 0, 1).
 	'<input type="hidden" id="year">'.
 	'<div id="monthList">'.expenseMonthSum().'</div>';
 }//expense_right()
@@ -3861,8 +3975,8 @@ function expense_spisok($filter=array()) {
 		$send['spisok'] .= '<tr'.($r['deleted'] ? ' class="deleted"' : '').' val="'.$r['id'].'">'.
 			'<td class="sum"><b>'._sumSpace(abs($r['sum'])).'</b>'.
 			'<td>'.($r['expense_id'] ? '<span class="type">'._expense($r['expense_id']).($r['prim'] || $r['worker_id'] ? ':' : '').'</span> ' : '').
-				($r['worker_id'] ? _viewer($r['worker_id'], 'link').
-				($r['prim'] ? ', ' : '') : '').$r['prim'].
+				($r['worker_id'] ? '<u>'._viewer($r['worker_id'], 'name').'</u>' : '').
+				($r['prim'] && $r['worker_id'] ? ', ' : '').$r['prim'].
 			'<td class="dtime'.$dtimeTitle.FullDataTime($r['dtime_add']).
 			'<td class="ed r">'.
 				//'<div class="img_edit" title="Редактировать"></div>'.

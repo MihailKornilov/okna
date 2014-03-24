@@ -116,6 +116,7 @@ var hashLoc,
 			fast:cFind.inp(),
 			dolg:$('#dolg').val(),
 			note:$('#note').val(),
+			zayav_cat:$('#zayav_cat').val(),
 			product_id:$('#product_id').val()
 		};
 		$('.filter')[v.fast ? 'hide' : 'show']();
@@ -419,6 +420,25 @@ var hashLoc,
 				}, 'json');
 			}
 		}
+	},
+
+	remindSpisok = function(day) {
+		var y = $('#remind').hasClass('y'),
+			cal = $('#remind .right ._calendarFilter'),
+			send = {
+				op:'remind_spisok',
+				day:cal.find('.selected').val(),
+				status:$('#status').val()
+			};
+		if(y)
+			$('#remind').removeClass('y');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success) {
+				$('.remind_spisok').html(res.html);
+				if(y)
+					cal.html(res.cal);
+			}
+		}, 'json');
 	},
 
 	historyFilter = function() {
@@ -2551,6 +2571,17 @@ $(document)
 				correct:0
 			});
 			$('#note')._check(clientSpisok);
+			$('#zayav_cat')._select({
+				width:140,
+				title0:'Любые заявки',
+				spisok:[
+					{uid:1,title:'Заказы'},
+					{uid:2,title:'Замеры'},
+					{uid:3,title:'Договора'},
+					{uid:4,title:'Установки'}
+				],
+				func:clientSpisok
+			});
 			$('#product_id')._select({
 				width:140,
 				title0:'Любые изделия',
@@ -3150,23 +3181,8 @@ $(document)
 			$('.goyear').click(function() {
 				$('#remind').addClass('y');
 			});
-			window._calendarFilter = function(day) {
-				var y = $('#remind').hasClass('y'),
-					cal = $('#remind .right ._calendarFilter'),
-					send = {
-						op:'remind_day',
-						day:day
-					};
-				if(y)
-					$('#remind').removeClass('y');
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success) {
-						$('#remind .left').html(res.html);
-						if(y)
-							cal.html(res.cal);
-					}
-				}, 'json');
-			};
+			window._calendarFilter = remindSpisok;
+			$('#status')._radio(remindSpisok);
 		}
 
 		if($('#report.history').length) {
@@ -3300,12 +3316,7 @@ $(document)
 				spisok:WORKERS,
 				func:expenseSpisok
 			});
-			$('#invoice_id')._select({
-				width:160,
-				title0:'Любой счёт',
-				spisok:INVOICE_SPISOK,
-				func:expenseSpisok
-			});
+			$('#invoice_id')._radio(expenseSpisok);
 			$('#year').years({
 				func:expenseSpisok,
 				center:function() {

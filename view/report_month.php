@@ -716,6 +716,55 @@ function xls_expense() {
 
 	freeLine($line);
 }
+function revenue() {
+	global $book, $index;
+
+	$book->createSheet();
+	$book->setActiveSheetIndex($index++);
+	$sheet = $book->getActiveSheet();
+	pageSetup('Выручка');
+	$line = 1;
+
+	$sheet->getColumnDimension('A')->setWidth(10);
+	$sheet->getColumnDimension('B')->setWidth(20);
+
+	$sheet->setCellValue('A'.$line, 'Выручка наличными за '.utf8(MONTH).':');
+	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
+	$line += 2;
+
+	$sheet->setCellValue('A'.$line, 'Дата');
+	$sheet->setCellValue('B'.$line, 'Сумма');
+	$sheet->setSharedStyle(styleHead(), 'A'.$line.':B'.$line);
+	$line++;
+
+	$sql = "SELECT *
+			FROM `invoice_transfer`
+			WHERE `invoice_from`=1
+			  AND `invoice_to`=1
+			  AND `worker_to`=94283921
+			  AND `dtime_add` LIKE '".MON."%'
+	        ORDER BY `id`";
+	$q = query($sql);
+	$money = array();
+	while($r = mysql_fetch_assoc($q))
+		$money[$r['id']] = $r;
+
+	$start = $line;
+	$sum = 0;
+	foreach($money as $r) {
+		$sheet->getCell('A'.$line)->setValue(reportData($r['dtime_add']));
+		$sheet->getCell('B'.$line)->setValue(abs($r['sum']));
+		$sum += $r['sum'];
+		$line++;
+	}
+	$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.$line);
+	$sheet->setSharedStyle(styleResult(), 'A'.$line.':B'.$line);
+	$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+	$sheet->setCellValue('A'.$line, 'Итог:');
+	$sheet->setCellValue('B'.$line, _sumSpace(abs($sum)));
+
+	freeLine($line);
+}
 
 function toMailSend() {
 	mail(CRON_MAIL, 'Cron Evrookna: report_month.php', ob_get_contents());
@@ -770,6 +819,7 @@ zpwoman();
 incomes();
 xls_expense();
 debtors();
+revenue();
 
 $book->setActiveSheetIndex(0);
 

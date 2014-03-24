@@ -1339,13 +1339,15 @@ switch(@$_POST['op']) {
 							`client_id`,
 							`zayav_id`,
 							`txt`,
-							`day`
+							`day`,
+							`viewer_id_add`
 						) VALUES (
 							1,
 							".$v['client_id'].",
 							".$v['zayav_id'].",
 							'".round(str_replace(',', '.', $ex[0]), 2)."',
-							'".$ex[1]."'
+							'".$ex[1]."',
+							".VIEWER_ID."
 						)";
 				query($sql);
 				remind_history_add(array(
@@ -1539,8 +1541,10 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
-	case 'remind_day':
+	case 'remind_spisok':
 		if(!empty($_POST['day']) && !_calendarDataCheck($_POST['day']))
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['status']))
 			jsonError();
 		$send['html'] = utf8(remind_spisok($_POST));
 		$send['cal'] = utf8(_calendarFilter(array(
@@ -1554,7 +1558,7 @@ switch(@$_POST['op']) {
 	case 'remind_status':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']) && !$_POST['id'])
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['status']) && !$_POST['status'])
+		if(!preg_match(REGEXP_NUMERIC, $_POST['status']))
 			jsonError();
 		if(!preg_match(REGEXP_DATE, $_POST['day']) && !$_POST['day'])
 			jsonError();
@@ -1563,6 +1567,10 @@ switch(@$_POST['op']) {
 		$status = intval($_POST['status']);
 
 		if(!$r = query_assoc("SELECT * FROM `remind` WHERE `id`=".$id))
+			jsonError();
+
+		//»змен€ть можно только активные напоминани€
+		if($r['status'] != 1)
 			jsonError();
 
 		if($r['status'] != $status || $status == 1 && $r['day'] != $day) {
