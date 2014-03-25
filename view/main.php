@@ -2972,7 +2972,7 @@ function history_spisok($v=array()) {
 			$viewer_id != $history[$key]['viewer_id_add']) {
 			$send .=
 				'<div class="history_unit">'.
-					'<div class="head">'.FullDataTime($r['dtime_add']).($r['viewer_id_add'] ? $r['viewer_link'] : '').'</div>'.
+					'<div class="head"><span>'.FullDataTime($r['dtime_add']).'</span>'.($r['viewer_id_add'] ? $r['viewer_name'] : '').'</div>'.
 					'<ul>'.$txt.'</ul>'.
 				'</div>';
 			$txt = '';

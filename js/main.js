@@ -47,9 +47,9 @@ var hashLoc,
 	},
 	clientAdd = function(callback) {
 		var html = '<table class="client-add">' +
-				'<tr><td class="label">Имя:<td><input type="text" id="fio" maxlength="100">' +
-				'<tr><td class="label">Телефон:<td><input type="text" id="telefon" maxlength="100">' +
-				'<tr><td class="label">Адрес:<td><input type="text" id="adres" maxlength="100">' +
+				'<tr><td class="label">Имя:<td><input type="text" id="c-fio" maxlength="100">' +
+				'<tr><td class="label">Телефон:<td><input type="text" id="c-telefon" maxlength="100">' +
+				'<tr><td class="label">Адрес:<td><input type="text" id="c-adres" maxlength="100">' +
 				'<tr class="tr_pasp"><td colspan="2"><a>Заполнить паспортные данные</a>' +
 				'<tr class="dn"><td><td><b>Паспортные данные:</b>' +
 				'<tr class="dn"><td class="label">Серия:' +
@@ -66,8 +66,8 @@ var hashLoc,
 				content:html,
 				submit:submit
 			});
-		$('#fio').focus();
-		$('#fio,#telefon,#adres').keyEnter(submit);
+		$('#c-fio').focus();
+		$('#c-fio,#c-telefon,#c-adres').keyEnter(submit);
 		$('.tr_pasp a').click(function() {
 			$('.tr_pasp').remove();
 			$('.client-add .dn').removeClass('dn');
@@ -76,9 +76,9 @@ var hashLoc,
 		function submit() {
 			var send = {
 				op:'client_add',
-				fio:$('#fio').val(),
-				telefon:$('#telefon').val(),
-				adres:$('#adres').val(),
+				fio:$('#c-fio').val(),
+				telefon:$('#c-telefon').val(),
+				adres:$('#c-adres').val(),
 				pasp_seria:$('#pasp_seria').val(),
 				pasp_nomer:$('#pasp_nomer').val(),
 				pasp_adres:$('#pasp_adres').val(),
@@ -94,7 +94,7 @@ var hashLoc,
 					show:1,
 					remove:1
 				});
-				$('#fio').focus();
+				$('#c-fio').focus();
 			} else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
@@ -578,7 +578,8 @@ $.fn.clientSel = function(o) {
 		width:270,
 		add:null,
 		client_id:t.val() || 0,
-		func:function() {}
+		func:function() {},
+		funcAdd:function() {}
 	}, o);
 
 	if(o.add)
@@ -588,6 +589,7 @@ $.fn.clientSel = function(o) {
 				arr.push(res);
 				t._select(arr);
 				t._select(res.uid);
+				o.funcAdd(res);
 			});
 		};
 
@@ -945,6 +947,7 @@ $(document)
 	.on('click', '#zayav .filter_clear', function() {
 		$('.find-hide').removeClass('dn');
 		$('#find')._search('clear');
+		$('#status').rightLink(0);
 		$('#product_id')._select(0);
 		zayavSpisok();
 	})
@@ -1321,6 +1324,11 @@ $(document)
 				add:1,
 				func:function(uid, id, item) {
 					HOMEADRES = uid ? item.adres : '';
+					if($('#homeadres').val() == 1)
+						$('#adres').val(HOMEADRES);
+				},
+				funcAdd:function(c) {
+					HOMEADRES = c.adres;
 					if($('#homeadres').val() == 1)
 						$('#adres').val(HOMEADRES);
 				}

@@ -96,9 +96,9 @@
 /* Внесение и редактирование клиента */
 .client-add{border-spacing:10px}
 .client-add td.label{width:75px;text-align:right}
-.client-add #fio,
-.client-add #telefon,
-.client-add #adres,
+.client-add #c-fio,
+.client-add #c-telefon,
+.client-add #c-adres,
 .client-add #pasp_adres,
 .client-add #pasp_ovd
 {width:240px}
@@ -386,8 +386,8 @@
 #report .headName{margin:0 0 15px 0}
 .history .left{padding:10px}
 .history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
-.history_unit .head{font-size:10px;color:#777}
-.history_unit .head a{font-size:10px;margin-left:10px}
+.history_unit .head{font-size:10px}
+.history_unit .head span{color:#777;font-size:10px;margin-right:10px}
 .history_unit ul{margin:5px 0 7px 25px}
 .history_unit li{margin:0 0 8px;list-style-type:disc;display:list-item}
 .history_unit .li{margin-left:-4px}

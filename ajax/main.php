@@ -195,7 +195,8 @@ switch(@$_POST['op']) {
 		$send = array(
 			'uid' => mysql_insert_id(),
 			'title' => utf8($fio),
-			'content' => utf8($fio.'<span>'.implode('<br />', $content).'</span>')
+			'content' => utf8($fio.'<span>'.implode('<br />', $content).'</span>'),
+			'adres' => utf8($adres)
 		);
 		history_insert(array(
 			'type' => 1,
