@@ -354,7 +354,7 @@ function _expense($type_id=false, $i='name') {//Список изделий для заявок
 	if($i == 'worker')
 		return constant('EXPENSE_WORKER_'.$type_id);
 	return constant('EXPENSE_'.$type_id);
-}//_income()
+}//_expense()
 function _zamerDuration($v=false) {
 	$arr = array(
 		'30' => '30 мин.',
@@ -2880,9 +2880,9 @@ function history_types($v) {
 		case 505: return 'В настройках: изменение подвида у изделия "'.$v['value'].'":<div class="changes">'.$v['value1'].'</div>';
 		case 506: return 'В настройках: удаление подвида у изделия "'.$v['value'].'": '.$v['value1'].'.';
 
-		case 507: return 'В настройках: внесение нового наименования платежа "'.$v['value'].'".';
-		case 508: return 'В настройках: изменение данных платежа "'.$v['value'].'":<div class="changes">'.$v['value1'].'</div>';
-		case 509: return 'В настройках: удаление данных платежа "'.$v['value'].'".';
+		case 507: return 'В настройках: внесение нового вида платежа "'.$v['value'].'".';
+		case 508: return 'В настройках: изменение вида платежа "'.$v['value'].'":<div class="changes">'.$v['value1'].'</div>';
+		case 509: return 'В настройках: удаление вида платежа "'.$v['value'].'".';
 
 		case 511: return 'В настройках: внесение новой категории расходов заявки <u>'.$v['value'].'</u>.';
 		case 512: return 'В настройках: изменение данных категории расходов заявки <u>'.$v['value'].'</u>:<div class="changes">'.$v['value1'].'</div>';
@@ -3580,7 +3580,6 @@ function income_day($day) {
 	'<div class="headName">Список платежей<a class="add income-add">Внести платёж</a></div>'.
 	'<div class="inc-path">'.income_path($day).'</div>'.
 	'<div id="spisok">'.$data['spisok'].'</div>';
-
 }//income_day()
 function income_days($month=0) {
 	$sql = "SELECT DATE_FORMAT(`dtime_add`,'%Y-%m-%d') AS `day`
@@ -3616,9 +3615,10 @@ function income_right($sel) {
 		'<input type="hidden" id="income_id">'.
 	(RULES_MONEY ?
 		'<script type="text/javascript">var WORKERS='.$workers.';</script>'.
-		'<div class="findHead">Вносил сотрудник</div>'
+		'<div class="findHead">Вносил сотрудник</div>'.
+		'<input type="hidden" id="worker_id">'
 	: '').
-		'<input type="hidden" id="worker_id" value="0">';
+		_check('deleted', 'Удалённые платежи');
 }//income_right()
 
 function income_insert($v) {//Внесение платежа
@@ -3703,6 +3703,7 @@ function incomeFilter($v) {
 		'income_id' => !empty($v['income_id']) && preg_match(REGEXP_NUMERIC, $v['income_id']) ? $v['income_id'] : 0,
 		'confirm' => !empty($v['confirm']),
 		'worker_id' => !empty($v['worker_id']) && preg_match(REGEXP_NUMERIC, $v['worker_id']) ? $v['worker_id'] : 0,
+		'deleted' => isset($v['deleted']) && preg_match(REGEXP_BOOL, $v['deleted']) ? $v['deleted'] : 0,
 		'owner_id' => !empty($v['owner_id']) && preg_match(REGEXP_NUMERIC, $v['owner_id']) && $v['owner_id'] > 100 ? $v['owner_id'] : 0,
 		'client_id' => !empty($v['client_id']) && preg_match(REGEXP_NUMERIC, $v['client_id']) ? $v['client_id'] : 0,
 		'zayav_id' => !empty($v['zayav_id']) && preg_match(REGEXP_NUMERIC, $v['zayav_id']) ? $v['zayav_id'] : 0,
@@ -3721,7 +3722,8 @@ function incomeFilter($v) {
 function income_spisok($filter=array()) {
 	$filter = incomeFilter($filter);
 
-	$cond = '`deleted`=0 AND `sum`>0';
+	$cond = '`sum`>0';
+	$deleted = 0;
 
 	if(!RULES_MONEY && !$filter['client_id'])
 		$cond .= " AND `viewer_id_add`=".VIEWER_ID;
@@ -3741,8 +3743,13 @@ function income_spisok($filter=array()) {
 		$cond .= " AND `dtime_add` LIKE '".$filter['day']."%'";
 	if($filter['from'])
 		$cond .= " AND `dtime_add`>='".$filter['from']." 00:00:00' AND `dtime_add`<='".$filter['to']." 23:59:59'";
-	if(!$filter['owner_id'] && $filter['ids'])
+	if(!$filter['owner_id'] && $filter['ids']) {
 		$cond .= " AND `id` IN (".$filter['ids'].")";
+		$deleted = 1;
+	}
+	if(!$deleted && !$filter['deleted'])
+		$cond .=" AND !`deleted`";
+
 
 	$sql = "SELECT
 	            COUNT(`id`) AS `all`,
@@ -3778,6 +3785,9 @@ function income_spisok($filter=array()) {
 			'<input type="hidden" id="money_limit" value="'.$filter['limit'].'" />'.
 			'<input type="hidden" id="money_client_id" value="'.$filter['client_id'].'" />'.
 			'<input type="hidden" id="money_zayav_id" value="'.$filter['zayav_id'].'" />'.
+			'<input type="hidden" id="money_deleted" value="'.$filter['deleted'].'" />'.
+			'<input type="hidden" id="money_income_id" value="'.$filter['income_id'].'" />'.
+			'<input type="hidden" id="money_worker_id" value="'.$filter['worker_id'].'" />'.
 		(!$filter['zayav_id'] ?
 			'<div class="_moneysum">'.
 				'Показан'._end($send['all'], '', 'о').
@@ -3819,7 +3829,7 @@ function income_unit($r, $filter=array()) {
 		$about .= '<br /><span class="red">Ожидает подтверждения</span>';
 	$sumTitle = $filter['zayav_id'] ? _tooltip('Платёж', 5) : '">';
 	return
-		'<tr val="'.$r['id'].'">'.
+		'<tr val="'.$r['id'].'"'.($r['deleted'] ? ' class="deleted"' : '').'>'.
 			(!empty($filter['owner_id']) || !empty($filter['confirm']) ? '<td class="choice">'._check('money_'.$r['id'], '', isset($filter['ids_ass'][$r['id']])) : '').
 			'<td class="sum opl'.$sumTitle.''._sumSpace($r['sum']).
 			'<td><span class="type">'._income($r['income_id']).(empty($about) ? '' : ':').'</span> '.$about.

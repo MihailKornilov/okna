@@ -466,7 +466,8 @@ var hashLoc,
 			op:'income_spisok',
 			day:$('.selected').val(),
 			income_id:$('#income_id').val(),
-			worker_id:$('#worker_id').val()
+			worker_id:window.WORKERS ? $('#worker_id').val() : 0,
+			deleted:$('#deleted').val()
 		};
 		$('.inc-path').addClass('_busy');
 		$.post(AJAX_MAIN, send, function(res) {
@@ -2030,6 +2031,9 @@ $(document)
 				limit:$('#money_limit').val(),
 				client_id:$('#money_client_id').val(),
 				zayav_id:$('#money_zayav_id').val(),
+				deleted:$('#money_deleted').val(),
+				income_id:$('#money_income_id').val(),
+				worker_id:$('#money_worker_id').val(),
 				day:$('.selected').val() || ''
 			};
 		if(next.hasClass('busy'))
@@ -3222,6 +3226,7 @@ $(document)
 					spisok:WORKERS,
 					func:incomeSpisok
 				});
+			$('#deleted')._check(incomeSpisok);
 		}
 		if($('#report.expense').length) {
 			$('.add').click(function() {

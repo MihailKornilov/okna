@@ -14,7 +14,6 @@ switch(@$_POST['op']) {
 			xcache_unset(CACHE_PREFIX.'viewer_rules_'.$r['viewer_id']);
 			xcache_unset(CACHE_PREFIX.'pin_enter_count'.$r['viewer_id']);
 		}
-		//query("UPDATE `vk_user` SET `rules`='".implode(',', array_keys(rulesList()))."' WHERE `admin`=1");
 		query("UPDATE `setup_global` SET `version`=`version`+1");
 		_cacheClear();
 		jsonSuccess();
