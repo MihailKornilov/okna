@@ -1760,6 +1760,32 @@ $(document)
 				dialog.loadError();
 		}, 'json');
 	})
+	.on('click', '.transfer-spisok .img_del', function() {
+		var t = $(this),
+			dialog = _dialog({
+				head:'Удаление перевода',
+				content:'<center>Подтвердите удаление перевода.</center>',
+				butSubmit:'Удалить',
+				submit:submit
+			});
+		function submit() {
+			var send = {
+				op:'transfer_del',
+				id:t.attr('val')
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					$('#cash-spisok').html(res.c);
+					$('#invoice-spisok').html(res.i);
+					$('.transfer-spisok').html(res.t);
+					dialog.close();
+					_msg('Перевод удалён.');
+				} else
+					dialog.abort();
+			}, 'json');
+		}
+	})
 	.on('click', '.income-confirm', function() {
 		var dialog = _dialog({
 			top:20,
@@ -2800,9 +2826,10 @@ $(document)
 						'<tr><td class="label">Клиент:      <td>' + ZAYAV.client_fio +
 						'<tr><td class="label topi">Изделие:<td id="product">' +
 						'<tr><td><td><input type="text" id="zakaz_txt" placeholder="либо укажите содержание заказа вручную.." maxlength="300" value="' + ZAYAV.zakaz_txt + '">' +
-						'<tr><td class="label">Номер ВГ:	   <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
-						'<tr><td class="label">Номер Ж: 	   <td><INPUT type="text" id="nomer_g" maxlength="30" value="' + ZAYAV.nomer_g + '" />' +
-						'<tr><td class="label">Номер Д: 	   <td><INPUT type="text" id="nomer_d" maxlength="30" value="' + ZAYAV.nomer_d + '" />' +
+						'<tr><td class="label">Номер ВГ:	<td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
+						'<tr><td class="label">Номер Ж: 	<td><INPUT type="text" id="nomer_g" maxlength="30" value="' + ZAYAV.nomer_g + '" />' +
+						'<tr><td class="label">Номер Д: 	<td><INPUT type="text" id="nomer_d" maxlength="30" value="' + ZAYAV.nomer_d + '" />' +
+						'<tr><td class="label">Номер T: 	<td><INPUT type="text" id="nomer_t" maxlength="30" value="' + ZAYAV.nomer_t + '" />' +
 						'</table>',
 					dialog = _dialog({
 						width:500,
@@ -2823,7 +2850,8 @@ $(document)
 							zakaz_txt:$('#zakaz_txt').val(),
 							nomer_vg:$('#nomer_vg').val(),
 							nomer_g:$('#nomer_g').val(),
-							nomer_d:$('#nomer_d').val()
+							nomer_d:$('#nomer_d').val(),
+							nomer_t:$('#nomer_t').val()
 						};
 					if(!send.product && !send.zakaz_txt) msg = 'Необходимо выбрать изделие или вписать заказ вручную';
 					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';
@@ -2964,6 +2992,7 @@ $(document)
 						'<tr><td class="label">Номер ВГ:	   <td><INPUT type="text" id="nomer_vg" maxlength="30" value="' + ZAYAV.nomer_vg + '" />' +
 						'<tr><td class="label">Номер Ж: 	   <td><INPUT type="text" id="nomer_g" maxlength="30" value="' + ZAYAV.nomer_g + '" />' +
 						'<tr><td class="label">Номер Д: 	   <td><INPUT type="text" id="nomer_d" maxlength="30" value="' + ZAYAV.nomer_d + '" />' +
+						'<tr><td class="label">Номер T: 	   <td><INPUT type="text" id="nomer_t" maxlength="30" value="' + ZAYAV.nomer_t + '" />' +
 						'</table>',
 					dialog = _dialog({
 						width:500,
@@ -2974,7 +3003,7 @@ $(document)
 						submit:submit
 					});
 				$('#product').productList(ZAYAV.product);
-				$('#adres,#nomer_vg,#nomer_g,#nomer_d').keyEnter(submit);
+				$('#adres,#nomer_vg,#nomer_g,#nomer_d,#nomer_t').keyEnter(submit);
 				function submit() {
 					var msg,
 						send = {
@@ -2984,7 +3013,8 @@ $(document)
 							adres:$('#adres').val(),
 							nomer_vg:$('#nomer_vg').val(),
 							nomer_g:$('#nomer_g').val(),
-							nomer_d:$('#nomer_d').val()
+							nomer_d:$('#nomer_d').val(),
+							nomer_t:$('#nomer_t').val()
 						};
 					if(!send.product) msg = 'Не указано изделие';
 					else if(send.product == 'count_error') msg = 'Некорректно введено количество изделий';

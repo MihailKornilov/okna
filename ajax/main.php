@@ -358,6 +358,7 @@ switch(@$_POST['op']) {
 		$nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
 		$nomer_g = win1251(htmlspecialchars(trim($_POST['nomer_g'])));
 		$nomer_d = win1251(htmlspecialchars(trim($_POST['nomer_d'])));
+		$nomer_t = win1251(htmlspecialchars(trim($_POST['nomer_t'])));
 		$product = zayav_product_test($_POST['product']);
 		if(!$product && empty($zakaz_txt))
 			jsonError();
@@ -370,7 +371,8 @@ switch(@$_POST['op']) {
 		        SET `zakaz_txt`='".addslashes($zakaz_txt)."',
 		            `nomer_vg`='".addslashes($nomer_vg)."',
 		            `nomer_g`='".addslashes($nomer_g)."',
-		            `nomer_d`='".addslashes($nomer_d)."'
+		            `nomer_d`='".addslashes($nomer_d)."',
+		            `nomer_t`='".addslashes($nomer_t)."'
 				WHERE `id`=".$zayav_id;
 		query($sql);
 
@@ -412,6 +414,8 @@ switch(@$_POST['op']) {
 			$changes .= '<tr><th>Номер Ж:<td>'.$zayav['nomer_g'].'<td>»<td>'.$nomer_g;
 		if($zayav['nomer_d'] != $nomer_d)
 			$changes .= '<tr><th>Номер Д:<td>'.$zayav['nomer_d'].'<td>»<td>'.$nomer_d;
+		if($zayav['nomer_t'] != $nomer_t)
+			$changes .= '<tr><th>Номер T:<td>'.$zayav['nomer_t'].'<td>»<td>'.$nomer_t;
 		if($changes)
 			history_insert(array(
 				'type' => 24,
@@ -896,13 +900,14 @@ switch(@$_POST['op']) {
 		$nomer_vg = win1251(htmlspecialchars(trim($_POST['nomer_vg'])));
 		$nomer_g = win1251(htmlspecialchars(trim($_POST['nomer_g'])));
 		$nomer_d = win1251(htmlspecialchars(trim($_POST['nomer_d'])));
+		$nomer_t = win1251(htmlspecialchars(trim($_POST['nomer_t'])));
 		$product = zayav_product_test($_POST['product']);
 		if(!$product)
 			jsonError();
 		if(empty($adres))
 			jsonError();
 
-		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `set_status`>0 AND `id`=".$zayav_id." LIMIT 1";
+		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `set_status` AND `id`=".$zayav_id." LIMIT 1";
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
@@ -910,7 +915,8 @@ switch(@$_POST['op']) {
 		        SET `adres`='".addslashes($adres)."',
 		            `nomer_vg`='".addslashes($nomer_vg)."',
 		            `nomer_g`='".addslashes($nomer_g)."',
-		            `nomer_d`='".addslashes($nomer_d)."'
+		            `nomer_d`='".addslashes($nomer_d)."',
+		            `nomer_t`='".addslashes($nomer_t)."'
 				WHERE `id`=".$zayav_id;
 		query($sql);
 
@@ -949,6 +955,8 @@ switch(@$_POST['op']) {
 			$changes .= '<tr><th>Номер Ж:<td>'.$zayav['nomer_g'].'<td>»<td>'.$nomer_g;
 		if($zayav['nomer_d'] != $nomer_d)
 			$changes .= '<tr><th>Номер Д:<td>'.$zayav['nomer_d'].'<td>»<td>'.$nomer_d;
+		if($zayav['nomer_t'] != $nomer_t)
+			$changes .= '<tr><th>Номер T:<td>'.$zayav['nomer_t'].'<td>»<td>'.$nomer_t;
 		if($changes)
 			history_insert(array(
 				'type' => 22,
@@ -1895,7 +1903,7 @@ switch(@$_POST['op']) {
 
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 
-		$sql = "SELECT `id` FROM `invoice_transfer` WHERE !`invoice_to` AND `worker_to` AND !`confirm` AND `id` IN (".$ids.")";
+		$sql = "SELECT `id` FROM !`deleted` AND `invoice_transfer` WHERE !`invoice_to` AND `worker_to` AND !`confirm` AND `id` IN (".$ids.")";
 		$q = query($sql);
 		if(count($ex) != mysql_num_rows($q))
 			jsonError();
@@ -1922,6 +1930,36 @@ switch(@$_POST['op']) {
 			if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
 				jsonError();
 		$send['html'] = utf8('<div class="transfer-spisok">'.transfer_spisok(array('ids'=>$_POST['ids'])).'</div>');
+		jsonSuccess($send);
+		break;
+	case 'transfer_del':
+		if(!VIEWER_ADMIN)
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['id']) || !$_POST['id'])
+			jsonError();
+		$id = intval($_POST['id']);
+
+		$sql = "SELECT * FROM `invoice_transfer` WHERE !`deleted` AND `id`=".$id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		query("UPDATE `invoice_transfer` SET `deleted`=1 WHERE `id`=".$id);
+
+		invoice_history_insert(array(
+			'action' => 12,
+			'table' => 'invoice_transfer',
+			'id' => $r['id']
+		));
+
+		history_insert(array(
+			'type' => 53,
+			'value' => round($r['sum'], 2)
+		));
+
+		$cash = cash_spisok();
+		$send['c'] = utf8($cash['spisok']);
+		$send['i'] = utf8(invoice_spisok());
+		$send['t'] = utf8(transfer_spisok());
 		jsonSuccess($send);
 		break;
 	case 'invoice_history':

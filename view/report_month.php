@@ -240,6 +240,8 @@ function contentShow() {
 			$nDog = 'Ж-'.$r['nomer_g'];
 		if(!$nDog && $r['nomer_d'])
 			$nDog = 'Д-'.$r['nomer_d'];
+		if(!$nDog && $r['nomer_t'])
+			$nDog = 'T-'.$r['nomer_t'];
 
 		$dolg = $r['accrual'] - $r['predoplata'];
 
@@ -739,7 +741,8 @@ function revenue() {
 
 	$sql = "SELECT *
 			FROM `invoice_transfer`
-			WHERE `invoice_from`=1
+			WHERE !`deleted`
+			  AND `invoice_from`=1
 			  AND `invoice_to`=1
 			  AND `worker_to`=94283921
 			  AND `dtime_add` LIKE '".MON."%'

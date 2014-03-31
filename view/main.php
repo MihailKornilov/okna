@@ -409,7 +409,7 @@ function _mainLinks() {
 	$cRemind = query_value("SELECT COUNT(*) FROM `remind` WHERE `status`=1 AND `day`<='".$cur."' AND (`private`=0 OR `private`=1 AND `viewer_id_add`=".VIEWER_ID.")");
 	$cRemind += query_value("SELECT COUNT(*) FROM `zayav` WHERE !`deleted` AND `zamer_status`=1 AND `zamer_dtime`<='".$cur." 23:59:59'");
 
-	if(VIEWER_ADMIN && $count = query_value("SELECT COUNT(`id`) FROM `invoice_transfer` WHERE !`invoice_to` AND `worker_to` AND !`confirm`"))
+	if(VIEWER_ADMIN && $count = query_value("SELECT COUNT(`id`) FROM `invoice_transfer` WHERE !`deleted` AND !`invoice_to` AND `worker_to` AND !`confirm`"))
 		define('TRANSFER_CONFIRM', $count);
 	else
 		define('TRANSFER_CONFIRM', 0);
@@ -1067,7 +1067,8 @@ function _zayavStatusColor($id=false) {
 function _zayavCategory($z, $i='type') {// Определение категории заявки
 	$dop = $z['nomer_vg'] ? ' ВГ'.$z['nomer_vg'] :
 		  ($z['nomer_g'] ? ' Ж'.$z['nomer_g'] :
-		  ($z['nomer_d'] ? ' Д'.$z['nomer_d'] : ' #'.$z['id']));
+		  ($z['nomer_d'] ? ' Д'.$z['nomer_d'] :
+		  ($z['nomer_t'] ? ' T'.$z['nomer_t'] : ' #'.$z['id'])));
 	if(!$z['dogovor_id'] && $z['dogovor_require'])
 		$send = array(
 			'type' => 'dog',
@@ -1451,6 +1452,7 @@ function zayav_findfast($page=1, $find) {
 	$cond = "`nomer_vg`='".$find."'
 		  OR `nomer_g`='".$find."'
 		  OR `nomer_d`='".$find."'
+		  OR `nomer_t`='".$find."'
 		  OR `adres` LIKE '%".$find."%'
 		  OR `zakaz_txt` LIKE '%".$find."%'";
 	$ids = array();
@@ -1478,7 +1480,7 @@ function zayav_findfast($page=1, $find) {
 	if(!empty($ids))
 		$cond .= " OR `id` IN (".implode(',', array_unique($ids)).")";
 
-	$cond = "`deleted`=0 AND (".$cond.")";
+	$cond = "!`deleted` AND (".$cond.")";
 
 	$clear = '<a class="filter_clear">Очисить условия поиска</a>';
 	$send['all'] = query_value("SELECT COUNT(`id`) AS `all` FROM `zayav` WHERE ".$cond." LIMIT 1");
@@ -1520,6 +1522,8 @@ function zayav_findfast($page=1, $find) {
 			$r['nomer_g'] = '<em>'.$r['nomer_g'].'</em>';
 		if($r['nomer_d'] == $find)
 			$r['nomer_d'] = '<em>'.$r['nomer_d'].'</em>';
+		if($r['nomer_t'] == $find)
+			$r['nomer_t'] = '<em>'.$r['nomer_t'].'</em>';
 		if(preg_match($reg, $r['adres']))
 			$r['adres'] = preg_replace($reg, '<em>\\1</em>', $r['adres'], 1);
 		if(preg_match($reg, $r['zakaz_txt']))
@@ -1776,9 +1780,10 @@ function zayav_info($zayav_id) {
 			'adres:"'.$z['adres'].'",'.
 			'rashod:['.$rashod['json'].'],'.
 
-			'nomer_vg:"'.$z['nomer_vg'].'",'.
-			'nomer_g:"'.$z['nomer_g'].'",'.
-			'nomer_d:"'.$z['nomer_d'].'",'.
+			'nomer_vg:"'.addslashes($z['nomer_vg']).'",'.
+			'nomer_g:"'.addslashes($z['nomer_g']).'",'.
+			'nomer_d:"'.addslashes($z['nomer_d']).'",'.
+			'nomer_t:"'.addslashes($z['nomer_t']).'",'.
 
 			'day:"'.$d[0].'",'.
 			'hour:'.intval($time[0]).','.
@@ -1851,6 +1856,7 @@ function zayav_info($zayav_id) {
 	  ($z['nomer_vg'] ? '<tr><td class="label top">Номер ВГ:<td>'._attach('vg', $z['id'], 'Прикрепить документ', $z['nomer_vg']) : '').
 	   ($z['nomer_g'] ? '<tr><td class="label top">Номер Ж:<td>'._attach('g', $z['id'], 'Прикрепить документ', $z['nomer_g']) : '').
 	   ($z['nomer_d'] ? '<tr><td class="label top">Номер Д:<td>'._attach('d', $z['id'], 'Прикрепить документ', $z['nomer_d']) : '').
+	   ($z['nomer_t'] ? '<tr><td class="label top">Номер T:<td>'._attach('t', $z['id'], 'Прикрепить документ', $z['nomer_t']) : '').
 						'<tr><td class="label top">Файлы:<td>'._attach('files', $z['id'], 'Загрузить')
 : '').
 					(_zayavCategory($z, 'status_name') ?
@@ -2870,6 +2876,9 @@ function history_types($v) {
 						($v['value2'] ? ' <em>('.$v['value2'].')</em>' : '').
 						'.';
 
+		case 53: return 'Удалён перевод между счетами на сумму <b>'.$v['value'].'</b> руб.';
+
+
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
 		case 503: return 'В настройках: удаление наименования изделия "'.$v['value'].'".';
@@ -3002,8 +3011,8 @@ function _invoiceBalans($invoice_id, $start=false) {// Получение текущего баланс
 	if($start === false)
 		$start = $invoice_id > 100 ? _viewer($invoice_id, 'cash') : _invoice($invoice_id, 'start');
 	$income = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `confirm`=0 AND `invoice_id`=".($invoice_id > 100 ? "1 AND `viewer_id_add`=" : '').$invoice_id);
-	$from = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE `invoice_from`=".($invoice_id > 100 ? "1 AND `worker_from`=" : '').$invoice_id);
-	$to = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE `invoice_to`=".($invoice_id > 100 ? "1 AND `worker_to`=" : '').$invoice_id);
+	$from = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE !`deleted` AND `invoice_from`=".($invoice_id > 100 ? "1 AND `worker_from`=" : '').$invoice_id);
+	$to = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE !`deleted` AND `invoice_to`=".($invoice_id > 100 ? "1 AND `worker_to`=" : '').$invoice_id);
 	return round($income - $start - $from + $to, 2);
 }//_invoiceBalans()
 function invoice() {
@@ -3113,7 +3122,7 @@ function transfer_spisok($v=array()) {
 	);
 	$sql = "SELECT *
 	        FROM `invoice_transfer`
-	        WHERE `id`
+	        WHERE !`deleted`
 	        ".($v['confirm'] ? "AND !`invoice_to` AND `worker_to` AND !`confirm`" : '')."
 	        ".($v['ids'] ? "AND `id` IN (".$v['ids'].")" : '')."
 	        ORDER BY `id` DESC";
@@ -3125,7 +3134,8 @@ function transfer_spisok($v=array()) {
 			'<th>Со счёта'.
 			'<th>На счёт'.
 			'<th>Подробно'.
-			'<th>Дата';
+			'<th>Дата'.
+			(VIEWER_ADMIN ? '<th>' : '');
 	while($r = mysql_fetch_assoc($q))
 		$send .=
 			'<tr>'.
@@ -3141,7 +3151,8 @@ function transfer_spisok($v=array()) {
 				'<td class="about">'.
 					($r['income_count'] ? '<a class="income-show" val="'.$r['income_ids'].'">'.$r['income_count'].' платеж'._end($r['income_count'], '', 'а', 'ей').'</a>' : '').
 					(VIEWER_ADMIN && $r['confirm'] && $r['about'] ? ($r['income_count'] ? '<br />' : '').$r['about'] : '').
-				'<td class="dtime">'.FullDataTime($r['dtime_add'], 1);
+				'<td class="dtime">'.FullDataTime($r['dtime_add'], 1).
+				(VIEWER_ADMIN ? '<td><div val="'.$r['id'].'" class="img_del'._tooltip('Удалить', -30).'</div>' : '');
 	$send .= '</table>';
 	return $send;
 }//transfer_spisok()
@@ -3201,6 +3212,11 @@ function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории сче
 			'name' => 'Подтверждение платежа',
 			'znak' => '',
 			'cash' => 1
+		),
+		12 => array(
+			'name' => 'Удаление перевода',
+			'znak' => '-',
+			'cash' => 0
 		)
 	);
 	return $action[$id][$i];
@@ -3348,6 +3364,7 @@ function invoice_history_insert($v) {
 						invoice_history_insert_sql($r['viewer_id_add'], $v);
 				break;
 			case 'invoice_transfer':
+				$v['sum'] = invoiceHistoryAction($v['action'], 'znak').$v['sum'];
 				if($r['invoice_from'] && $r['invoice_to'] && $r['invoice_from'] == $r['invoice_to']) {//внутренний перевод
 					$v['invoice_id'] = $r['worker_from'];
 					invoice_history_insert_sql($r['worker_to'], $v);
