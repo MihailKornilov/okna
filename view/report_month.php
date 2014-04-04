@@ -74,7 +74,7 @@ function freeLine($line) {
 	$sheet = $book->getActiveSheet();
 	$sheet->getStyle('A'.($line + 2).':A'.($line + 2));
 }
-function pageSetup($title) {
+function pageSetup($title, $zoom=140) {
 	global $book;
 
 	$sheet = $book->getActiveSheet();
@@ -94,7 +94,7 @@ function pageSetup($title) {
 							->setBottom(0.2);
 
 	//Масштаб страницы
-	$sheet->getSheetView()->setZoomScale(140);
+	$sheet->getSheetView()->setZoomScale($zoom);
 
 	//Название страницы
 	$sheet->setTitle($title);
@@ -308,11 +308,11 @@ function zpman() {
 	$book->createSheet();
 	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
-	pageSetup('Зарплата мал.');
+	pageSetup('Зарплата мал.', 110);
 	$line = 1;
 
-	$sheet->getColumnDimension('A')->setWidth(80);
-	$sheet->getColumnDimension('B')->setWidth(10);
+	$sheet->getColumnDimension('A')->setWidth(130);
+	$sheet->getColumnDimension('B')->setWidth(12);
 
 	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для установщиков за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
@@ -402,6 +402,8 @@ function zpman() {
 	$sheet->setCellValue('B'.$line, '=SUM(B'.$start.':B'.($line - 1).')');
 	$sheet->setCellValue('A'.$line, 'Итог:');
 
+	$sheet->getStyle('A1:B'.$line)->getFont()->setSize(8);
+
 	freeLine($line);
 }
 function zpwoman() {
@@ -410,11 +412,11 @@ function zpwoman() {
 	$book->createSheet();
 	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
-	pageSetup('Зарплата дев.');
+	pageSetup('Зарплата дев.', 110);
 	$line = 1;
 
-	$sheet->getColumnDimension('A')->setWidth(80);
-	$sheet->getColumnDimension('B')->setWidth(10);
+	$sheet->getColumnDimension('A')->setWidth(120);
+	$sheet->getColumnDimension('B')->setWidth(12);
 
 	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для менеджеров за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
@@ -487,6 +489,8 @@ function zpwoman() {
 		$line += 2;
 	}
 
+	$sheet->getStyle('A1:B'.$line)->getFont()->setSize(8);
+
 	freeLine($line);
 }
 function incomes() {
@@ -495,14 +499,14 @@ function incomes() {
 	$book->createSheet();
 	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
-	pageSetup('Платежи');
+	pageSetup('Платежи', 110);
 	$line = 1;
 
-	$sheet->getColumnDimension('A')->setWidth(8);
-	$sheet->getColumnDimension('B')->setWidth(40);
-	$sheet->getColumnDimension('C')->setWidth(15);
-	$sheet->getColumnDimension('D')->setWidth(25);
-	$sheet->getColumnDimension('E')->setWidth(60);
+	$sheet->getColumnDimension('A')->setWidth(11);
+	$sheet->getColumnDimension('B')->setWidth(48);
+	$sheet->getColumnDimension('C')->setWidth(23);
+	$sheet->getColumnDimension('D')->setWidth(27);
+	$sheet->getColumnDimension('E')->setWidth(57);
 
 	$sheet->setCellValue('A'.$line, 'Платежи за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
@@ -551,10 +555,12 @@ function incomes() {
 	$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$sheet->getStyle('C'.$start.':C'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$sheet->setCellValue('C'.$line, _sumSpace($sum));
+	$sheet->getStyle('C'.$line)->getFont()->setBold(true);
 	$sheet->getStyle('E'.$start.':E'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
+	$sheet->getStyle('E'.$start.':E'.$line)->getAlignment()->setWrapText(true);
 	$sheet->setCellValue('B'.$line, 'Итог:');
 
-	$line += 2;
+	$line++;
 	$sql = "SELECT `i`.*,
 					IFNULL(SUM(`m`.`sum`),0) AS `sum`
 			FROM `setup_income` AS `i`
@@ -573,6 +579,14 @@ function incomes() {
 		$line++;
 	}
 	$sheet->setSharedStyle(styleContent(), 'B'.$start.':C'.($line - 1));
+	$sheet->setSharedStyle(styleContent(), 'B'.$start.':C'.($line - 1));
+	$sheet->getStyle('B'.$start.':B'.($line - 1))->getBorders()->getLeft()->setBorderStyle(PHPExcel_Style_Border::BORDER_MEDIUM);
+	$sheet->getStyle('C'.$start.':C'.($line - 1))->getBorders()->getRight()->setBorderStyle(PHPExcel_Style_Border::BORDER_MEDIUM);
+	$sheet->getStyle('B'.($start - 1).':C'.($start - 1))->getBorders()->getBottom()->setBorderStyle(PHPExcel_Style_Border::BORDER_THIN);
+	$sheet->getStyle('B'.($line - 1).':C'.($line - 1))->getBorders()->getBottom()->setBorderStyle(PHPExcel_Style_Border::BORDER_MEDIUM);
+	$sheet->getStyle('B'.$start.':B'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+
+	$sheet->getStyle('A1:E'.$line)->getFont()->setSize(8);
 
 	freeLine($line);
 }
@@ -582,13 +596,13 @@ function debtors() {
 	$book->createSheet();
 	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
-	pageSetup('Должники');
+	pageSetup('Должники', 110);
 	$line = 1;
 
-	$sheet->getColumnDimension('A')->setWidth(5);
-	$sheet->getColumnDimension('B')->setWidth(60);
-	$sheet->getColumnDimension('C')->setWidth(12);
-	$sheet->getColumnDimension('D')->setWidth(15);
+	$sheet->getColumnDimension('A')->setWidth(8);
+	$sheet->getColumnDimension('B')->setWidth(100);
+	$sheet->getColumnDimension('C')->setWidth(20);
+	$sheet->getColumnDimension('D')->setWidth(25);
 
 	$sheet->setCellValue('A'.$line, 'Должники на '.utf8(FullData(curTime())).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
@@ -616,13 +630,15 @@ function debtors() {
 	$n = 1;
 	foreach($client as $id => $r) {
 		$fio = new PHPExcel_RichText();
-		$fio->createText(utf8(htmlspecialchars_decode($r['fio'])));
+		$fio->createText('');
+		$f = $fio->createTextRun(utf8(htmlspecialchars_decode($r['fio'])));
+		$f->getFont()->setSize(8);
 		$balans = abs($r['balans']);
 		$sum += $balans;
 		if($r['telefon']) {
 			$tel = $fio->createTextRun(utf8(' ('.htmlspecialchars_decode($r['telefon']).')'));
 			$tel->getFont()->setName('tahoma')
-						   ->setSize(6)
+						   ->setSize(8)
 						   ->getColor()->setRGB('777777');
 		}
 		$sheet->getCell('A'.$line)->setValue($n++);
@@ -639,6 +655,8 @@ function debtors() {
 	$sheet->getStyle('C'.$start.':C'.($line - 1))->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
 	$sheet->setCellValue('D'.$line, _sumSpace($sum));
 
+	$sheet->getStyle('A1:D'.$line)->getFont()->setSize(8);
+
 	freeLine($line);
 }
 function xls_expense() {
@@ -647,74 +665,57 @@ function xls_expense() {
 	$book->createSheet();
 	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
-	pageSetup('Расходы');
+	pageSetup('Расходы', 110);
 	$line = 1;
 
-	$sheet->getColumnDimension('A')->setWidth(8);
-	$sheet->getColumnDimension('B')->setWidth(14);
-	$sheet->getColumnDimension('C')->setWidth(15);
-	$sheet->getColumnDimension('D')->setWidth(60);
+	$sheet->getColumnDimension('A')->setWidth(14);
+	$sheet->getColumnDimension('B')->setWidth(25);
+	$sheet->getColumnDimension('C')->setWidth(120);
 
 	$sheet->setCellValue('A'.$line, 'Расходы за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
-	$sheet->setCellValue('A'.$line, 'Дата');
-	$sheet->setCellValue('B'.$line, 'Счёт');
-	$sheet->setCellValue('C'.$line, 'Сумма');
-	$sheet->setCellValue('D'.$line, 'Описание');
-	$sheet->setSharedStyle(styleHead(), 'A'.$line.':D'.$line);
-	$line++;
-
 	$sql = "SELECT *
 	        FROM `money`
-	        WHERE `deleted`=0
+	        WHERE !`deleted`
 	          AND `sum`<0
 			  AND `dtime_add` LIKE '".MON."%'
 	        ORDER BY `id`";
 	$q = query($sql);
 	$money = array();
 	while($r = mysql_fetch_assoc($q))
-		$money[$r['id']] = $r;
+		$money[$r['invoice_id']][] = $r;
 
-	$start = $line;
-	$sum = 0;
-	foreach($money as $r) {
-		$sheet->getCell('A'.$line)->setValue(reportData($r['dtime_add']));
-		$sheet->getCell('B'.$line)->setValue(utf8(_invoice($r['invoice_id'])));
-		$sheet->getCell('C'.$line)->setValue(abs($r['sum']));
-		$expense = utf8(htmlspecialchars_decode(_expense($r['expense_id'])));
-		$worker = $r['worker_id'] ? ($r['expense_id'] ? ': ' : '').utf8(_viewer($r['worker_id'], 'name')).'. ' : '';
-		$prim = !empty($r['prim']) ? ($r['expense_id'] && !$worker ? ': ' : '').utf8(htmlspecialchars_decode($r['prim'])) : '';
-		$sheet->getCell('D'.$line)->setValue($expense.$worker.$prim);
+	foreach($money as $id => $invoice) {
+		$sheet->getCell('A'.$line)->setValue('Счёт '.utf8(_invoice($id)).':');
 		$line++;
-		$sum += $r['sum'];
+		$sheet->setCellValue('A'.$line, 'Дата');
+		$sheet->setCellValue('B'.$line, 'Сумма');
+		$sheet->setCellValue('C'.$line, 'Описание');
+		$sheet->setSharedStyle(styleHead(), 'A'.$line.':C'.$line);
+		$line++;
+		$start = $line;
+		$sum = 0;
+		foreach($invoice as $r) {
+			$sheet->getCell('A'.$line)->setValue(reportData($r['dtime_add']));
+			$sheet->getCell('B'.$line)->setValue(abs($r['sum']));
+			$expense = utf8(htmlspecialchars_decode(_expense($r['expense_id'])));
+			$worker = $r['worker_id'] ? ($r['expense_id'] ? ': ' : '').utf8(_viewer($r['worker_id'], 'name')).'. ' : '';
+			$prim = !empty($r['prim']) ? ($r['expense_id'] && !$worker ? ': ' : '').utf8(htmlspecialchars_decode($r['prim'])) : '';
+			$sheet->getCell('C'.$line)->setValue($expense.$worker.$prim);
+			$line++;
+			$sum += $r['sum'];
+		}
+		$sheet->setSharedStyle(styleContent(), 'A'.$start.':C'.$line);
+		$sheet->setSharedStyle(styleResult(), 'A'.$line.':C'.$line);
+		$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+		$sheet->setCellValue('A'.$line, 'Итог:');
+		$sheet->setCellValue('B'.$line, _sumSpace(abs($sum)));
+		$line += 2;
 	}
-	$sheet->setSharedStyle(styleContent(), 'A'.$start.':D'.$line);
-	$sheet->setSharedStyle(styleResult(), 'A'.$line.':D'.$line);
-	$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-	$sheet->setCellValue('B'.$line, 'Итог:');
-	$sheet->setCellValue('C'.$line, _sumSpace(abs($sum)));
 
-	$line += 2;
-	$sql = "SELECT `i`.*,
-					IFNULL(SUM(`m`.`sum`),0) AS `sum`
-			FROM `invoice` AS `i`
-				LEFT JOIN `money` AS `m`
-				ON `i`.`id`=`m`.`invoice_id`
-				 AND `m`.`deleted`=0
-				 AND `m`.`sum`<0
-				 AND `m`.`dtime_add` LIKE '".MON."%'
-			GROUP BY `i`.`id`
-			ORDER BY `i`.`id`";
-	$q = query($sql);
-	$start = $line;
-	while($r = mysql_fetch_assoc($q)) {
-		$sheet->getCell('B'.$line)->setValue(utf8($r['name']));
-		$sheet->getCell('C'.$line)->setValue(abs($r['sum']));
-		$line++;
-	}
-	$sheet->setSharedStyle(styleContent(), 'B'.$start.':C'.($line - 1));
+	$sheet->getStyle('A1:C'.$line)->getFont()->setSize(8);
 
 	freeLine($line);
 }
@@ -724,11 +725,11 @@ function revenue() {
 	$book->createSheet();
 	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
-	pageSetup('Выручка');
+	pageSetup('Выручка', 110);
 	$line = 1;
 
-	$sheet->getColumnDimension('A')->setWidth(10);
-	$sheet->getColumnDimension('B')->setWidth(20);
+	$sheet->getColumnDimension('A')->setWidth(14);
+	$sheet->getColumnDimension('B')->setWidth(30);
 
 	$sheet->setCellValue('A'.$line, 'Выручка наличными за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
@@ -765,6 +766,8 @@ function revenue() {
 	$sheet->getStyle('A'.$start.':A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$sheet->setCellValue('A'.$line, 'Итог:');
 	$sheet->setCellValue('B'.$line, _sumSpace(abs($sum)));
+
+	$sheet->getStyle('A1:B'.$line)->getFont()->setSize(8);
 
 	freeLine($line);
 }

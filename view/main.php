@@ -3115,27 +3115,38 @@ function invoice_spisok() {
 }//invoice_spisok()
 function transfer_spisok($v=array()) {
 	$v = array(
-	//	'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
-	//	'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 15,
+		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
+		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 20,
 		'confirm' => !empty($v['confirm']) && preg_match(REGEXP_NUMERIC, $v['confirm']) ? $v['confirm'] : 0,
 		'ids' => !empty($v['ids']) ? $v['ids'] : ''
 	);
+
+	$cond = "!`deleted`".
+	        ($v['confirm'] ? " AND !`invoice_to` AND `worker_to` AND !`confirm`" : '').
+	        ($v['ids'] ? " AND `id` IN (".$v['ids'].")" : '');
+
+	$all = query_value("SELECT COUNT(*) FROM `invoice_transfer` WHERE ".$cond);
+	if(!$all)
+		return '';
+
+	$start = ($v['page'] - 1) * $v['limit'];
 	$sql = "SELECT *
 	        FROM `invoice_transfer`
-	        WHERE !`deleted`
-	        ".($v['confirm'] ? "AND !`invoice_to` AND `worker_to` AND !`confirm`" : '')."
-	        ".($v['ids'] ? "AND `id` IN (".$v['ids'].")" : '')."
-	        ORDER BY `id` DESC";
+	        WHERE ".$cond."
+	        ORDER BY `id` DESC
+	        LIMIT ".$start.",".$v['limit'];
 	$q = query($sql);
-	$send = '<table class="_spisok _money">'.
-		'<tr>'.
-			($v['confirm'] ? '<th>' : '').
-			'<th>Cумма'.
-			'<th>Со счёта'.
-			'<th>На счёт'.
-			'<th>Подробно'.
-			'<th>Дата'.
-			(VIEWER_ADMIN ? '<th>' : '');
+	$send = '';
+	if($v['page'] == 1)
+		$send = '<table class="_spisok _money">'.
+			'<tr>'.
+				($v['confirm'] ? '<th>' : '').
+				'<th>Cумма'.
+				'<th>Со счёта'.
+				'<th>На счёт'.
+				'<th>Подробно'.
+				'<th>Дата'.
+				(VIEWER_ADMIN ? '<th>' : '');
 	while($r = mysql_fetch_assoc($q))
 		$send .=
 			'<tr>'.
@@ -3153,7 +3164,15 @@ function transfer_spisok($v=array()) {
 					(VIEWER_ADMIN && $r['confirm'] && $r['about'] ? ($r['income_count'] ? '<br />' : '').$r['about'] : '').
 				'<td class="dtime">'.FullDataTime($r['dtime_add'], 1).
 				(VIEWER_ADMIN ? '<td><div val="'.$r['id'].'" class="img_del'._tooltip('Удалить', -30).'</div>' : '');
-	$send .= '</table>';
+	if($start + $v['limit'] < $all) {
+		$c = $all - $start - $v['limit'];
+		$c = $c > $v['limit'] ? $v['limit'] : $c;
+		$send .=
+			'<tr class="_next" val="'.($v['page'] + 1).'"><td colspan="7">'.
+				'<span>Показать ещё '.$c.' запис'._end($c, 'ь', 'и', 'ей').'</span>';
+	}
+	if($v['page'] == 1)
+		$send .= '</table>';
 	return $send;
 }//transfer_spisok()
 function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории счетов
@@ -4067,9 +4086,21 @@ function report_month() {
 }//report_month()
 
 function salary() {
+	$year = array();
+	for($n = 2014; $n <= strftime('%Y'); $n++)
+		$year[] = '{uid:'.$n.',title:'.$n.'}';
 	return
 		'<div class="headName">Начисления зарплаты сотрудников</div>'.
-		'<div id="spisok">'.salary_spisok().'</div>';
+		'<div id="spisok">'.salary_spisok().'</div>'.
+	(VIEWER_ADMIN ?
+		'<script type="text/javascript">var YEARS=['.implode(',', $year).'];</script>'.
+		'<table id="rep">'.
+			'<tr><td>Месяц: '.
+				'<td><input type="hidden" id="rmon" value="'.intval(strftime('%m')).'" />'.
+				'<td><input type="hidden" id="ryear" value="'.intval(strftime('%Y')).'" />'.
+				'<td><div class="vkButton"><button>Распечатать отчёт</button></div>'.
+		'</table>'
+	: '');
 }//salary()
 function salary_spisok() {
 	$sql = "SELECT
@@ -4126,7 +4157,8 @@ function salary_spisok() {
 	$send = '<table class="_spisok">'.
 				'<tr><th>Фио'.
 					'<th>Ставка'.
-					'<th>Баланс';
+					'<th>Баланс'.
+					(VIEWER_ADMIN ? '<th>Отчёт<br />по з/п<br />'._check('uall') : '');
 	while($r = mysql_fetch_assoc($q))
 		if(!_viewerRules($r['viewer_id'], 'RULES_NOSALARY')) {
 			$w = $worker[$r['viewer_id']];
@@ -4135,7 +4167,8 @@ function salary_spisok() {
 			$send .=
 			'<tr><td class="fio"><a href="'.URL.'&p=report&d=salary&id='.$r['viewer_id'].'" class="name">'.$w['name'].'</a>'.
 				'<td class="rate">'.($w['rate'] == 0 ? '' : round($w['rate'], 2)).
-				'<td class="balans" style="color:#'.($balans < 0 ? 'A00' : '090').'">'.$balans;
+				'<td class="balans" style="color:#'.($balans < 0 ? 'A00' : '090').'">'.$balans.
+				(VIEWER_ADMIN ? '<td class="uch">'._check('u'.$r['viewer_id']) : '');
 		}
 	$send .= '</table>';
 	return $send;

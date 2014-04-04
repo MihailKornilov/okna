@@ -1786,6 +1786,22 @@ $(document)
 			}, 'json');
 		}
 	})
+	.on('click', '.transfer-spisok ._next', function() {
+		var next = $(this),
+			send = {
+				op:'transfer_spisok',
+				page:next.attr('val')
+			};
+		if(next.hasClass('busy'))
+			return;
+		next.addClass('busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success)
+				next.after(res.html).remove();
+			else
+				next.removeClass('busy');
+		}, 'json');
+	})
 	.on('click', '.income-confirm', function() {
 		var dialog = _dialog({
 			top:20,
@@ -3492,11 +3508,57 @@ $(document)
 			});
 		}
 		if($('#report.salary').length) {
-			$('#year').years({
+			if($('#uall').length) {
+				$('#uall')._check(function(v) {
+					var ch = $('._check');
+					for(n = 1; n < ch.length; n++)
+						ch.eq(n).find('input')._check(v);
+				});
+				var mon = [];
+				for(var k in  MONTH_DEF)
+					mon.push({uid:k,title:MONTH_DEF[k]});
+				$('#rmon')._select({
+					width:100,
+					spisok:mon
+				});
+				$('#ryear')._select({
+					width:60,
+					spisok:YEARS
+				});
+				$('.vkButton').click(function() {
+					var t = $(this),
+						ch = $('._check'),
+						s = [];
+					for(n = 1; n < ch.length; n++) {
+						var eq = ch.eq(n),
+							inp = eq.find('input');
+						if(inp.val() == 1)
+							s.push(inp.attr('id').split('u')[1]);
+					}
+					var ids = s.join();
+					if(!ids)
+						t.vkHint({
+							msg:'<span class="red">Не выбраны сотрудники</span>',
+							top:-57,
+							left:7,
+							indent:50,
+							show:1,
+							remove:1
+						});
+					else
+						document.location.href =
+							SITE + '/view/salary_report.php?' + VALUES +
+								'&ids=' + ids +
+								'&mon=' + $('#rmon').val() +
+								'&year=' + $('#ryear').val();
+				});
+			} else {
+				$('#year').years({
 				func:salarySpisok
 			});
-			$('#salmon')._radio({
+				$('#salmon')._radio({
 				func:salarySpisok
 			});
+			}
 		}
 	});

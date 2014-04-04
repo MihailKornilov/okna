@@ -15,7 +15,7 @@
 ._attach form{position:absolute}
 ._attach input{
 	position:absolute;
-	opacity:0;
+	opacity:0.5;
 	cursor:pointer;
 	width:60px;
 }
@@ -447,6 +447,9 @@
 .salary .fio{width:150px}
 .salary .rate{text-align:right}
 .salary .balans{text-align:right}
+.salary .uch{text-align:center}
+.salary #uall_check{margin-top:4px}
+.salary #rep{margin:15px 0 0 5px;border-spacing:5px}
 .salary .type{width:60px}
 .salary .uhead{margin:10px 0}
 .salary h1{margin-bottom:5px}

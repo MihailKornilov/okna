@@ -1903,7 +1903,7 @@ switch(@$_POST['op']) {
 
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 
-		$sql = "SELECT `id` FROM !`deleted` AND `invoice_transfer` WHERE !`invoice_to` AND `worker_to` AND !`confirm` AND `id` IN (".$ids.")";
+		$sql = "SELECT `id` FROM `invoice_transfer` WHERE !`deleted` AND !`invoice_to` AND `worker_to` AND !`confirm` AND `id` IN (".$ids.")";
 		$q = query($sql);
 		if(count($ex) != mysql_num_rows($q))
 			jsonError();
@@ -1960,6 +1960,10 @@ switch(@$_POST['op']) {
 		$send['c'] = utf8($cash['spisok']);
 		$send['i'] = utf8(invoice_spisok());
 		$send['t'] = utf8(transfer_spisok());
+		jsonSuccess($send);
+		break;
+	case 'transfer_spisok':
+		$send['html'] = utf8(transfer_spisok($_POST));
 		jsonSuccess($send);
 		break;
 	case 'invoice_history':
