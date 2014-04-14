@@ -302,64 +302,75 @@ function contentShow() {
 	//$sheet->getStyle('A'.$line.':'.$colLast.$line)->getBorders()->getAllBorders()->setBorderStyle(PHPExcel_Style_Border::BORDER_THIN);
 	freeLine($line);
 }
-function zpman() {
+function zp($sex=2) {
 	global $book, $index;
 
 	$book->createSheet();
 	$book->setActiveSheetIndex($index++);
 	$sheet = $book->getActiveSheet();
-	pageSetup('Зарплата мал.', 110);
+	pageSetup('Зарплата '.($sex == 2 ? 'мал.' : 'дев.'), 110);
 	$line = 1;
 
 	$sheet->getColumnDimension('A')->setWidth(130);
 	$sheet->getColumnDimension('B')->setWidth(12);
 
-	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для установщиков за '.utf8(MONTH).':');
+	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для '.($sex == 2 ? 'установщиков' : 'менеджеров').' за '.utf8(MONTH).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
-	$sql = "SELECT *
-        FROM `zayav`
-        WHERE `deleted`=0
-		  AND `status_day` LIKE '".MON."%'";
-	$q = query($sql);
-	$zayav = array();
-	while($r = mysql_fetch_assoc($q)) {
-		$ex = explode(' ', $r['dtime_add']);
-		$d = explode('-', $ex[0]);
-		$r['dtime_add'] = $d[2].'.'.$d[1].'.'.$d[0];
-		$zayav[$r['id']] = $r;
-	}
-
-	if(empty($zayav))
-		return;
-
-	$zayav = zayav_product_array($zayav);
-
-	$zayav_ids = implode(',', array_keys($zayav));
-
 	//Список зп сотрудников. Берётся из расходов по заявке.
-	$sql = "SELECT `ze`.*
-			FROM `zayav_expense` `ze`,
+	$sql = "(
+			SELECT
+			    `e`.`sum`,
+			    `e`.`zayav_id`,
+			    `e`.`worker_id`,
+			    `e`.`txt`
+			FROM `zayav_expense` `e`,
 				 `zayav` `z`
-			WHERE `ze`.`zayav_id`=`z`.`id`
-			  AND `ze`.`zayav_id` IN (".$zayav_ids.")
-			  AND `ze`.`category_id`=2
-			GROUP BY `ze`.`id`
-			ORDER BY `z`.`id`";
+			WHERE !`z`.`deleted`
+			  AND `e`.`zayav_id`=`z`.`id`
+			  AND `e`.`mon` LIKE '".MON."%'
+			  AND `e`.`acc`
+			  AND `e`.`sum`>0
+			GROUP BY `e`.`id`
+		) UNION (
+			SELECT
+			    `sum`,
+			    `zayav_id`,
+			    `worker_id`,
+			    `txt`
+			FROM `zayav_expense`
+			WHERE !`zayav_id`
+			  AND `sum`>0
+			  AND `mon` LIKE '".MON."%'
+		)";
 	$q = query($sql);
 	$zp = array();
 	$worker = array();
+	$zayav = array();
 	while($r = mysql_fetch_assoc($q))
-		if($r['worker_id'] && !_viewerRules($r['worker_id'], 'RULES_BONUS')) {
+		if(_viewer($r['worker_id'], 'sex') == $sex) {
 			if(empty($zp[$r['worker_id']]))
 				$zp[$r['worker_id']] = 0;
 			$zp[$r['worker_id']] += $r['sum'];
-			$worker[$r['worker_id']][] = array(
-				'zayav_id' => $r['zayav_id'],
-				'sum' => $r['sum']
-			);
+			$worker[$r['worker_id']][] = $r;
+			if($r['zayav_id'])
+				$zayav[$r['zayav_id']] = $r['zayav_id'];
 		}
+
+	if(!empty($zayav)) {
+		$sql = "SELECT * FROM `zayav` WHERE `id` IN (".implode(',', array_keys($zayav)).")";
+		$q = query($sql);
+		while($r = mysql_fetch_assoc($q)) {
+			$d = explode('-', $r['status_day']);
+			$r['status_day'] = $d[0] != '0000' ? $d[2].'.'.$d[1].'.'.$d[0] : '';
+			$zayav[$r['id']] = $r;
+		}
+		if(!empty($zayav))
+			$zayav = zayav_product_array($zayav);
+	}
+
+
 
 	//Подробно по каждому сотруднику
 	foreach($worker as $id => $arr) {
@@ -369,10 +380,14 @@ function zpman() {
 		$line++;
 		$start = $line;
 		foreach($arr as $r) {
-			$z = $zayav[$r['zayav_id']];
-			$adres = $z['adres'] ? $z['adres'].', ' : '';
-			$sheet->setCellValueByColumnAndRow(0, $line, utf8(_zayavCategory($z, 'head')).' от '.$z['dtime_add'].': '.utf8($adres.zayav_product_spisok($z['product'], 'report')));
-			$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : API_URL.'#zayav_').$z['id']);
+			$z = $r['zayav_id'] ? $zayav[$r['zayav_id']] : false;
+			$head = $z ? _zayavCategory($z, 'head') : $r['txt'];
+			$adres = $z && $z['adres'] ? htmlspecialchars_decode($z['adres']).', ' : '';
+			$exec = $z && $z['status_day'] ? ', выполнена '.$z['status_day'] : '';
+			$product = $z ? zayav_product_spisok($z['product'], 'report') : '';
+			$sheet->setCellValueByColumnAndRow(0, $line, utf8($head).$exec.($z ? ': ' : '').utf8($adres.$product));
+			if($z)
+				$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : API_URL.'#zayav_').$z['id']);
 			$sheet->setCellValueByColumnAndRow(1, $line, $r['sum']);
 			$line++;
 		}
@@ -401,93 +416,6 @@ function zpman() {
 	$sheet->getStyle('B'.$start.':B'.$line)->getNumberFormat()->setFormatCode('#,#');
 	$sheet->setCellValue('B'.$line, '=SUM(B'.$start.':B'.($line - 1).')');
 	$sheet->setCellValue('A'.$line, 'Итог:');
-
-	$sheet->getStyle('A1:B'.$line)->getFont()->setSize(8);
-
-	freeLine($line);
-}
-function zpwoman() {
-	global $book, $index;
-
-	$book->createSheet();
-	$book->setActiveSheetIndex($index++);
-	$sheet = $book->getActiveSheet();
-	pageSetup('Зарплата дев.', 110);
-	$line = 1;
-
-	$sheet->getColumnDimension('A')->setWidth(120);
-	$sheet->getColumnDimension('B')->setWidth(12);
-
-	$sheet->setCellValue('A'.$line, 'Начисление зарплаты для менеджеров за '.utf8(MONTH).':');
-	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
-	$line += 2;
-
-	$sql = "SELECT *
-	        FROM `zayav`
-	        WHERE `deleted`=0
-	          AND `dtime_add` LIKE '".MON."%'";
-	$q = query($sql);
-	$zayav = array();
-	while($r = mysql_fetch_assoc($q)) {
-		$ex = explode(' ', $r['dtime_add']);
-		$d = explode('-', $ex[0]);
-		$r['dtime_add'] = $d[2].'.'.$d[1].'.'.$d[0];
-		$zayav[$r['id']] = $r;
-	}
-
-	if(empty($zayav))
-		return;
-
-	$zayav = zayav_product_array($zayav);
-
-	$zayav_ids = implode(',', array_keys($zayav));
-
-	//Список зп сотрудников. Берётся из расходов по заявке.
-	$sql = "SELECT `ze`.*
-			FROM `zayav_expense` `ze`,
-				 `zayav` `z`
-			WHERE `ze`.`zayav_id`=`z`.`id`
-			  AND `ze`.`zayav_id` IN (".$zayav_ids.")
-			  AND `ze`.`category_id`=2
-			GROUP BY `ze`.`id`
-			ORDER BY `z`.`id`";
-	$q = query($sql);
-	$zp = array();
-	$worker = array();
-	while($r = mysql_fetch_assoc($q))
-		if($r['worker_id'] && _viewerRules($r['worker_id'], 'RULES_BONUS')) {
-			if(empty($zp[$r['worker_id']]))
-				$zp[$r['worker_id']] = 0;
-			$zp[$r['worker_id']] += $r['sum'];
-			$worker[$r['worker_id']][] = array(
-				'zayav_id' => $r['zayav_id'],
-				'sum' => $r['sum']
-			);
-		}
-
-	//Подробно по каждому сотруднику
-	foreach($worker as $id => $arr) {
-		$sheet->setCellValueByColumnAndRow(0, $line, utf8(_viewer($id, 'name')));
-		$sheet->getStyle('A'.$line)->getFont()->setBold(true);
-		$sheet->setSharedStyle(styleHead(), 'A'.$line.':B'.$line);
-		$line++;
-		$start = $line;
-		foreach($arr as $r) {
-			$z = $zayav[$r['zayav_id']];
-			$adres = $z['adres'] ? $z['adres'].', ' : '';
-			$sheet->setCellValueByColumnAndRow(0, $line, utf8(_zayavCategory($z, 'head')).' от '.$z['dtime_add'].': '.utf8($adres.zayav_product_spisok($z['product'], 'report')));
-			$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : API_URL.'#zayav_').$z['id']);
-			$sheet->setCellValueByColumnAndRow(1, $line, $r['sum']);
-			$line++;
-		}
-		$sheet->setCellValueByColumnAndRow(0, $line, 'Сумма:');
-		$sheet->setCellValueByColumnAndRow(1, $line, $zp[$id]);
-		$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.$line);
-		$sheet->getStyle('A'.$start.':A'.($line - 1))->getFont()->getColor()->setRGB('000088');
-		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-		$sheet->getStyle('B'.$line)->getFont()->setBold(true);
-		$line += 2;
-	}
 
 	$sheet->getStyle('A1:B'.$line)->getFont()->setSize(8);
 
@@ -820,8 +748,8 @@ aboutShow();
 headShow();
 contentShow();
 
-zpman();
-zpwoman();
+zp(2);//мальчики
+zp(1);//девочки
 incomes();
 xls_expense();
 debtors();

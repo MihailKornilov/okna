@@ -1074,6 +1074,7 @@ $(document)
 					viewer_id:RULES_VIEWER_ID,
 					first_name:$('#first_name').val(),
 					last_name:$('#last_name').val(),
+					middle_name:$('#middle_name').val(),
 					post:$('#post').val()
 				},
 					but = $(this);
@@ -1112,12 +1113,6 @@ $(document)
 					if(res.success)
 						_msg('Пин-код сброшен.');
 				}, 'json');
-			});
-			$('#rules_bonus')._dropdown({
-				spisok:[
-					{uid:0,title:'по дате выполнения заявок'},
-					{uid:1,title:'по дате внесения заявок'}
-				]
 			});
 			$('#rules_appenter')._check(function(v) {
 				$('.app-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
@@ -1164,7 +1159,6 @@ $(document)
 					var send = {
 						op:'setup_worker_dop_save',
 						viewer_id:RULES_VIEWER_ID,
-						rules_bonus:$('#rules_bonus').val(),
 						rules_cash:$('#rules_cash').val(),
 						rules_getmoney:$('#rules_getmoney').val(),
 						rules_nosalary:$('#rules_nosalary').val()

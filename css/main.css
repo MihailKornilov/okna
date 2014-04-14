@@ -15,7 +15,7 @@
 ._attach form{position:absolute}
 ._attach input{
 	position:absolute;
-	opacity:0.5;
+	opacity:0;
 	cursor:pointer;
 	width:60px;
 }
@@ -159,13 +159,16 @@
 ._zayav-rashod .zrtxt{width:142px;margin-right:5px}
 ._zayav-rashod ._select{margin-right:5px}
 ._zayav-rashod .zrsum{width:40px;margin-right:3px;text-align:right}
+._zayav-rashod ._check{margin-left:5px}
+._zayav-rashod ._dropdown{margin-left:4px}
 
 .zayav-rashod-spisok *{font-size:10px}
 .zayav-rashod-spisok{width:222px;margin:5px 4px;border-collapse:collapse}
 .zayav-rashod-spisok td{border:#dee4e8 solid 1px;padding:2px 4px}
 .zayav-rashod-spisok .name{width:50px}
-.zayav-rashod-spisok .sum{text-align:right;width:40px;white-space:nowrap}
+.zayav-rashod-spisok .sum{text-align:right;width:40px;white-space:nowrap;cursor:default}
 .zayav-rashod-spisok .itog{text-align:right}
+.zayav-rashod-spisok .noacc *{background-color:#f2f2f2;color:#777}
 
 /* Внесение новой заявки */
 .zayav-add{border-spacing:12px;margin-bottom:30px}
@@ -308,6 +311,7 @@
 .zayav-dogovor .img_del{float:right}
 
 .zayav-rashod-edit{border-spacing:8px}
+.zayav-rashod-edit .label{width:60px}
 
 .accrual-add{border-spacing:8px}
 .accrual-add .label{width:120px;text-align:right}

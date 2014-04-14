@@ -190,7 +190,9 @@ var hashLoc,
 			op:'zayav_spisok',
 			category:$('#zayav').attr('val'),
 			product:$('#product_id').val(),
-			status:$('#status').val()
+			status:$('#status').val(),
+			zpe:$('#zp_expense').length ? $('#zp_expense').val() : 0,
+			account:$('#account').length ? $('#account').val() : 0
 		};
 	},
 	zayavSpisok = function() {
@@ -724,23 +726,40 @@ $.fn.zayavRashod = function(o) {
 					cat_id = $('#' + attr + 'cat').val(),
 					worker = $('#' + attr + 'worker').val(),
 					sum = u.find('.zrsum').val(),
-					dop = '';
+					dop = '',
+					acc = 0,
+					mon = 0,
+					year = 0;
 				if(cat_id == 0)
 					continue;
 				if(!REGEXP_NUMERIC.test(sum) || sum == 0)
 					return 'sum_error';
 				if(ZAYAVEXPENSE_TXT[cat_id])
 					dop = u.find('.zrtxt').val();
-				else if(ZAYAVEXPENSE_WORKER[cat_id])
+				else if(ZAYAVEXPENSE_WORKER[cat_id]) {
 					dop = $('#' + attr + 'worker').val();
-				send.push(cat_id + ':' + dop + ':' + sum);
+					acc = $('#' + attr + 'acc').val();
+					if(acc == 1) {
+						mon = $('#' + attr + 'mon').val();
+						year = $('#' + attr + 'year').val();
+					}
+				}
+				send.push(cat_id + ':' +
+						  dop + ':' +
+						  sum + ':' +
+						  acc + ':' +
+						  mon + ':' +
+						  year);
 			}
 			return send.join();
 		}
 	}
 
 	t.html('<div class="_zayav-rashod"></div>');
-	var zr = t.find('._zayav-rashod');
+	var zr = t.find('._zayav-rashod'),
+		zrmon = []; // Преобразование списка месяцев из ассоциативного
+	for(var k in  MONTH_DEF)
+		zrmon.push({uid:k,title:MONTH_DEF[k]});
 
 	if(typeof o == 'object')
 		for(n = 0; n < o.length; n++)
@@ -752,26 +771,28 @@ $.fn.zayavRashod = function(o) {
 		var attr = id + num,
 			attr_cat = attr + 'cat',
 			attr_worker = attr + 'worker',
+			attr_acc = attr + 'acc',
+			attr_mon = attr + 'mon',
+			attr_year = attr + 'year',
 			html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
 						'<td><input type="hidden" id="' + attr_cat + '" value="' + (v[0] || 0) + '" />' +
 						'<td class="tddop">' +
 							(v[0] && ZAYAVEXPENSE_TXT[v[0]] ? '<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
 							(v[0] && ZAYAVEXPENSE_WORKER[v[0]] ? '<input type="hidden" id="' + attr_worker + '" value="' + v[1] + '" />' : '') +
-						'<td class="tdsum' + (v[0] ? '' : ' dn') + '"><input type="text" class="zrsum" maxlength="6" tabindex="' + (num * 10) + '" value="' + (v[2] || '') + '" />руб.' +
+						'<td class="tdsum' + (v[0] ? '' : ' dn') + '">' +
+							'<input type="text" class="zrsum" maxlength="6" tabindex="' + (num * 10) + '" value="' + (v[2] || '') + '" />руб.' +
+						'<td class="tdacc' + (v[0] && ZAYAVEXPENSE_WORKER[v[0]] && v[1] > 0 ? '' : ' dn') + '">' +
+							'<input type="hidden" id="' + attr_acc + '" value="' + v[3] + '" />' +
+						'<td class="tdmon' + (v[3] > 0 ? '' : ' dn') + '">' +
+							'<input type="hidden" id="' + attr_mon + '" value="' + (v[3] > 0 ? v[4] : (new Date()).getMonth() + 1) + '" />' +
+							'<input type="hidden" id="' + attr_year + '" value="' + (v[3] > 0 ? v[5] : (new Date()).getFullYear()) + '" />' +
 					'</table>';
 		zr.append(html);
 		var ptab = $('#ptab' + num),
 			tddop = ptab.find('.tddop'),
-			zrsum = ptab.find('.zrsum');
-		if(v[0] && ZAYAVEXPENSE_WORKER[v[0]])
-			$('#' + attr_worker)._select({
-				width:150,
-				title0:'Сотрудник',
-				spisok:WORKER_SPISOK,
-				func:function() {
-					zrsum.focus();
-				}
-			});
+			zrsum = ptab.find('.zrsum'),
+			tdacc = ptab.find('.tdacc'),
+			tdmon = ptab.find('.tdmon');
 		$('#' + attr_cat)._select({
 			width:120,
 			title0:'Категория',
@@ -787,8 +808,11 @@ $.fn.zayavRashod = function(o) {
 						width:150,
 						title0:'Сотрудник',
 						spisok:WORKER_SPISOK,
-						func:function() {
+						func:function(v) {
 							zrsum.focus();
+							tdacc[(v ? 'remove' : 'add') + 'Class']('dn');
+							$('#' + attr_acc)._check(0);
+							tdmon.addClass('dn');
 						}
 					});
 					zrsum.focus();
@@ -799,7 +823,39 @@ $.fn.zayavRashod = function(o) {
 				zrsum.val('');
 				if(id > 0 && !ptab.next().hasClass('ptab'))
 					itemAdd([]);
+				tdacc.addClass('dn');
+				$('#' + attr_acc)._check(0);
+				tdmon.addClass('dn');
 			}
+		});
+		if(v[0] && ZAYAVEXPENSE_WORKER[v[0]])
+			$('#' + attr_worker)._select({
+				width:150,
+				title0:'Сотрудник',
+				spisok:WORKER_SPISOK,
+				func:function(v) {
+					zrsum.focus();
+					tdacc[(v ? 'remove' : 'add') + 'Class']('dn');
+					$('#' + attr_acc)._check(0);
+					tdmon.addClass('dn');
+				}
+			});
+		$('#' + attr_acc)._check({
+			func:function(v) {
+				tdmon[(v ? 'remove' : 'add') + 'Class']('dn');
+			}
+		});
+		$('#' + attr_acc + '_check').vkHint({
+			msg:'Начислить',
+			top:-58,
+			left:-28,
+			delayShow:1000
+		});
+		$('#' + attr_mon)._dropdown({spisok:zrmon});
+		$('#' + attr_year)._dropdown({
+			spisok:[
+				{uid:2014,title:2014}
+			]
 		});
 		num++;
 	}
@@ -2775,6 +2831,8 @@ $(document)
 				spisok:spisok,
 				func:zayavSpisok
 			});
+			$('#zp_expense')._radio(zayavSpisok);
+			$('#account')._check(zayavSpisok);
 		}
 		if($('.zayav-info').length) {
 			$('.zinfo').click(function() {
@@ -3130,10 +3188,11 @@ $(document)
 			$('.rashod-edit').click(function() {
 				var html = '<table class="zayav-rashod-edit">' +
 						'<tr><td class="label">Заявка: <td><b>' + ZAYAV.head + '</b>' +
-						'<tr><td class="label topi">Расходы:<td id="zrs">' +
+						'<tr><td class="label topi">Расходы:<td>' +
+						'<tr><td colspan="2" id="zrs">' +
 						'</table>',
 					dialog = _dialog({
-						width:470,
+						width:510,
 						top:30,
 						head:'Изменение расходов заявки',
 						content:html,
@@ -3165,7 +3224,7 @@ $(document)
 					dialog.bottom.vkHint({
 						msg:'<SPAN class="red">' + msg + '</SPAN>',
 						top:-47,
-						left:147,
+						left:167,
 						indent:40,
 						show:1,
 						remove:1

@@ -48,6 +48,7 @@ switch(@$_POST['op']) {
 
 		$f = $_FILES['f1']['name'] ? $_FILES['f1'] : $_FILES['f2'];
 		switch($f['type']) {
+			case 'application/pdf': break;
 			case 'application/rtf': break;
 			case 'application/msword': break;
 			case 'application/vnd.ms-excel': break;
@@ -1020,7 +1021,7 @@ switch(@$_POST['op']) {
 		if($rashod === false)
 			jsonError();
 
-		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id." LIMIT 1";
+		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id." LIMIT 1";
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
@@ -1035,13 +1036,17 @@ switch(@$_POST['op']) {
 							`category_id`,
 							`txt`,
 							`worker_id`,
-							`sum`
+							`sum`,
+							`acc`,
+							`mon`
 						) VALUES (
 							".$zayav_id.",
 							".$r[0].",
 							'".(_zayavRashod($r[0], 'txt') ? addslashes($r[1]) : '')."',
 							".(_zayavRashod($r[0], 'worker') ? intval($r[1]) : 0).",
-							".$r[2]."
+							".$r[2].",
+							".$r[3].",
+							'".($r[3] ? $r[5].'-'.($r[4] < 10 ? 0 : '').$r[4].'-'.strftime('%d') : '0000-00-00')."'
 						)";
 				query($sql);
 			}
@@ -2509,7 +2514,7 @@ switch(@$_POST['op']) {
 		$worker = intval($_POST['worker']);
 		$sum = str_replace(',', '.', $_POST['sum']);
 
-		$sql = "SELECT * FROM `vk_user` WHERE `worker`=1 AND `viewer_id`=".$worker;
+		$sql = "SELECT * FROM `vk_user` WHERE `worker` AND `viewer_id`=".$worker;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
@@ -2522,7 +2527,8 @@ switch(@$_POST['op']) {
 		$sExpense = query_value("
 				SELECT IFNULL(SUM(`sum`),0)
 				FROM `zayav_expense`
-				WHERE `worker_id`=".$worker);
+				WHERE `mon`!='0000-00-00'
+			      AND `worker_id`=".$worker);
 		$start = round($sum - $sMoney - $sExpense, 2);
 
 		query("UPDATE `vk_user` SET `salary_balans_start`=".$start." WHERE `viewer_id`=".$worker);
@@ -2725,6 +2731,7 @@ switch(@$_POST['op']) {
 		$viewer_id = intval($_POST['viewer_id']);
 		$first_name = win1251(htmlspecialchars(trim($_POST['first_name'])));
 		$last_name = win1251(htmlspecialchars(trim($_POST['last_name'])));
+		$middle_name = win1251(htmlspecialchars(trim($_POST['middle_name'])));
 		$post = win1251(htmlspecialchars(trim($_POST['post'])));
 
 		if(!$first_name || !$last_name)
@@ -2737,6 +2744,7 @@ switch(@$_POST['op']) {
 		query("UPDATE `vk_user`
 		       SET `first_name`='".addslashes($first_name)."',
 		           `last_name`='".addslashes($last_name)."',
+		           `middle_name`='".addslashes($middle_name)."',
 		           `post`='".addslashes($post)."'
 		       WHERE `viewer_id`=".$viewer_id);
 		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
@@ -2747,6 +2755,8 @@ switch(@$_POST['op']) {
 			$changes .= '<tr><th>Имя:<td>'.$r['first_name'].'<td>»<td>'.$first_name;
 		if($r['last_name'] != $last_name)
 			$changes .= '<tr><th>Фамилия:<td>'.$r['last_name'].'<td>»<td>'.$last_name;
+		if($r['middle_name'] != $middle_name)
+			$changes .= '<tr><th>Отчество:<td>'.$r['middle_name'].'<td>»<td>'.$middle_name;
 		if($r['post'] != $post)
 			$changes .= '<tr><th>Должность:<td>'.$r['post'].'<td>»<td>'.$post;
 		if($changes)

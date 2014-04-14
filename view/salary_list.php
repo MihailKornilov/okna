@@ -136,7 +136,7 @@ function zpPrint() {
 	$sheet->setCellValue('A'.$line, '№ дог.');
 	$sheet->setCellValue('B'.$line, 'Адрес');
 	$sheet->setCellValue('C'.$line, 'Изделие');
-	$sheet->setCellValue('D'.$line, 'Дата '.(BONUS ? 'заяв' : 'уст').'.');
+	$sheet->setCellValue('D'.$line, 'Дата уст.');
 	$sheet->setCellValue('E'.$line, 'Сумма');
 	$sheet->setCellValue('F'.$line, 'Примечание');
 	$sheet->setSharedStyle(styleHead(), 'A'.$line.':F'.$line);
@@ -144,7 +144,6 @@ function zpPrint() {
 
 	$sql = "SELECT
 				`e`.*,
-				`z`.`dtime_add` `z_add`,
 				`z`.`adres` `adres`,
 				`z`.`status_day`,
 				`z`.`dogovor_id`
@@ -169,14 +168,9 @@ function zpPrint() {
 		$key = $r['dtime_add'];
 		if($r['zayav_id']) {
 			$zayav[$r['zayav_id']] = array();
-			if(BONUS) {
-				$key = $r['z_add'];
-				$r['z_add'] = substr($r['z_add'], 0, 10);
-			} else {
-				$key = $r['status_day'];
-				if($key == '0000-00-00')
-					continue;
-			}
+			$key = $r['status_day'];
+			if($key == '0000-00-00')
+				$key = '2014-01-01';
 		}
 		$key = strtotime($key);
 		while(isset($zp[$key]))
@@ -195,7 +189,7 @@ function zpPrint() {
 		$sheet->setCellValue('A'.$line, utf8($r['zayav_id'] ? ($r['dogovor_id'] ? $r['dogovor_n'].' ' : '').$r['zayav_vg'] : ''));
 		$sheet->setCellValue('B'.$line, $r['adres'] ? utf8(htmlspecialchars_decode($r['adres'])) : '');
 		$sheet->setCellValue('C'.$line, $r['zayav_id'] ? utf8(zayav_product_spisok($zayav[$r['zayav_id']]['product'], 'report')) : '');
-		$sheet->setCellValue('D'.$line, $r['zayav_id'] ? reportData(BONUS ? $r['z_add'] : $r['status_day']) : '');
+		$sheet->setCellValue('D'.$line, $r['zayav_id'] && $r['status_day'] != '0000-00-00' ? reportData($r['status_day']) : '');
 		$sheet->setCellValue('E'.$line, $r['sum']);
 		$sheet->setCellValue('F'.$line, utf8($r['txt']));
 		$line++;
@@ -225,6 +219,7 @@ function zpPrint() {
 	$sheet->mergeCells('A'.$line.':D'.$line);
 	$sheet->setCellValue('A'.$line, 'Итого к выдаче:');
 	$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+	$sheet->getStyle('C'.$start.':C'.$line)->getAlignment()->setWrapText(true);
 	$sheet->setCellValue('E'.$line, $sum - $deduct);
 	$sheet->getStyle('F'.$start.':F'.$line)->getAlignment()->setWrapText(true);
 
@@ -262,8 +257,6 @@ if(empty($_GET['worker_id']) || !preg_match(REGEXP_NUMERIC, $_GET['worker_id']))
 define('WORKER_ID', intval($_GET['worker_id']));
 if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `viewer_id`=".WORKER_ID))
 	die(win1251('Сотрудника не существует.'));
-define('BONUS', _viewerRules(WORKER_ID, 'RULES_BONUS'));
-
 
 if(empty($_GET['ids']))
 	die(win1251('Не выбраны начисления.'));
