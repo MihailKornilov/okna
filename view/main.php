@@ -667,6 +667,7 @@ function clientFilter($v) {
 		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? intval($v['page']) : 1,
 		'fast' => !empty($v['fast']) && preg_match(REGEXP_WORDFIND, win1251($v['fast'])) ? win1251(htmlspecialchars(trim($v['fast']))) : '',
 		'dolg' => !empty($v['dolg']) && preg_match(REGEXP_BOOL, $v['dolg']) ? intval($v['dolg']) : 0,
+		'worker' => !empty($v['worker']) && preg_match(REGEXP_BOOL, $v['worker']) ? intval($v['worker']) : 0,
 		'note' => !empty($v['note']) && preg_match(REGEXP_BOOL, $v['note']) ? intval($v['note']) : 0,
 		'zayav_cat' => !empty($v['zayav_cat']) && preg_match(REGEXP_NUMERIC, $v['zayav_cat']) ? intval($v['zayav_cat']) : 0,
 		'product_id' => !empty($v['product_id']) && preg_match(REGEXP_NUMERIC, $v['product_id']) ? intval($v['product_id']) : 0
@@ -674,7 +675,7 @@ function clientFilter($v) {
 }//clientFilter()
 function client_data($filter=array()) {
 	$filter = clientFilter($filter);
-	$cond = "`deleted`=0";
+	$cond = "!`deleted`";
 	$reg = '';
 	$regEngRus = '';
 	if($filter['fast']) {
@@ -719,6 +720,8 @@ function client_data($filter=array()) {
 					$cids[$id] = $id;
 			}
 		}
+		if($filter['worker'])
+			$cond .= " AND `worker_id`";
 		if($filter['note']) {
 			$sql = "SELECT DISTINCT `table_id`
 					FROM `vk_comment`
@@ -825,6 +828,7 @@ function client_list() {
 					'<div id="buttonCreate"><a>Новый клиент</a></div>'.
 					'<div class="filter">'.
 						_check('dolg', 'Должники').
+						_check('worker', 'Сотрудник').
 						_check('note', 'Есть заметки').
 						'<div class="findHead">Категории заявок</div>'.
 						'<input type="hidden" id="zayav_cat">'.
@@ -843,6 +847,12 @@ function clientInfoGet($client) {
 			'<tr><td class="label">Телефон:<td>'.$client['telefon'].
 			'<tr><td class="label">Адрес:  <td>'.$client['adres'].
 			'<tr><td class="label">Баланс: <td><b style=color:#'.($client['balans'] < 0 ? 'A00' : '090').'>'.round($client['balans'], 2).'</b>'.
+		($client['worker_id'] ?
+			'<tr><td class="label">Сотрудник:'.
+				'<td><a href="'.URL.'&p=report&d=salary&id='.$client['worker_id'].'" class="'._tooltip('З/п сотрудника', -30).
+						_viewer($client['worker_id'], 'name').
+					'</a>'
+		: '').
 		'</table>'.
 	($client['pasp_seria'] || $client['pasp_nomer'] || $client['pasp_adres'] || $client['pasp_ovd'] || $client['pasp_data'] ?
 		'<div class="pasp-head">Паспортные данные:</div>'.
@@ -911,6 +921,13 @@ function client_info($client_id) {
 			);
 		}
 	}
+
+	$workers = query_selJson("
+		SELECT
+			`viewer_id`,
+			CONCAT(`first_name`,' ',`last_name`)
+        FROM `vk_user`
+        WHERE `viewer_id`!=982006 AND `worker`");
 	return
 	'<script type="text/javascript">'.
 		'var CLIENT={'.
@@ -918,6 +935,8 @@ function client_info($client_id) {
 			'fio:"'.$client['fio'].'",'.
 			'telefon:"'.$client['telefon'].'",'.
 			'adres:"'.$client['adres'].'",'.
+			'worker_id:'.$client['worker_id'].','.
+			'workers:'.$workers.','.
 			'pasp_seria:"'.$client['pasp_seria'].'",'.
 			'pasp_nomer:"'.$client['pasp_nomer'].'",'.
 			'pasp_adres:"'.$client['pasp_adres'].'",'.
@@ -2737,8 +2756,9 @@ function report() {
 			if(!empty($_GET['id']) && preg_match(REGEXP_NUMERIC, $_GET['id'])) {
 				$worker_id = intval($_GET['id']);
 				$left = salary_worker($worker_id);
-				$right = '<input type="hidden" id="year" />'.
-						 '<div id="monthList">'.salary_monthList($worker_id, strftime('%Y'), strftime('%m')).'</div>';
+				if(defined('WORKER_OK'))
+					$right = '<input type="hidden" id="year" />'.
+							 '<div id="monthList">'.salary_monthList($worker_id, strftime('%Y'), strftime('%m')).'</div>';
 			} else
 				$left = salary();
 			break;
@@ -4183,7 +4203,9 @@ function salary_spisok() {
 				`u`.`viewer_id`,
 				`u`.`rate`,
 				CONCAT(`u`.`first_name`,' ',`u`.`last_name`) AS `name`,
-				IFNULL(SUM(`m`.`sum`),0) AS `zp`
+				IFNULL(SUM(`m`.`sum`),0) AS `zp`,
+				0 AS `client_id`,
+				'' AS `dolg`
 			FROM `vk_user` AS `u`
 				LEFT JOIN `money` AS `m`
 				ON `u`.`viewer_id`=`m`.`worker_id`
@@ -4198,6 +4220,25 @@ function salary_spisok() {
 	$worker = array();
 	while($r = mysql_fetch_assoc($q))
 		$worker[$r['viewer_id']] = $r;
+
+	//Клиентский долг
+	$sql = "SELECT
+ 				`v`.`viewer_id`,
+				`c`.`id`,
+				`c`.`balans`
+			FROM `client` AS `c`,
+			 	 `vk_user` AS `v`
+			WHERE `v`.`viewer_id`=`c`.`worker_id`
+			  AND `v`.`viewer_id`!=982006
+			  AND `v`.`worker`
+			  AND `c`.`balans`<0
+			  AND !`c`.`deleted`
+			GROUP BY `v`.`viewer_id`";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q)) {
+		$worker[$r['viewer_id']]['client_id'] = $r['id'];
+		$worker[$r['viewer_id']]['dolg'] = round($r['balans'], 2);
+	}
 
 	//Начисления с заявками
 	$sql = "SELECT
@@ -4235,16 +4276,20 @@ function salary_spisok() {
 				'<tr><th>Фио'.
 					'<th>Ставка'.
 					'<th>Баланс'.
+					'<th>Клиентский<br />долг'.
 					(VIEWER_ADMIN ? '<th>Отчёт<br />по з/п<br />'._check('uall') : '');
 	while($r = mysql_fetch_assoc($q))
 		if(!_viewerRules($r['viewer_id'], 'RULES_NOSALARY')) {
 			$w = $worker[$r['viewer_id']];
 			$start = _viewer($r['viewer_id'], 'salary_balans_start');
 			$balans = $start == -1 ? '' : round($w['zp'] + $r['ze'] + $start, 2);
+			if($w['dolg'])
+				$w['dolg'] = '<a href="'.URL.'&p=client&d=info&id='.$w['client_id'].'" class="'._tooltip('Перейти на клиентскую страницу', -90).$w['dolg'].'</a>';
 			$send .=
 			'<tr><td class="fio"><a href="'.URL.'&p=report&d=salary&id='.$r['viewer_id'].'" class="name">'.$w['name'].'</a>'.
 				'<td class="rate">'.($w['rate'] == 0 ? '' : round($w['rate'], 2)).
 				'<td class="balans" style="color:#'.($balans < 0 ? 'A00' : '090').'">'.$balans.
+				'<td class="dolg">'.$w['dolg'].
 				(VIEWER_ADMIN ? '<td class="uch">'._check('u'.$r['viewer_id']) : '');
 		}
 	$send .= '</table>';
@@ -4290,9 +4335,10 @@ function salary_monthList($worker_id, $year, $m) {
 }
 function salary_worker($worker_id) {
 	if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `viewer_id`=".$worker_id))
-		return 'Сотрудника не существует.';
+		return '<h2>Сотрудника не существует.</h2>';
 	if(_viewerRules($worker_id, 'RULES_NOSALARY'))
-		return 'У сотрудника <u>'._viewer($worker_id, 'name').'</u> не начисляется зарплата.';
+		return '<h2>У сотрудника <u>'._viewer($worker_id, 'name').'</u> не начисляется зарплата.</h2>';
+	define('WORKER_OK', true);
 	$year = array();
 	for($n = 2014; $n <= strftime('%Y'); $n++)
 		$year[$n] = $n;
@@ -4335,6 +4381,9 @@ function salary_worker_spisok($v) {
 		$balans = '<b style="color:#'.($balans < 0 ? 'A00' : '090').'">'.$balans.'</b> руб.';
 	} else
 		$balans = '<a class="start-set">установить</a>';
+
+	$client = query_assoc("SELECT * FROM `client` WHERE !`deleted` AND `balans`<0 AND `worker_id`=".$filter['worker_id']);
+
 	$rate = _viewer($filter['worker_id'], 'rate');
 	$send =
 		'<div class="uhead">'.
@@ -4349,6 +4398,14 @@ function salary_worker_spisok($v) {
 				'<a class="deduct">Внести вычет</a>'.
 			'</div>'.
 		'</div>'.
+		($client ?
+			'<div class="_info">'.
+				'Присутствует клиентский долг в размере '.
+				'<a href="'.URL.'&p=client&d=info&id='.$client['id'].'" class="'._tooltip('Перейти на клиентскую страницу', -85).
+					round($client['balans'], 2).
+				'</a> руб.'.
+			'</div>'
+		: '').
 		'<div id="salary-sel"></div>';
 
 	$sql = "(SELECT

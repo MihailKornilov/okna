@@ -92,7 +92,8 @@
 
 /* Внесение и редактирование клиента */
 .client-add{border-spacing:10px}
-.client-add td.label{width:75px;text-align:right}
+.client-add .label{width:75px;text-align:right}
+.client-add.e .label{width:120px}
 .client-add #c-fio,
 .client-add #c-telefon,
 .client-add #c-adres,
@@ -111,6 +112,7 @@
 #client .dolg_sum{color:#999;margin-left:10px;font-size:10px}
 #client .dolg_sum b{color:#922;font-size:10px}
 #client #dolg_check{margin-top:20px}
+#client #worker_check{margin-top:10px}
 #client #note_check{margin-top:10px}
 #client .left{padding-bottom:10px}
 #client .unit{margin:5px 10px 0 10px;border-bottom:#dae1e8 solid 1px;padding:3px}
@@ -129,7 +131,7 @@
 #clientInfo ._info{margin:10px;font-weight:bold;text-align:center;background-color:#fee;color:red}
 #clientInfo .fio{color:#31618C;font-size:12px;font-weight:bold;margin:15px 5px 5px 20px}
 #clientInfo .cinf{border-spacing:4px;margin:0 10px 0 26px}
-#clientInfo .cinf .label{width:60px}
+#clientInfo .cinf .label{width:70px}
 #clientInfo .pasp-head{margin:8px 0 3px 20px;color:#31618C}
 #clientInfo .pasp{border-spacing:2px;margin-left:28px}
 #clientInfo .pasp .label{width:85px}
@@ -451,6 +453,8 @@
 .salary .fio{width:150px}
 .salary .rate{text-align:right}
 .salary .balans{text-align:right}
+.salary .dolg{text-align:right}
+.salary .dolg a{color:#a00;font-weight:bold}
 .salary .uch{text-align:center}
 .salary #uall_check{margin-top:4px}
 .salary #rep{margin:15px 0 0 5px;border-spacing:5px}
@@ -463,6 +467,9 @@
 .salary a.rate-set{color:#d33;float:right}
 .salary a.rate-set:hover{color:#d33}
 .salary .uhead span{color:#888;margin-left:8px}
+.salary ._info{text-align:center}
+.salary ._info a{color:#a00;font-weight:bold}
+.salary h2{padding:15px}
 .salary #salary-sel{margin-bottom:5px}
 .salary #salary-sel a{float:right}
 .salary .years{margin-top:25px}

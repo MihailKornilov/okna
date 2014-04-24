@@ -212,12 +212,15 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'client_edit':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || $_POST['client_id'] == 0)
+		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']) || !$_POST['client_id'])
+			jsonError();
+		if(!preg_match(REGEXP_NUMERIC, $_POST['worker_id']))
 			jsonError();
 		$client_id = intval($_POST['client_id']);
 		$fio = win1251(htmlspecialchars(trim($_POST['fio'])));
 		$telefon = win1251(htmlspecialchars(trim($_POST['telefon'])));
 		$adres = win1251(htmlspecialchars(trim($_POST['adres'])));
+		$worker_id = intval($_POST['worker_id']);
 		$pasp_seria = win1251(htmlspecialchars(trim($_POST['pasp_seria'])));
 		$pasp_nomer = win1251(htmlspecialchars(trim($_POST['pasp_nomer'])));
 		$pasp_adres = win1251(htmlspecialchars(trim($_POST['pasp_adres'])));
@@ -225,13 +228,21 @@ switch(@$_POST['op']) {
 		$pasp_data = win1251(htmlspecialchars(trim($_POST['pasp_data'])));
 		if(empty($fio))
 			jsonError();
-		$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$client_id;
+		$sql = "SELECT * FROM `client` WHERE !`deleted` AND `id`=".$client_id;
 		if(!$client = mysql_fetch_assoc(query($sql)))
 			jsonError();
+
+		if($worker_id) {
+			$sql = "SELECT COUNT(`id`) FROM `client` WHERE `id`!=".$client_id." AND `worker_id`=".$worker_id;
+			if(query_value($sql))
+				jsonError('Этот сотрудник связан с другим клиентом');
+		}
+
 		query("UPDATE `client` SET
 				`fio`='".$fio."',
 				`telefon`='".$telefon."',
 				`adres`='".$adres."',
+				`worker_id`=".$worker_id.",
 				`pasp_seria`='".$pasp_seria."',
 				`pasp_nomer`='".$pasp_nomer."',
 				`pasp_adres`='".$pasp_adres."',
@@ -245,6 +256,10 @@ switch(@$_POST['op']) {
 			$changes .= '<tr><th>Телефон:<td>'.$client['telefon'].'<td>»<td>'.$telefon;
 		if($client['adres'] != $adres)
 			$changes .= '<tr><th>Адрес:<td>'.$client['adres'].'<td>»<td>'.$adres;
+		if($client['worker_id'] != $worker_id)
+			$changes .= '<tr><th>Сотрудник:<td>'.($client['worker_id'] ? _viewer($client['worker_id'], 'name') : '').
+							'<td>»'.
+							'<td>'.($worker_id ? _viewer($worker_id, 'name') : '');
 		if($client['pasp_seria'] != $pasp_seria)
 			$changes .= '<tr><th>Паспорт серия:<td>'.$client['pasp_seria'].'<td>»<td>'.$pasp_seria;
 		if($client['pasp_nomer'] != $pasp_nomer)
@@ -267,6 +282,7 @@ switch(@$_POST['op']) {
 			'fio' => $fio,
 			'telefon' => $telefon,
 			'adres' => $adres,
+			'worker_id' => $worker_id,
 			'pasp_seria' => $pasp_seria,
 			'pasp_nomer' => $pasp_nomer,
 			'pasp_adres' => $pasp_adres,
@@ -275,7 +291,8 @@ switch(@$_POST['op']) {
 
 			'balans' => clientBalansUpdate($client_id),
 			'viewer_id_add' => $client['viewer_id_add'],
-			'dtime_add' => $client['dtime_add']
+			'dtime_add' => $client['dtime_add'],
+			'deleted' => 0
 		);
 		$send['html'] = clientInfoGet($send);
 		foreach($send as $i => $v)

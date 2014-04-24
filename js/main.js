@@ -115,6 +115,7 @@ var hashLoc,
 			op:'client_spisok',
 			fast:cFind.inp(),
 			dolg:$('#dolg').val(),
+			worker:$('#worker').val(),
 			note:$('#note').val(),
 			zayav_cat:$('#zayav_cat').val(),
 			product_id:$('#product_id').val()
@@ -2680,6 +2681,7 @@ $(document)
 				delayShow:1000,
 				correct:0
 			});
+			$('#worker')._check(clientSpisok);
 			$('#note')._check(clientSpisok);
 			$('#zayav_cat')._select({
 				width:140,
@@ -2713,10 +2715,11 @@ $(document)
 				$('#histories').css('display', val == 'hist' ? 'block' : 'none');
 			});
 			$('.cedit').click(function() {
-				var html = '<table class="client-add">' +
-					'<tr><td class="label">Имя:<td><input type="text" id="fio" maxlength="100" value="' + CLIENT.fio + '">' +
-					'<tr><td class="label">Телефон:<td><input type="text" id="telefon" maxlength="100" value="' + CLIENT.telefon + '">' +
-					'<tr><td class="label">Адрес:<td><input type="text" id="adres" maxlength="100" value="' + CLIENT.adres + '">' +
+				var html = '<table class="client-add e">' +
+					'<tr><td class="label">Имя:<td><input type="text" id="c-fio" maxlength="100" value="' + CLIENT.fio + '">' +
+					'<tr><td class="label">Телефон:<td><input type="text" id="c-telefon" maxlength="100" value="' + CLIENT.telefon + '">' +
+					'<tr><td class="label">Адрес:<td><input type="text" id="c-adres" maxlength="100" value="' + CLIENT.adres + '">' +
+					'<tr><td class="label">Связан с сотрудником:<td><input type="hidden" id="worker_id" value="' + CLIENT.worker_id + '">' +
 					'<tr><td><td><b>Паспортные данные:</b>' +
 					'<tr><td class="label">Серия:' +
 						'<td><input type="text" id="pasp_seria" maxlength="8" value="' + CLIENT.pasp_seria + '">' +
@@ -2728,19 +2731,25 @@ $(document)
 				var dialog = _dialog({
 					head:'Редактирование данных клиента',
 					top:30,
-					width:380,
+					width:430,
 					content:html,
 					butSubmit:'Сохранить',
 					submit:submit
 				});
-				$('#fio,#telefon,#adres,#pasp_seria,#pasp_nomer,#pasp_adres,#pasp_ovd,#pasp_data').keyEnter(submit);
+				$('#worker_id')._select({
+					width:180,
+					title0:'Не выбран',
+					spisok:CLIENT.workers
+				});
+				$('#c-fio,#c-telefon,#c-adres,#pasp_seria,#pasp_nomer,#pasp_adres,#pasp_ovd,#pasp_data').keyEnter(submit);
 				function submit() {
 					var send = {
 							op:'client_edit',
 							client_id:CLIENT.id,
-							fio:$('#fio').val(),
-							telefon:$('#telefon').val(),
-							adres:$('#adres').val(),
+							fio:$('#c-fio').val(),
+							telefon:$('#c-telefon').val(),
+							adres:$('#c-adres').val(),
+							worker_id:$('#worker_id').val(),
 							pasp_seria:$('#pasp_seria').val(),
 							pasp_nomer:$('#pasp_nomer').val(),
 							pasp_adres:$('#pasp_adres').val(),
@@ -2748,27 +2757,33 @@ $(document)
 							pasp_data:$('#pasp_data').val()
 						};
 					if(!send.fio) {
-						dialog.bottom.vkHint({
-							msg:'<span class="red">Не указано имя клиента.</span>',
-							top:-47,
-							left:100,
-							indent:50,
-							show:1,
-							remove:1
-						});
-						$("#fio").focus();
+						err('Не указано имя клиента');
+						$('#c-fio').focus();
 					} else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function(res) {
 							if(res.success) {
+								res.workers = CLIENT.workers;
 								CLIENT = res;
 								$('.left:first').html(res.html);
 								dialog.close();
 								_msg('Данные клиента изменены.');
-							} else
+							} else {
+								err(res.text);
 								dialog.abort();
+							}
 						}, 'json');
 					}
+				}
+				function err(msg) {
+					dialog.bottom.vkHint({
+						msg:'<span class="red">' + msg + '</span>',
+						top:-47,
+						left:120,
+						indent:50,
+						show:1,
+						remove:1
+					});
 				}
 			});
 			$('.cdel').click(function() {
