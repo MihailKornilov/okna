@@ -361,6 +361,7 @@
 #remind .ftab{border-spacing:10px}
 #remind .ftd{vertical-align:top;padding:0 5px}
 #remind .fcur.ftd{border:#cec solid 1px;background-color:#e8ffe8}
+#remind #private_check{margin-top:20px}
 .remind_unit{margin-bottom:10px;border-bottom:#f1f1f1 solid 1px}
 .remind_unit .head{padding:5px 8px;font-size:12px;color:#444}
 .remind_unit .head *{font-size:12px}
@@ -470,16 +471,24 @@
 .salary ._info{text-align:center}
 .salary ._info a{color:#a00;font-weight:bold}
 .salary h2{padding:15px}
-.salary #salary-sel{margin-bottom:5px}
+.salary #salary-sel{margin-bottom:2px}
 .salary #salary-sel a{float:right}
 .salary .years{margin-top:25px}
+.salary .zp-head{margin:17px 0 3px}
+.salary .zp-head span{float:right}
+.salary .list-head{margin:17px 0 3px}
 .salary .ch{text-align:center;width:14px}
+.salary .about span{display:inline-block;padding:2px 5px}
+.salary .lost{background-color:#f5f5f5;opacity:.8}
 .salary ._empty{margin:0}
 .salary #monthList em{float:right;font-size:10px}
 .salary-tab{border-spacing:8px}
 .salary-tab #about{width:230px}
 .salary-tab #day{width:30px}
 .salary-tab .img_edit{position:relative;top:-4px;left:4px}
+.salary-list-tab ._info b{display:block;margin-bottom:3px;text-align:center}
+.salary-list-tab table{border-spacing:8px;margin:0 0 15px 30px}
+.salary-list-tab h1{text-align:center}
 
 #report_month{margin:10px 15px}
 #report_month .yr{display:block;font:bold 13px Tahoma}

@@ -1576,6 +1576,8 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['status']))
 			jsonError();
+		if(!preg_match(REGEXP_BOOL, $_POST['private']))
+			jsonError();
 		$send['html'] = utf8(remind_spisok($_POST));
 		$send['cal'] = utf8(_calendarFilter(array(
 			'month' => $_POST['day'],
@@ -2386,8 +2388,7 @@ switch(@$_POST['op']) {
 				));
 		}
 
-		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
-		jsonSuccess($send);
+		jsonSuccess();
 		break;
 	case 'salary_up':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
@@ -2422,11 +2423,7 @@ switch(@$_POST['op']) {
 			'value2' => $worker
 		));
 
-		$send['html'] = utf8(salary_worker_spisok(array(
-			'worker_id'=>$worker,
-			'mon' => $mon
-		)));
-		jsonSuccess($send);
+		jsonSuccess();
 		break;
 	case 'salary_down':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
@@ -2477,11 +2474,7 @@ switch(@$_POST['op']) {
 			'value2' => $worker
 		));
 
-		$send['html'] = utf8(salary_worker_spisok(array(
-			'worker_id' => $worker,
-			'mon' => $mon
-		)));
-		jsonSuccess($send);
+		jsonSuccess();
 		break;
 	case 'salary_deduct':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
@@ -2516,11 +2509,7 @@ switch(@$_POST['op']) {
 			'value2' => $worker
 		));
 
-		$send['html'] = utf8(salary_worker_spisok(array(
-			'worker_id'=>$worker,
-			'mon' => $mon
-		)));
-		jsonSuccess($send);
+		jsonSuccess();
 		break;
 	case 'salary_start_set':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
@@ -2585,7 +2574,8 @@ switch(@$_POST['op']) {
 
 		$sql = "SELECT *
 				FROM `zayav_expense`
-				WHERE `id`=".$id;
+				WHERE !`salary_list_id`
+				  AND `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
@@ -2600,6 +2590,60 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
+	case 'salary_list_create':
+		if(empty($_POST['worker_id']) || !preg_match(REGEXP_NUMERIC, $_POST['worker_id']))
+			jsonError();
+		if(empty($_POST['mon']) || !preg_match(REGEXP_NUMERIC, $_POST['mon']) || $_POST['mon'] > 12)
+			jsonError();
+		if(empty($_POST['year']) || !preg_match(REGEXP_NUMERIC, $_POST['year']))
+			jsonError();
+		if(empty($_POST['ids']))
+			jsonError();
+		foreach(explode(',', $_POST['ids']) as $id)
+			if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
+				jsonError();
+		if(empty($_POST['sum']) || !preg_match(REGEXP_INTEGER, $_POST['sum']))
+			jsonError();
+
+		$worker_id = intval($_POST['worker_id']);
+		$mon = intval($_POST['year']).'-'.($_POST['mon'] < 10 ? 0 : '').$_POST['mon'].'-01';
+		$ids = $_POST['ids'];
+		$sum = intval($_POST['sum']);
+
+		$sql = "SELECT COUNT(*)
+				FROM `zayav_expense`
+				WHERE `salary_list_id`
+				  AND `id` IN (".$ids.")";
+		if(query_value($sql))
+			jsonError();
+
+		$sql = "INSERT INTO `salary_list` (
+					`worker_id`,
+					`ids`,
+					`sum`,
+					`mon`,
+					`viewer_id_add`
+				) VALUES (
+					".$worker_id.",
+					'".$ids."',
+					".$sum.",
+					'".$mon."',
+					".VIEWER_ID."
+				)";
+		query($sql);
+
+		$sql = "UPDATE `zayav_expense` SET `salary_list_id`=".mysql_insert_id()." WHERE `id` IN (".$ids.")";
+		query($sql);
+/*
+		history_insert(array(
+			'type' => $r['sum'] > 0 ? 50 : 51,
+			'value' => round(abs($r['sum']), 2),
+			'value1' => $r['worker_id']
+		));
+*/
+		jsonSuccess();
+		break;
+
 
 	case 'pin_enter':
 		$key = CACHE_PREFIX.'pin_enter_count'.VIEWER_ID;
