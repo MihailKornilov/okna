@@ -1222,11 +1222,11 @@ function zayav_product_spisok($arr, $type='html') {
 	}
 }//zayav_product_spisok()
 
-function zayav_rashod_test($rashod) {// Проверка корректности данных расходов заявки при внесении в базу
-	if(empty($rashod))
+function zayav_expense_test($v) {// Проверка корректности данных расходов заявки при внесении в базу
+	if(empty($v))
 		return array();
 	$send = array();
-	$ex = explode(',', $rashod);
+	$ex = explode(',', $v);
 	foreach($ex as $r) {
 		$ids = explode(':', $r);
 		if(!preg_match(REGEXP_NUMERIC, $ids[0]) || !$ids[0])
@@ -1241,6 +1241,8 @@ function zayav_rashod_test($rashod) {// Проверка корректности данных расходов за
 			return false;
 		if(!preg_match(REGEXP_NUMERIC, $ids[5]))
 			return false;
+		if(!preg_match(REGEXP_NUMERIC, $ids[6]))
+			return false;
 		if(_zayavRashod($ids[0], 'txt'))
 			$ids[1] = win1251(htmlspecialchars(trim($ids[1])));
 		if(!_zayavRashod($ids[0], 'txt') && !_zayavRashod($ids[0], 'worker'))
@@ -1254,8 +1256,8 @@ function zayav_rashod_test($rashod) {// Проверка корректности данных расходов за
 		$send[] = $ids;
 	}
 	return $send;
-}//zayav_rashod_test()
-function zayav_rashod_spisok($zayav_id, $type='html') {//Получение списка расходов заявки
+}//zayav_expense_test()
+function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расходов заявки
 	$sql = "SELECT * FROM `zayav_expense` WHERE `zayav_id`=".$zayav_id." ORDER BY `id`";
 	$q = query($sql);
 	$arr = array();
@@ -1280,7 +1282,8 @@ function zayav_rashod_spisok($zayav_id, $type='html') {//Получение списка расход
 					$r['sum'].','.
 					$r['acc'].','.
 					intval($mon[1]).','.
-					intval($mon[0]).
+					intval($mon[0]).','.
+					$r['salary_list_id'].
 				  ']';
 		$array[] = array(
 			$r['category_id'],
@@ -1289,7 +1292,8 @@ function zayav_rashod_spisok($zayav_id, $type='html') {//Получение списка расход
 			$r['sum'],
 			$r['acc'],
 			intval($mon[1]),
-			intval($mon[0])
+			intval($mon[0]),
+			$r['salary_list_id']
 		);
 	}
 	if(!empty($arr)) {
@@ -1309,7 +1313,7 @@ function zayav_rashod_spisok($zayav_id, $type='html') {//Получение списка расход
 			'array' => $array
 		);
 	}
-}//zayav_rashod_spisok()
+}//zayav_expense_spisok()
 
 function zayav() {
 	if(empty($_GET['d']))
@@ -1865,7 +1869,7 @@ function zayav_info($zayav_id) {
 	$time = explode(':', $d[1]);
 
 	$accSum = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE !`deleted` AND `zayav_id`=".$zayav_id);
-	$rashod = zayav_rashod_spisok($z['id'], 'all');
+	$rashod = zayav_expense_spisok($z['id'], 'all');
 
 	return
 	'<script type="text/javascript">'.
@@ -2982,6 +2986,10 @@ function history_types($v) {
 
 		case 53: return 'Удалён перевод между счетами на сумму <b>'.$v['value'].'</b> руб.';
 
+		case 54: return 'Сформирован <a class="salary-list" val="'.$v['value2'].'">лист выдачи з/п</a> '.
+						'на сумму <b>'.$v['value'].'</b> руб.<br />'.
+						'Сотрудник: <u>'._viewer($v['value1'], 'name').'</u>. '.
+						'Месяц: '.$v['value3'].'.';
 
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';

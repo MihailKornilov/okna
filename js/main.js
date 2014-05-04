@@ -712,7 +712,7 @@ $.fn.productList = function(o) {
 	}
 	return t;
 };
-$.fn.zayavRashod = function(o) {
+$.fn.zayavExpense = function(o) {
 	var t = $(this),
 		id = t.attr('id'),
 		num = 1,
@@ -726,7 +726,6 @@ $.fn.zayavRashod = function(o) {
 				var u = units.eq(n),
 					attr = id + u.attr('val'),
 					cat_id = $('#' + attr + 'cat').val(),
-					worker = $('#' + attr + 'worker').val(),
 					sum = u.find('.zrsum').val(),
 					dop = '',
 					acc = 0,
@@ -751,7 +750,8 @@ $.fn.zayavRashod = function(o) {
 						  sum + ':' +
 						  acc + ':' +
 						  mon + ':' +
-						  year);
+						  year + ':' +
+						  $('#' + attr + 'list').val());
 			}
 			return send.join();
 		}
@@ -776,18 +776,20 @@ $.fn.zayavRashod = function(o) {
 			attr_acc = attr + 'acc',
 			attr_mon = attr + 'mon',
 			attr_year = attr + 'year',
+			attr_list = attr + 'list',
 			html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
 						'<td><input type="hidden" id="' + attr_cat + '" value="' + (v[0] || 0) + '" />' +
 						'<td class="tddop">' +
 							(v[0] && ZAYAVEXPENSE_TXT[v[0]] ? '<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
 							(v[0] && ZAYAVEXPENSE_WORKER[v[0]] ? '<input type="hidden" id="' + attr_worker + '" value="' + v[1] + '" />' : '') +
 						'<td class="tdsum' + (v[0] ? '' : ' dn') + '">' +
-							'<input type="text" class="zrsum" maxlength="6" tabindex="' + (num * 10) + '" value="' + (v[2] || '') + '" />руб.' +
+							'<input type="text" class="zrsum" maxlength="6"' + (v[6] ? ' disabled' : '') + ' tabindex="' + (num * 10) + '" value="' + (v[2] || '') + '" />руб.' +
 						'<td class="tdacc' + (v[0] && ZAYAVEXPENSE_WORKER[v[0]] && v[1] > 0 ? '' : ' dn') + '">' +
 							'<input type="hidden" id="' + attr_acc + '" value="' + v[3] + '" />' +
 						'<td class="tdmon' + (v[3] > 0 ? '' : ' dn') + '">' +
 							'<input type="hidden" id="' + attr_mon + '" value="' + (v[3] > 0 ? v[4] : (new Date()).getMonth() + 1) + '" />' +
 							'<input type="hidden" id="' + attr_year + '" value="' + (v[3] > 0 ? v[5] : (new Date()).getFullYear()) + '" />' +
+							'<input type="hidden" id="' + attr_list + '" value="' + v[6] + '" />' +
 					'</table>';
 		zr.append(html);
 		var ptab = $('#ptab' + num),
@@ -797,6 +799,7 @@ $.fn.zayavRashod = function(o) {
 			tdmon = ptab.find('.tdmon');
 		$('#' + attr_cat)._select({
 			width:120,
+			disabled:v[6],
 			title0:'Категория',
 			spisok:ZAYAVEXPENSE_SPISOK,
 			func:function(id) {
@@ -833,6 +836,7 @@ $.fn.zayavRashod = function(o) {
 		if(v[0] && ZAYAVEXPENSE_WORKER[v[0]])
 			$('#' + attr_worker)._select({
 				width:150,
+				disabled:v[6],
 				title0:'Сотрудник',
 				spisok:WORKER_SPISOK,
 				func:function(v) {
@@ -843,18 +847,21 @@ $.fn.zayavRashod = function(o) {
 				}
 			});
 		$('#' + attr_acc)._check({
+			disabled:v[6],
 			func:function(v) {
 				tdmon[(v ? 'remove' : 'add') + 'Class']('dn');
 			}
 		});
-		$('#' + attr_acc + '_check').vkHint({
-			msg:'Начислить',
-			top:-58,
-			left:-28,
-			delayShow:1000
-		});
-		$('#' + attr_mon)._dropdown({spisok:zrmon});
+		if(!v[6])
+			$('#' + attr_acc + '_check').vkHint({
+				msg:'Начислить',
+				top:-58,
+				left:-28,
+				delayShow:1000
+			});
+		$('#' + attr_mon)._dropdown({disabled:v[6],spisok:zrmon});
 		$('#' + attr_year)._dropdown({
+			disabled:v[6],
 			spisok:[
 				{uid:2014,title:2014}
 			]
@@ -2630,7 +2637,7 @@ $(document)
 		var ids = $(this).attr('val');
 		if(!ids)
 			return;
-		location.href = SITE + '/view/salary_list.php?' + VALUES + '&worker_id=' + WORKER_ID + '&ids=' + ids;
+		location.href = SITE + '/view/salary_list.php?' + VALUES + '&ids=' + ids;
 	})
 	.on('click', '.salary .zp_del', function() {
 		var t = $(this),
@@ -3262,12 +3269,12 @@ $(document)
 						butSubmit:'Сохранить',
 						submit:submit
 					});
-				$('#zrs').zayavRashod(ZAYAV.rashod);
+				$('#zrs').zayavExpense(ZAYAV.rashod);
 				function submit() {
 					var send = {
 						op:'zayav_expense_edit',
 						zayav_id:ZAYAV.id,
-						rashod:$('#zrs').zayavRashod('get')
+						rashod:$('#zrs').zayavExpense('get')
 					};
 					if(send.rashod == 'sum_error') err('Некорректно указана сумма');
 					else {

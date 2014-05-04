@@ -1034,20 +1034,22 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		$zayav_id = intval($_POST['zayav_id']);
-		$rashod = zayav_rashod_test($_POST['rashod']);
-		if($rashod === false)
+		$expenseNew = zayav_expense_test($_POST['rashod']);
+		if($expenseNew === false)
 			jsonError();
 
 		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id." LIMIT 1";
-		if(!$zayav = mysql_fetch_assoc(query($sql)))
+		if(!$z = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
-		$rashodOld = zayav_rashod_spisok($zayav_id, 'array');
-		if($rashod != $rashodOld) {
-			$old = zayav_rashod_spisok($zayav_id);
-			$sql = "DELETE FROM `zayav_expense` WHERE `zayav_id`=".$zayav_id;
+		$rashodOld = zayav_expense_spisok($zayav_id, 'array');
+		if($expenseNew != $rashodOld) {
+			$old = zayav_expense_spisok($zayav_id);
+			$sql = "DELETE FROM `zayav_expense` WHERE !`salary_list_id` AND `zayav_id`=".$zayav_id;
 			query($sql);
-			foreach($rashod as $r) {
+			foreach($expenseNew as $r) {
+				if($r[6])
+					continue;
 				$sql = "INSERT INTO `zayav_expense` (
 							`zayav_id`,
 							`category_id`,
@@ -1068,14 +1070,14 @@ switch(@$_POST['op']) {
 				query($sql);
 			}
 			_zayavBalansUpdate($zayav_id);
-			$changes = '<tr><td>'.$old.'<td>»<td>'.zayav_rashod_spisok($zayav_id);
+			$changes = '<tr><td>'.$old.'<td>»<td>'.zayav_expense_spisok($zayav_id);
 			history_insert(array(
 				'type' => 29,
 				'zayav_id' => $zayav_id,
 				'value' => '<table>'.$changes.'</table>'
 			));
 		}
-		$expense = zayav_rashod_spisok($zayav_id, 'all');
+		$expense = zayav_expense_spisok($zayav_id, 'all');
 		$send['html'] = utf8($expense['html']);
 		foreach($expense['array'] as $n => $r)
 			$expense['array'][$n][1] = utf8($expense['array'][$n][1]);
@@ -2634,13 +2636,16 @@ switch(@$_POST['op']) {
 
 		$sql = "UPDATE `zayav_expense` SET `salary_list_id`=".mysql_insert_id()." WHERE `id` IN (".$ids.")";
 		query($sql);
-/*
+
+		$ex = explode('-', $mon);
 		history_insert(array(
-			'type' => $r['sum'] > 0 ? 50 : 51,
-			'value' => round(abs($r['sum']), 2),
-			'value1' => $r['worker_id']
+			'type' => 54,
+			'value' => $sum,
+			'value1' => $worker_id,
+			'value2' => $ids,
+			'value3' => _monthDef($ex[1], 1).' '.$ex[0]
 		));
-*/
+
 		jsonSuccess();
 		break;
 

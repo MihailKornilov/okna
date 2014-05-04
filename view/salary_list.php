@@ -251,13 +251,6 @@ require_once '../config.php';
 require_once VKPATH.'excel/PHPExcel.php';
 set_time_limit(10);
 
-if(empty($_GET['worker_id']) || !preg_match(REGEXP_NUMERIC, $_GET['worker_id']))
-	die(win1251('Некорректный ID сотрудника.'));
-
-define('WORKER_ID', intval($_GET['worker_id']));
-if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `viewer_id`=".WORKER_ID))
-	die(win1251('Сотрудника не существует.'));
-
 if(empty($_GET['ids']))
 	die(win1251('Не выбраны начисления.'));
 
@@ -266,9 +259,15 @@ foreach(explode(',', IDS) as $id)
 	if(!preg_match(REGEXP_NUMERIC, $id))
 		die(win1251('Некорректный список ID.'));
 
-if(!query_value("SELECT COUNT(*) FROM `zayav_expense` WHERE `worker_id`=".WORKER_ID." AND `id` IN (".IDS.")"))
+if(!query_value("SELECT COUNT(*) FROM `zayav_expense` WHERE `id` IN (".IDS.")"))
 	die(win1251('Нет данных для печати.'));
 
+$sql = "SELECT DISTINCT `worker_id` FROM `zayav_expense` WHERE `id` IN (".IDS.")";
+if(mysql_num_rows(query($sql)) != 1)
+	die(win1251('Неверный список ID.'));
+
+$sql = "SELECT `worker_id` FROM `zayav_expense` WHERE `id` IN (".IDS.") LIMIT 1";
+define('WORKER_ID', intval(query_value($sql)));
 
 $book = new PHPExcel();
 $book->setActiveSheetIndex(0);
