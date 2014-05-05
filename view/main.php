@@ -656,8 +656,8 @@ function _clientLink($arr, $fio=0) {//Добавление имени и ссылки клиента в массив
 	return $arr;
 }//_clientLink()
 function clientBalansUpdate($client_id) {//Обновление баланса клиента
-	$prihod = query_value("SELECT SUM(`sum`) FROM `money` WHERE `deleted`=0 AND `zayav_id`>0 AND `client_id`=".$client_id." AND `sum`>0");
-	$acc = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE `deleted`=0 AND `client_id`=".$client_id);
+	$prihod = query_value("SELECT SUM(`sum`) FROM `money` WHERE !`deleted` AND `zayav_id` AND `client_id`=".$client_id." AND `sum`>0");
+	$acc = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE !`deleted` AND `client_id`=".$client_id);
 	$balans = $prihod - $acc;
 	query("UPDATE `client` SET `balans`=".$balans." WHERE `id`=".$client_id);
 	return $balans;
@@ -1151,8 +1151,8 @@ function _zayavCategory($z, $i='type') {// Определение категории заявки
 function _zayavBalansUpdate($zayav_id) {//Обновление начислений, суммы платежей, дохода заявки
 	if(!$zayav_id)
 		return 0;
-	$accrual_sum = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `accrual` WHERE `deleted`=0 AND `zayav_id`=".$zayav_id);
-	$oplata_sum = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `sum`>0 AND `zayav_id`=".$zayav_id);
+	$accrual_sum = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `accrual` WHERE !`deleted` AND `zayav_id`=".$zayav_id);
+	$oplata_sum = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE !`deleted` AND `zayav_id`=".$zayav_id);
 	$expense_sum = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `zayav_expense` WHERE `zayav_id`=".$zayav_id);
 	$sql = "UPDATE `zayav`
 			SET `accrual_sum`=".$accrual_sum.",
@@ -1272,7 +1272,10 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 					'<td class="name">'._zayavRashod($r['category_id']).
 					'<td>'.(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
 						   (_zayavRashod($r['category_id'], 'worker') && $r['worker_id'] ?
-							   (!_viewerRules($r['worker_id'], 'RULES_NOSALARY') ? '<a href="'.URL.'&p=report&d=salary&id='.$r['worker_id'].'">'._viewer($r['worker_id'], 'name').'</a>' : _viewer($r['worker_id'], 'name'))
+							   (!_viewerRules($r['worker_id'], 'RULES_NOSALARY') ?
+								   '<a href="'.URL.'&p=report&d=salary&id='.$r['worker_id'].'&mon='.substr($r['mon'], 0, 7).'&acc_id='.$r['id'].'">'._viewer($r['worker_id'], 'name').'</a>' :
+								   _viewer($r['worker_id'], 'name')
+							   )
 						   : '').
 					'<td class="sum'.($r['acc'] ? _tooltip(_monthCut($mon[1]).' '.$mon[0], -7) : '">').$r['sum'].' р.';
 		$json[] = '['.
@@ -1286,14 +1289,14 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 					$r['salary_list_id'].
 				  ']';
 		$array[] = array(
-			$r['category_id'],
+			intval($r['category_id']),
 			(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
-			(_zayavRashod($r['category_id'], 'worker') ? $r['worker_id'] : ''),
-			$r['sum'],
-			$r['acc'],
+			(_zayavRashod($r['category_id'], 'worker') ? intval($r['worker_id']) : ''),
+			intval($r['sum']),
+			intval($r['acc']),
 			intval($mon[1]),
 			intval($mon[0]),
-			$r['salary_list_id']
+			intval($r['salary_list_id'])
 		);
 	}
 	if(!empty($arr)) {
@@ -1974,7 +1977,7 @@ function zayav_info($zayav_id) {
 					'</table>'.
 	(ZAKAZ || SET ?
 				'<TD class="mainright">'.
-					'<div class="headBlue">Расходы по заявке<a class="add rashod-edit">изменить</a></div>'.
+					'<div class="headBlue">Расходы по заявке<a class="add expense-edit">изменить</a></div>'.
 					'<div class="acc-sum">'.
 						($accSum != 0 ? 'Общая сумма начислений: <b>'._sumSpace($accSum).'</b> руб.' : 'Начислений нет.').
 					'</div>'.
@@ -1995,9 +1998,12 @@ function zayav_info($zayav_id) {
 			'<div class="remind_spisok">'.remind_spisok(array('zayav_id'=>$zayav_id)).'</div>'.
 
 	(!DOG ?	'<div class="headBlue mon">Начисления и платежи'.
-		(!$z['deleted'] ? '<a class="add income-add">Внести платёж</a>'.
+		(!$z['deleted'] ? '<a class="add refund-add'._tooltip('Произвести возврат денежных средств', -215, 'r').'Возврат</a>'.
+						  '<em>::</em>'.
+						  '<a class="add income-add">Внести платёж</a>'.
 						  '<em>::</em>'.
 						  '<a class="add acc-add">Начислить</a>'
+
 		: '').
 			'</div>'.
 			'<div id="income_spisok">'.zayav_money($z['id']).'</div>'
@@ -2014,40 +2020,84 @@ function zayav_info($zayav_id) {
 	'</div>';
 }//zayav_info()
 function zayav_money($zayav_id) {
-	$sql = "SELECT *
-	        FROM `money`
-	        WHERE `deleted`=0
-	          AND `sum`>0
-	          AND `zayav_id`=".$zayav_id;
+	$sql = "(
+		SELECT
+			'acc' AS `type`,
+			`id`,
+			0 AS `invoice_id`,
+			0 AS `income_id`,
+			`sum`,
+			`zayav_id`,
+			`dogovor_id`,
+			`prim`,
+			0 AS `confirm`,
+			`dtime_add`,
+			`viewer_id_add`,
+			`deleted`
+		FROM `accrual`
+		WHERE !`deleted`
+		  AND `zayav_id`=".$zayav_id."
+	) UNION (
+		SELECT
+			'opl' AS `type`,
+			`id`,
+			`invoice_id`,
+			`income_id`,
+			`sum`,
+			`zayav_id`,
+			`dogovor_id`,
+			`prim`,
+			`confirm`,
+			`dtime_add`,
+			`viewer_id_add`,
+			`deleted`
+        FROM `money`
+        WHERE !`deleted`
+          AND `zayav_id`=".$zayav_id."
+	)
+		ORDER BY `dtime_add`";
 	$q = query($sql);
-	$spisok = array();
-	while($r = mysql_fetch_assoc($q))
-		$spisok[$r['id']] = $r;
-
-	$money = array();
-	foreach(_dogNomer($spisok) as $r)
-		$money[strtotime($r['dtime_add']).$r['id']] = income_unit($r, array('zayav_id'=>$zayav_id));
-
-	$sql = "SELECT *
-	        FROM `accrual`
-	        WHERE `deleted`=0
-	          AND `sum`>0
-	          AND `zayav_id`=".$zayav_id;
-	$q = query($sql);
-	while($r = mysql_fetch_assoc($q))
-		$money[strtotime($r['dtime_add']).$r['id']] =
-			'<tr val="'.$r['id'].'">'.
-				'<td class="sum acc'._tooltip('Начисление', -5).'<b>'._sumSpace($r['sum']).'</b>'.
-				'<td>'.$r['prim'].
-				'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
-				'<td class="ed" align="right">'.
-					(!$r['dogovor_id'] ? '<div class="img_del accrual-del'._tooltip('Удалить начисление', -116, 'r').'</div>' : '');
-
-	if(empty($money))
+	if(!mysql_num_rows($q))
 		return '';
-	ksort($money);
-	return '<table class="_spisok _money">'.implode('', $money).'</table>';
+
+	$spisok = array();
+	while($r = mysql_fetch_assoc($q)) {
+		$key = strtotime($r['dtime_add']);
+		if(isset($spisok[$key]))
+			$key++;
+		$spisok[$key] = $r;
+	}
+
+	$spisok = _dogNomer($spisok);
+
+	$send = '<table class="_spisok _money">';
+	foreach($spisok as $r)
+		if($r['type'] == 'acc')
+			$send .= zayav_accrual_unit($r);
+		elseif($r['sum'] > 0)
+				$send .= income_unit($r, array('zayav_id'=>$zayav_id));
+			else
+				$send .= zayav_refund_unit($r);
+
+	$send .= '</table>';
+	return $send;
 }//zayav_money()
+function zayav_accrual_unit($r) {
+	return '<tr val="'.$r['id'].'">'.
+		'<td class="sum acc'._tooltip('Начисление', -5).'<b>'._sumSpace($r['sum']).'</b>'.
+		'<td>'.$r['prim'].
+		'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
+		'<td class="ed" align="right">'.
+			(!$r['dogovor_id'] ? '<div class="img_del accrual-del'._tooltip('Удалить начисление', -116, 'r').'</div>' : '');
+}//zayav_accrual_unit()
+function zayav_refund_unit($r) {
+	return '<tr val="'.$r['id'].'">'.
+		'<td class="sum ref'._tooltip('Возврат', 5).'<b>'._sumSpace($r['sum']).'</b>'.
+		'<td><span class="type">'._invoice($r['invoice_id']).(empty($r['prim']) ? '' : ':').'</span> '.$r['prim'].
+		'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
+		'<td class="ed" align="right">'.
+			'<div class="img_del refund-del'._tooltip('Удалить возврат', -97, 'r').'</div>';
+}//zayav_refund_unit()
 function _attach($type, $zayav_id, $name='Обзор...', $num='') {
 	return
 	'<div class="_attach">'.
@@ -2766,11 +2816,15 @@ function report() {
 		case 'month': $left = report_month(); break;
 		case 'salary':
 			if(!empty($_GET['id']) && preg_match(REGEXP_NUMERIC, $_GET['id'])) {
-				$worker_id = intval($_GET['id']);
-				$left = salary_worker($worker_id);
+				$v = salaryFilter(array(
+					'worker_id' => intval($_GET['id']),
+					'mon' => @$_GET['mon'],
+					'acc_id' => intval(@$_GET['acc_id']),
+				));
+				$left = salary_worker($v);
 				if(defined('WORKER_OK'))
-					$right = '<input type="hidden" id="year" />'.
-							 '<div id="monthList">'.salary_monthList($worker_id, strftime('%Y'), strftime('%m')).'</div>';
+					$right = '<input type="hidden" id="year" value="'.$v['y'].'" />'.
+							 '<div id="monthList">'.salary_monthList($v).'</div>';
 			} else
 				$left = salary();
 			break;
@@ -2986,10 +3040,21 @@ function history_types($v) {
 
 		case 53: return 'Удалён перевод между счетами на сумму <b>'.$v['value'].'</b> руб.';
 
-		case 54: return 'Сформирован <a class="salary-list" val="'.$v['value2'].'">лист выдачи з/п</a> '.
+		case 54: return 'Сформирован <a href="'.URL.'&p=report&d=salary&id='.$v['value1'].'&mon='.$v['value2'].'">лист выдачи з/п</a> '.
 						'на сумму <b>'.$v['value'].'</b> руб.<br />'.
 						'Сотрудник: <u>'._viewer($v['value1'], 'name').'</u>. '.
 						'Месяц: '.$v['value3'].'.';
+		case 55: return 'Удалён <a href="'.URL.'&p=report&d=salary&id='.$v['value1'].'&mon='.$v['value2'].'">лист выдачи з/п</a> '.
+						'на сумму <b>'.$v['value'].'</b> руб.<br />'.
+						'Сотрудник: <u>'._viewer($v['value1'], 'name').'</u>. '.
+						'Месяц: '.$v['value3'].'.';
+
+		case 56: return 'Возврат на сумму <b>'.$v['value'].'</b> руб. '.
+						($v['value1'] ? ' <em>('.$v['value1'].')</em> ' : '').
+						'по заявке '.$v['zayav_link'].'.';
+		case 57: return 'Удаление возврата на сумму <b>'.$v['value'].'</b> руб. '.
+						($v['value1'] ? ' <em>('.$v['value1'].')</em> ' : '').
+						'по заявке '.$v['zayav_link'].'.';
 
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -3122,7 +3187,7 @@ function history_right() {
 function _invoiceBalans($invoice_id, $start=false) {// Получение текущего баланса счёта
 	if($start === false)
 		$start = $invoice_id > 100 ? _viewer($invoice_id, 'cash') : _invoice($invoice_id, 'start');
-	$income = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE `deleted`=0 AND `confirm`=0 AND `invoice_id`=".($invoice_id > 100 ? "1 AND `viewer_id_add`=" : '').$invoice_id);
+	$income = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE !`deleted` AND !`confirm` AND `invoice_id`=".($invoice_id > 100 ? "1 AND `viewer_id_add`=" : '').$invoice_id);
 	$from = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE !`deleted` AND `invoice_from`=".($invoice_id > 100 ? "1 AND `worker_from`=" : '').$invoice_id);
 	$to = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE !`deleted` AND `invoice_to`=".($invoice_id > 100 ? "1 AND `worker_to`=" : '').$invoice_id);
 	return round($income - $start - $from + $to, 2);
@@ -3293,7 +3358,7 @@ function transfer_spisok($v=array()) {
 function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории счетов
 	$action = array(
 		1 => array(
-			'name' => 'Внесение платежа',
+			'name' => 'Платёж',
 			'znak' => '',
 			'cash' => 1 //Учитывать внутренние счета при внесении
 		),
@@ -3318,7 +3383,7 @@ function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории сче
 			'cash' => 0
 		),
 		6 => array(
-			'name' => 'Внесение расхода',
+			'name' => 'Расход',
 			'znak' => '-',
 			'cash' => 1
 		),
@@ -3351,6 +3416,16 @@ function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории сче
 			'name' => 'Удаление перевода',
 			'znak' => '-',
 			'cash' => 0
+		),
+		13 => array(
+			'name' => 'Возврат',
+			'znak' => '-',
+			'cash' => 1
+		),
+		14 => array(
+			'name' => 'Удаление возврата',
+			'znak' => '',
+			'cash' => 1
 		)
 	);
 	return $action[$id][$i];
@@ -3873,7 +3948,7 @@ function incomeFilter($v) {
 function income_spisok($filter=array()) {
 	$filter = incomeFilter($filter);
 
-	$cond = '`sum`>0';
+	$cond = "`sum`>0";
 	$deleted = 0;
 
 	if(!RULES_MONEY && !$filter['client_id'])
@@ -3901,7 +3976,6 @@ function income_spisok($filter=array()) {
 	if(!$deleted && !$filter['deleted'])
 		$cond .=" AND !`deleted`";
 
-
 	$sql = "SELECT
 	            COUNT(`id`) AS `all`,
 				SUM(`sum`) AS `sum`
@@ -3920,7 +3994,7 @@ function income_spisok($filter=array()) {
 	$sql = "SELECT *
 			FROM `money`
 			WHERE ".$cond."
-			ORDER BY `id` ASC
+			ORDER BY `id` DESC
 			LIMIT ".$start.",".$filter['limit'];
 	$q = query($sql);
 	$money = array();
@@ -3938,6 +4012,7 @@ function income_spisok($filter=array()) {
 			'<input type="hidden" id="money_zayav_id" value="'.$filter['zayav_id'].'" />'.
 			'<input type="hidden" id="money_deleted" value="'.$filter['deleted'].'" />'.
 			'<input type="hidden" id="money_income_id" value="'.$filter['income_id'].'" />'.
+			'<input type="hidden" id="money_owner_id" value="'.$filter['owner_id'].'" />'.
 			'<input type="hidden" id="money_worker_id" value="'.$filter['worker_id'].'" />'.
 		(!$filter['zayav_id'] ?
 			'<div class="_moneysum">'.
@@ -4001,8 +4076,9 @@ function expense_right() {
 			CONCAT(`u`.`first_name`,' ',`u`.`last_name`)
 	    FROM `money` `m`,`vk_user` `u`
 	    WHERE `m`.`worker_id`=`u`.`viewer_id`
-	      AND `worker_id`>0
-	      AND `m`.`deleted`=0
+	      AND `m`.`worker_id`
+	      AND !`m`.`refund`
+	      AND !`m`.`deleted`
 	      AND `m`.`sum`<0
 	    ORDER BY `u`.`dtime_add`");
 	$invoice = array(0=>'Любой счёт');
@@ -4024,7 +4100,8 @@ function expenseMonthSum($v=array()) {
 				DISTINCT(DATE_FORMAT(`dtime_add`,'%m')) AS `month`,
 				SUM(`sum`) AS `sum`
 			FROM `money`
-			WHERE `deleted`=0
+			WHERE !`deleted`
+			  AND !`refund`
 			  AND `sum`<0
 			  AND `dtime_add` LIKE '".$filter['year']."%'".
 			  ($filter['category'] ? " AND `expense_id`=".$filter['category'] : '').
@@ -4082,7 +4159,8 @@ function expense_spisok($filter=array()) {
 	$dtime = array();
 	foreach($filter['month'] as $mon => $k)
 		$dtime[] = "`dtime_add` LIKE '".$filter['year']."-".($mon < 10 ? 0 : '').$mon."%'";
-	$cond = "`deleted`=0
+	$cond = "!`deleted`
+		AND !`refund`
 		AND `sum`<0".
 		(!empty($dtime) ? " AND (".implode(' OR ', $dtime).")" : '').
 		($filter['category'] ? ' AND `expense_id`='.$filter['category'] : '').
@@ -4314,7 +4392,9 @@ function salary_spisok() {
 	$send .= '</table>';
 	return $send;
 }//salary_spisok()
-function salary_monthList($worker_id, $year, $m) {
+function salary_monthList($v) {
+	$filter = salaryFilter($v);
+
 	$acc = array();
 	$zp = array();
 	for($n = 1; $n <= 12; $n++) {
@@ -4327,8 +4407,8 @@ function salary_monthList($worker_id, $year, $m) {
 	            DISTINCT(DATE_FORMAT(`mon`,'%m')) AS `mon`,
 				SUM(`sum`) AS `sum`
 			FROM `zayav_expense`
-			WHERE `worker_id`=".$worker_id."
-			  AND `mon` LIKE '".$year."%'
+			WHERE `worker_id`=".$filter['worker_id']."
+			  AND `mon` LIKE '".$filter['y']."%'
 			GROUP BY DATE_FORMAT(`mon`,'%m')";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
@@ -4340,8 +4420,8 @@ function salary_monthList($worker_id, $year, $m) {
 				SUM(`sum`) AS `sum`
 			FROM `money`
 			WHERE !`deleted`
-			  AND `worker_id`=".$worker_id."
-			  AND `mon` LIKE '".$year."%'
+			  AND `worker_id`=".$filter['worker_id']."
+			  AND `mon` LIKE '".$filter['y']."%'
 			GROUP BY DATE_FORMAT(`mon`,'%m')";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
@@ -4350,35 +4430,45 @@ function salary_monthList($worker_id, $year, $m) {
 	$mon = array();
 	foreach(_monthDef(0, 1) as $i => $r)
 		$mon[$i] = $r.($acc[$i] || $zp[$i]? '<em>'.$acc[$i].'/'.$zp[$i].'</em>' : '');
-	return _radio('salmon', $mon, $m, 1);
-}
-function salary_worker($worker_id) {
-	if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `viewer_id`=".$worker_id))
+	return _radio('salmon', $mon, $filter['m'], 1);
+}//salary_monthList()
+function salaryFilter($v) {
+	$v = array(
+		'worker_id' => !empty($v['worker_id']) && preg_match(REGEXP_NUMERIC, $v['worker_id']) ? intval($v['worker_id']) : 0,
+		'mon' => !empty($v['mon']) && preg_match(REGEXP_YEARMONTH, $v['mon']) && $v['mon'] != '0000-00' ? $v['mon'] : strftime('%Y-%m'),
+		'acc_id' => !empty($v['acc_id']) && preg_match(REGEXP_NUMERIC, $v['acc_id']) ? intval($v['acc_id']) : 0
+	);
+	$ex = explode('-', $v['mon']);
+	$v['y'] = intval($ex[0]);
+	$v['m'] = intval($ex[1]);
+	$v['month'] = _monthDef($v['m'], 1).' '.$v['y'];
+	return $v;
+}//salaryFilter()
+function salary_worker($v) {
+	$filter = salaryFilter($v);
+	if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `viewer_id`=".$filter['worker_id']))
 		return '<h2>Сотрудника не существует.</h2>';
-	if(_viewerRules($worker_id, 'RULES_NOSALARY'))
-		return '<h2>У сотрудника <u>'._viewer($worker_id, 'name').'</u> не начисляется зарплата.</h2>';
+	if(_viewerRules($filter['worker_id'], 'RULES_NOSALARY'))
+		return '<h2>У сотрудника <u>'._viewer($filter['worker_id'], 'name').'</u> не начисляется зарплата.</h2>';
 	define('WORKER_OK', true);
 	$year = array();
-	for($n = 2014; $n <= strftime('%Y'); $n++)
+	for($n = 2014; $n <= $filter['y']; $n++)
 		$year[$n] = $n;
 	return
 		'<script type="text/javascript">'.
-			'var WORKER_ID='.$worker_id.','.
-				'MON='.intval(strftime('%m')).','.
+			'var WORKER_ID='.$filter['worker_id'].','.
+				'MON='.$filter['m'].','.
 				'MON_SPISOK='._selJson(_monthDef(0, 1)).','.
-				'YEAR='.strftime('%Y').','.
+				'YEAR='.$filter['y'].','.
 				'YEAR_SPISOK='._selJson($year).','.
-				'RATE='.round(_viewer($worker_id, 'rate'), 2).','.
-				'RATE_DAY='._viewer($worker_id, 'rate_day').';'.
+				'RATE='.round(_viewer($filter['worker_id'], 'rate'), 2).','.
+				'RATE_DAY='._viewer($filter['worker_id'], 'rate_day').';'.
 		'</script>'.
-		'<div class="headName">'._viewer($worker_id, 'name').': история з/п за <em>'._monthDef(strftime('%m'), 1).' '.strftime('%Y').'</em>.</div>'.
-		'<div id="spisok">'.salary_worker_spisok(array('worker_id'=>$worker_id)).'</div>';
+		'<div class="headName">'._viewer($filter['worker_id'], 'name').': история з/п за <em>'.$filter['month'].'</em>.</div>'.
+		'<div id="spisok">'.salary_worker_spisok($filter).'</div>';
 }//salary_worker()
 function salary_worker_spisok($v) {
-	$filter = array(
-		'worker_id' => !empty($v['worker_id']) && preg_match(REGEXP_NUMERIC, $v['worker_id']) ? intval($v['worker_id']) : 0,
-		'mon' => empty($v['mon']) ? strftime('%Y-%m') : $v['mon']
-	);
+	$filter = salaryFilter($v);
 
 	if(!$filter['worker_id'])
 		return 'Некорректный id сотрудника';
@@ -4506,7 +4596,7 @@ function salary_worker_acc($v) {
 	foreach($spisok as $r) {
 		$about = $r['zayav_id'] ? '<span style="background-color:#'.$r['zayav_status_color'].'">'.$r['zayav_link'].'</span>' : $r['about'];
 		$send .=
-			'<tr val="'.$r['id'].'"'.($r['salary_list_id'] ? ' class="lost"' : '').'>'.
+			'<tr val="'.$r['id'].'" class="'.($r['salary_list_id'] ? 'lost' : '').($v['acc_id'] == $r['id'] ? ' show' : '').'">'.
    ($chechAll ? '<td class="ch">'.(!$r['salary_list_id'] && $r['type'] != 'З/п' ? _check('s'.$r['id']) : '') : '').
 				'<td class="type">'.$r['type'].
 				'<td class="sum">'.round($r['sum'], 2).
@@ -4518,8 +4608,6 @@ function salary_worker_acc($v) {
 	return $send;
 }//salary_worker_acc()
 function salary_worker_zp($v) {
-	$ex = explode('-', $v['mon']);
-	$mon = _monthDef($ex[1], 1).' '.$ex[0];
 	$sql = "SELECT *
 			FROM `money`
 			WHERE !`deleted`
@@ -4543,7 +4631,7 @@ function salary_worker_zp($v) {
 	}
 	$send =
 		'<div class="zp-head">'.
-			'<b>З/п за '.$mon.'</b>:'.
+			'<b>З/п за '.$v['month'].'</b>:'.
 			'<span><a class="down">Выдать з/п</a> :: Сумма: <b>'.$summa.'</b> руб.</span>'.
 		'</div>'.
 		'<table class="_spisok _money">'.
@@ -4569,13 +4657,15 @@ function salary_worker_list($v) {
 		'<table class="_spisok _money">'.
 		'<tr><th>Наименование'.
 			'<th>Сумма начислений'.
-			'<th>Дата создания';
+			'<th>Дата создания'.
+			(VIEWER_ADMIN ? '<th>' : '');
 	$n = 1;
 	while($r = mysql_fetch_assoc($q))
 		$send .=
 			'<tr><td class="about"><a class="salary-list" val="'.$r['ids'].'">Лист выдачи з/п '.($n++).'</a>'.
 				'<td class="sum">'.$r['sum'].
-				'<td class="dtime">'.FullData($r['dtime_add']);
+				'<td class="dtime">'.FullData($r['dtime_add']).
+				(VIEWER_ADMIN ? '<td class="ed"><div val="'.$r['id'].'" class="img_del list_del'._tooltip('Удалить', -29).'</div>' : '');
 	$send .= '</table>';
 	return $send;
 }//salary_worker_list()

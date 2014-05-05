@@ -274,8 +274,10 @@
 .zayav-info .acc-sum{margin:7px}
 .zayav-info .mon{margin-top:15px}
 .zayav-info .mon em{float:right;margin:0 5px}
+.zayav-info a.refund-add,.zayav-info a.refund-add:hover{color:#c22}
 .zayav-info .sum.acc{color:#07a;cursor:default}
 .zayav-info .sum.opl{color:#090;cursor:default}
+.zayav-info .sum.ref{color:#a22;cursor:default}
 .zayav-info .dtime_add{font-size:10px;color:#999;text-align:right;margin:10px 0}
 .zayav-info .vkComment{margin-bottom:15px}
 .zayav-info .histories{min-height:210px;margin:12px 15px}
@@ -312,12 +314,17 @@
 .zayav-dogovor #preview{display:block;text-align:center;margin-top:10px}
 .zayav-dogovor .img_del{float:right}
 
-.zayav-rashod-edit{border-spacing:8px}
-.zayav-rashod-edit .label{width:60px}
+.zayav-expense-edit{border-spacing:8px}
+.zayav-expense-edit .label{width:60px}
 
 .accrual-add{border-spacing:8px}
 .accrual-add .label{width:120px;text-align:right}
 .accrual-add #prim{width:200px}
+
+.refund-add-tab{border-spacing:8px}
+.refund-add-tab .label{width:80px;text-align:right}
+.refund-add-tab .img_edit{position:relative;top:-4px;left:4px}
+.refund-add-tab #prim{width:220px}
 
 /* Изменение статуса заявки */
 .zayav-status{margin:10px}
@@ -371,7 +378,7 @@
 .remind_unit .dur{margin-left:10px;color:#777}
 .remind_unit .day_left{margin:4px 8px;color:#884}
 .remind_unit .oday{color:#999;margin-left:10px}
-.remind_unit .action{float:right;color:red}
+.remind_unit .action{float:right;color:#c22}
 .remind_unit .remind_history{float:right;color:gray}
 .remind_unit tt{float:right;margin:0 4px}
 .remind_unit:not(:hover) tt,
@@ -480,6 +487,8 @@
 .salary .ch{text-align:center;width:14px}
 .salary .about span{display:inline-block;padding:2px 5px}
 .salary .lost{background-color:#f5f5f5;opacity:.8}
+.salary .show{background-color:#ffc}
+.salary .lost.show{background-color:#fafabb}
 .salary ._empty{margin:0}
 .salary #monthList em{float:right;font-size:10px}
 .salary-tab{border-spacing:8px}
