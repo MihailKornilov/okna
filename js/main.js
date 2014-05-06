@@ -14,8 +14,8 @@ var hashLoc,
 					hashLoc += '_' + hash.id;
 				else if(hash.d == 'add')
 					hashLoc += '_add' + (REGEXP_NUMERIC.test(hash.id) ? '_' + hash.id : '');
-				else if(!hash.d)
-					s = false;
+				//else if(!hash.d)
+				//	s = false;
 				break;
 			default:
 				if(hash.d) {
@@ -36,10 +36,13 @@ var hashLoc,
 			$('.vkButton').addClass('busy');
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success)
-					document.location.href = URL;
+					location.href = URL +
+						'&p=' + getCookie('p') +
+						'&d=' + getCookie('d') +
+						'&id=' + getCookie('id');
 				else {
 					$('.vkButton').removeClass('busy');
-					$('#pin').val('');
+					$('#pin').val('').focus();
 					$('.red').html(res.text);
 				}
 			}, 'json');
@@ -881,6 +884,55 @@ $.fn.zayavExpense = function(o) {
 };
 
 $(document)
+	.ajaxSuccess(function(event, request, settings) {
+		if(request.responseJSON.pin) {
+			var html = '<table class="setup-tab">' +
+					'<tr><td colspan="2"><div class="_info">Истекло время действия пин-кода. Требуется подтверждение.</div>' +
+					'<tr><td class="label">Пин-код:<td><input id="tpin" type="password" maxlength="10" />' +
+				'</table>',
+				dialog = _dialog({
+					width:250,
+					head:'Подтверждение пин-кода',
+					content:html,
+					butSubmit:'Подтвердить',
+					butCancel:'',
+					submit:submit
+				});
+			$('#tpin').focus().keyEnter(submit);
+		}
+		function submit() {
+			var send = {
+				op:'pin_enter',
+				pin:$.trim($('#tpin').val())
+			};
+			if(!send.pin) { err('Не заполнено поле'); $('#tpin').focus(); }
+			else if(send.pin.length < 3) { err('Длина пин-кода от 3 до 10 символов'); $('#tpin').focus(); }
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success)
+						dialog.close();
+					else if(res.max)
+						location.reload();
+					else {
+						dialog.abort();
+						err(res.text);
+						$('#tpin').val('').focus();
+					}
+				}, 'json');
+			}
+		}
+		function err(msg) {
+			dialog.bottom.vkHint({
+				msg:'<span class="red">' + msg + '</span>',
+				top:-47,
+				left:62,
+				indent:50,
+				show:1,
+				remove:1
+			});
+		}
+	})
 	.on('change', '._attach input', function() {
 		setCookie('_attached', 0);
 		var t = $(this), att = t;
@@ -3029,7 +3081,6 @@ $(document)
 					//	dogovorCreate('reneg');
 				}
 			});
-
 			$('.zakaz_edit').click(function() {
 				var html = '<table class="zayav-info-edit">' +
 						'<tr><td class="label">Клиент:      <td>' + ZAYAV.client_fio +

@@ -155,13 +155,15 @@ function zpPrint() {
 	$zp = array();
 	$zayav = array();
 	$sum = 0;
-	$deduct = 0;
-	$deduct_about = array();
+	$deduct_summa = 0;
+	$deduct = array();
 	while($r = mysql_fetch_assoc($q)) {
 		if($r['sum'] < 0) {
-			$deduct += abs($r['sum']);
-			if($r['txt'])
-				$deduct_about[] = $r['txt'];
+			$deduct_summa += abs($r['sum']);
+			$deduct[] = array(
+				'sum' => abs($r['sum']),
+				'txt' => $r['txt']
+			);
 			continue;
 		}
 		$sum += $r['sum'];
@@ -196,31 +198,34 @@ function zpPrint() {
 	}
 	$line += 3;
 
-	$sheet->setSharedStyle(styleContent(), 'A'.$start.':F'.($line + ($deduct ? 2 : 0)));
+	$sheet->setSharedStyle(styleContent(), 'A'.$start.':F'.($line + ($deduct_summa ? count($deduct) + 1 : 0)));
 
 	//Выравнивание вправо дат
 	$sheet->getStyle('D'.$start.':D'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 
-	if($deduct) {
+	if($deduct_summa) {
 		$sheet->mergeCells('A'.$line.':D'.$line);
 		$sheet->setCellValue('A'.$line, 'Всего:');
 		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 		$sheet->setCellValue('E'.$line, $sum);
 		$line++;
 
-		$sheet->mergeCells('A'.$line.':D'.$line);
-		$sheet->setCellValue('A'.$line, 'Вычеты:');
-		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-		$sheet->setCellValue('E'.$line, $deduct);
-		$sheet->setCellValue('F'.$line, utf8(implode(', ', $deduct_about)));
-		$line++;
+		foreach($deduct as $n => $r) {
+			$sheet->mergeCells('A'.$line.':D'.$line);
+			if(!$n)
+				$sheet->setCellValue('A'.$line, 'Вычеты:');
+			$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+			$sheet->setCellValue('E'.$line, $r['sum']);
+			$sheet->setCellValue('F'.$line, utf8($r['txt']));
+			$line++;
+		}
 	}
 
 	$sheet->mergeCells('A'.$line.':D'.$line);
 	$sheet->setCellValue('A'.$line, 'Итого к выдаче:');
 	$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$sheet->getStyle('C'.$start.':C'.$line)->getAlignment()->setWrapText(true);
-	$sheet->setCellValue('E'.$line, $sum - $deduct);
+	$sheet->setCellValue('E'.$line, $sum - $deduct_summa);
 	$sheet->getStyle('F'.$start.':F'.$line)->getAlignment()->setWrapText(true);
 
 	$line += 2;

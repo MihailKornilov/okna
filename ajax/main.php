@@ -2773,21 +2773,27 @@ switch(@$_POST['op']) {
 		break;
 
 	case 'pin_enter':
+		xcache_unset(PIN_TIME_KEY);
 		$key = CACHE_PREFIX.'pin_enter_count'.VIEWER_ID;
 		$count = xcache_get($key);
 		if(empty($count))
 			$count = 0;
-		if($count > 4)
-			jsonError('Превышено максимальное количество попыток ввода.<br />'.
-					  'Продолжить ввод можно будет через 30 минут.<br /><br />'.
-					  'Если вы забыли свой пин-код, обратитесь к руководителю для его сброса.');
+		if($count > 4) {
+			$send = array(
+				'max' => 1,
+				'text' => utf8('Превышено максимальное количество попыток ввода.<br />'.
+							   'Продолжить ввод можно будет через 30 минут.<br /><br />'.
+							   'Если вы забыли свой пин-код, обратитесь к руководителю для его сброса.')
+			);
+			jsonError($send);
+		}
 		xcache_set($key, ++$count, 1800);
 		$pin = win1251(htmlspecialchars(trim($_POST['pin'])));
 		if(!$pin || strlen($pin) < 3 || strlen($pin) > 10)
 			jsonError('Некорректный ввод пин-кода');
 		if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `pin`='".$pin."' AND `viewer_id`=".VIEWER_ID))
 			jsonError('Неверный пин-код');
-		xcache_unset(CACHE_PREFIX.'pin_enter_count'.VIEWER_ID);
+		xcache_unset($key);
 		xcache_set(PIN_TIME_KEY, time(), 10800);
 		jsonSuccess();
 		break;

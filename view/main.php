@@ -143,17 +143,23 @@ function _header() {
 }//_header()
 function _footer() {
 	global $html, $sqlQuery, $sqlCount, $sqlTime;
-	if(SA)
+	if(SA) {
+		$cookie = '';
+		if(DEBUG && !empty($_COOKIE))
+			foreach($_COOKIE as $key => $val)
+				$cookie .= '&nbsp;<b>'.$key.'</b> '.$val.'<br />';
 		$html .=
 			'<div id="admin">'.
 				'<a class="debug_toggle'.(DEBUG ? ' on' : '').'">В'.(DEBUG ? 'ы' : '').'ключить Debug</a> :: '.
 				'<a id="cache_clear">Очисить кэш ('.VERSION.')</a> :: '.
+				'<a id="cookie_clear">Очисить cookie</a> :: '.
 				'<a href="'.SITE.'/_sxdump" target="_blank">sxd</a> :: '.
 				'sql <b>'.$sqlCount.'</b> ('.round($sqlTime, 3).') :: '.
 				'php '.round(microtime(true) - TIME, 3).' :: '.
 				'js <em></em>'.
 			'</div>'
-			.(DEBUG ? $sqlQuery : '');
+			.(DEBUG ? $sqlQuery.$cookie : '');
+	}
 	$html .= '</div></body></html>';
 }//_footer()
 
