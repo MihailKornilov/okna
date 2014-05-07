@@ -1029,6 +1029,32 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
+	case 'set_to_zakaz':
+		if(!$zayav_id = _isnum($_POST['zayav_id']))
+			jsonError();
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE `id`=".$zayav_id."
+				  AND `set_status`
+				LIMIT 1";
+		if(!$z = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "UPDATE `zayav`
+		        SET `set_status`=0,
+		            `zakaz_status`=1
+		        WHERE `id`=".$zayav_id;
+		query($sql);
+
+		history_insert(array(
+			'type' => 58,
+			'client_id' => $z['client_id'],
+			'zayav_id' => $zayav_id
+		));
+
+		jsonSuccess();
+		break;
 	case 'zayav_expense_edit':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();

@@ -151,8 +151,8 @@ function _footer() {
 		$html .=
 			'<div id="admin">'.
 				'<a class="debug_toggle'.(DEBUG ? ' on' : '').'">В'.(DEBUG ? 'ы' : '').'ключить Debug</a> :: '.
-				'<a id="cache_clear">Очисить кэш ('.VERSION.')</a> :: '.
 				'<a id="cookie_clear">Очисить cookie</a> :: '.
+				'<a id="cache_clear">Очисить кэш ('.VERSION.')</a> :: '.
 				'<a href="'.SITE.'/_sxdump" target="_blank">sxd</a> :: '.
 				'sql <b>'.$sqlCount.'</b> ('.round($sqlTime, 3).') :: '.
 				'php '.round(microtime(true) - TIME, 3).' :: '.
@@ -1948,6 +1948,7 @@ function zayav_info($zayav_id) {
 						_zayavCategory($z, 'head').
 						'<div class="zid">#'.$z['id'].'</div>'.
 						(ZAKAZ && !$z['deleted'] ? '<a class="zakaz-to-set">Перенести в Установки</a>' : '').
+						(SET && !$z['deleted'] ? '<a class="set-to-zakaz">Перенести в Заказы</a>' : '').
 					'</div>'.
 					'<table class="tabInfo">'.
 						'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
@@ -1964,9 +1965,9 @@ function zayav_info($zayav_id) {
 ((DOG || SET) && $z['adres'] ?
 						'<tr><td class="label">Адрес установки:<td><b>'.$z['adres'].'</b>'
 : '').
+(ZAKAZ && $z['adres'] ? '<tr><td class="label">Адрес:<td>'.$z['adres'] : '').
 
-(ZAKAZ || SET ?
-						'<tr><td class="label">Договор:<td>'.$dogSpisok.
+(ZAKAZ || SET ? 		'<tr><td class="label">Договор:<td>'.$dogSpisok.
 	  ($z['nomer_vg'] ? '<tr><td class="label top">Номер ВГ:<td>'._attach('vg', $z['id'], 'Прикрепить документ', $z['nomer_vg']) : '').
 	   ($z['nomer_g'] ? '<tr><td class="label top">Номер Ж:<td>'._attach('g', $z['id'], 'Прикрепить документ', $z['nomer_g']) : '').
 	   ($z['nomer_d'] ? '<tr><td class="label top">Номер Д:<td>'._attach('d', $z['id'], 'Прикрепить документ', $z['nomer_d']) : '').
@@ -2033,6 +2034,7 @@ function zayav_money($zayav_id) {
 			0 AS `invoice_id`,
 			0 AS `income_id`,
 			`sum`,
+			`client_id`,
 			`zayav_id`,
 			`dogovor_id`,
 			`prim`,
@@ -2050,6 +2052,7 @@ function zayav_money($zayav_id) {
 			`invoice_id`,
 			`income_id`,
 			`sum`,
+			`client_id`,
 			`zayav_id`,
 			`dogovor_id`,
 			`prim`,
@@ -3062,6 +3065,8 @@ function history_types($v) {
 						($v['value1'] ? ' <em>('.$v['value1'].')</em> ' : '').
 						'по заявке '.$v['zayav_link'].'.';
 
+		case 58: return 'Заявка '.$v['zayav_link'].' перенесена из <u>Установок</u> в <u>Заказы</u>.';
+
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
 		case 503: return 'В настройках: удаление наименования изделия "'.$v['value'].'".';
@@ -4008,7 +4013,11 @@ function income_spisok($filter=array()) {
 		$money[$r['id']] = $r;
 
 	$money = _dogNomer($money);
-	$money = _zayavLink($money);
+	if(!$filter['zayav_id']) {
+		$money = _zayavLink($money);
+		if(!$filter['client_id'])
+			$money = _clientLink($money);
+	}
 
 	$send['spisok'] = '';
 	if($page == 1)
@@ -4057,8 +4066,11 @@ function income_unit($r, $filter=array()) {
 	elseif($r['zayav_id'] && !$filter['zayav_id'])
 		$about .= $r['zayav_link'].'. ';
 	$about .= $r['prim'];
+	if(empty($filter['client_id']) && !$filter['zayav_id'] && $r['client_id'])
+		$about .= '<br /><span class="income_client">Клиент: '.$r['client_link'].'<span>';
 	if($r['confirm'])
 		$about .= '<br /><span class="red">Ожидает подтверждения</span>';
+
 	$sumTitle = $filter['zayav_id'] ? _tooltip('Платёж', 5) : '">';
 	return
 		'<tr val="'.$r['id'].'"'.($r['deleted'] ? ' class="deleted"' : '').'>'.

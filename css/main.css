@@ -248,8 +248,8 @@
 .zayav-info.zamer .label{width:80px}
 .zayav-info.dog .label{width:100px}
 .zayav-info.set .label{width:100px}
-.zayav-info .zakaz-to-set{float:right;margin-right:10px}
-.zayav-info .zakaz-to-set:not(:hover){color:#999}
+.zayav-info .zakaz-to-set,.zayav-info .set-to-zakaz{float:right;margin-right:10px}
+.zayav-info .zakaz-to-set:not(:hover),.zayav-info .set-to-zakaz:not(:hover){color:#999}
 .zayav-info .product td{padding:1px 4px 3px 0}
 .zayav-info .zamer-dtime{cursor:help}
 .zayav-info .zamer-left{margin-left:15px;color:#884}
@@ -444,6 +444,7 @@
 .income #deleted_check{margin-top:20px}
 .income ._empty{margin:0}
 .income_data{margin:15px 0 3px;text-align:center}
+.income_client,.income_client a{font-size:10px}
 .expense#report .headName{margin:10px}
 .expense #spisok{margin:15px 10px}
 .expense .years{margin-top:20px}

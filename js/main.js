@@ -3474,6 +3474,33 @@ $(document)
 					});
 				}
 			});
+			$('.set-to-zakaz').click(function() {
+				var html = '<table class="_dialog-tab">' +
+						'<tr><td class="label">Заявка:<td><b>' + ZAYAV.head + '</b>' +
+						'<tr><td class="label">Клиент:<td>' + ZAYAV.client_fio +
+					'</table>';
+				var dialog = _dialog({
+					head:'Перенос установки в заказы',
+					content:html,
+					butSubmit:'Перенести',
+					submit:submit
+				});
+				function submit() {
+					var send = {
+						op:'set_to_zakaz',
+						zayav_id:ZAYAV.id
+					};
+					dialog.process();
+					$.post(AJAX_MAIN, send, function(res) {
+						if(res.success) {
+							dialog.close();
+							_msg('Выполнено.');
+							location.reload();
+						} else
+							dialog.abort();
+					}, 'json');
+				}
+			});
 			$('.refund-add').click(function() {
 				var html = '<table class="refund-add-tab">' +
 					'<tr><td class="label">Клиент:<td>' + OPL.client_fio +
