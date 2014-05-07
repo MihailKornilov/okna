@@ -2039,6 +2039,7 @@ function zayav_money($zayav_id) {
 			`dogovor_id`,
 			`prim`,
 			0 AS `confirm`,
+			0 AS `refund`,
 			`dtime_add`,
 			`viewer_id_add`,
 			`deleted`
@@ -2057,6 +2058,7 @@ function zayav_money($zayav_id) {
 			`dogovor_id`,
 			`prim`,
 			`confirm`,
+			`refund`,
 			`dtime_add`,
 			`viewer_id_add`,
 			`deleted`
@@ -3959,7 +3961,7 @@ function incomeFilter($v) {
 function income_spisok($filter=array()) {
 	$filter = incomeFilter($filter);
 
-	$cond = "`sum`>0";
+	$cond = "";
 	$deleted = 0;
 
 	if(!RULES_MONEY && !$filter['client_id'])
@@ -3967,7 +3969,7 @@ function income_spisok($filter=array()) {
 	if(RULES_MONEY && $filter['worker_id'])
 		$cond .= " AND `viewer_id_add`=".$filter['worker_id'];
 	if($filter['income_id'])
-		$cond .= " AND `income_id`=".$filter['income_id'];
+		$cond .= " AND `income_id` IN (".($filter['owner_id'] ? '0,' : '').$filter['income_id'].")";
 	if($filter['confirm'])
 		$cond .= " AND `confirm`";
 	if($filter['owner_id'])
@@ -3986,6 +3988,8 @@ function income_spisok($filter=array()) {
 	}
 	if(!$deleted && !$filter['deleted'])
 		$cond .=" AND !`deleted`";
+
+	$cond = "(`sum`>0 ".$cond. ") OR (`sum`<0 AND `refund` ".$cond. ")";
 
 	$sql = "SELECT
 	            COUNT(`id`) AS `all`,
@@ -4009,8 +4013,12 @@ function income_spisok($filter=array()) {
 			LIMIT ".$start.",".$filter['limit'];
 	$q = query($sql);
 	$money = array();
-	while($r = mysql_fetch_assoc($q))
+	$refund = 0;
+	while($r = mysql_fetch_assoc($q)) {
 		$money[$r['id']] = $r;
+		if($r['refund'])
+			$refund += abs($r['sum']);
+	}
 
 	$money = _dogNomer($money);
 	if(!$filter['zayav_id']) {
@@ -4034,6 +4042,7 @@ function income_spisok($filter=array()) {
 				'Показан'._end($send['all'], '', 'о').
 				' <b>'.$send['all'].'</b> платеж'._end($send['all'], '', 'а', 'ей').
 				' на сумму <b>'._sumSpace($send['sum']).'</b> руб.'.
+				($refund ? '<br />С учётом возврата: <b>'._sumSpace($refund).'</b> руб.' : '').
 			'</div>' : '').
 			'<table class="_spisok inc _money">'.
 		(!$filter['zayav_id'] ?
@@ -4075,8 +4084,14 @@ function income_unit($r, $filter=array()) {
 	return
 		'<tr val="'.$r['id'].'"'.($r['deleted'] ? ' class="deleted"' : '').'>'.
 			(!empty($filter['owner_id']) || !empty($filter['confirm']) ? '<td class="choice">'._check('money_'.$r['id'], '', isset($filter['ids_ass'][$r['id']])) : '').
-			'<td class="sum opl'.$sumTitle.''._sumSpace($r['sum']).
-			'<td><span class="type">'._income($r['income_id']).(empty($about) ? '' : ':').'</span> '.$about.
+			'<td class="sum opl'.$sumTitle._sumSpace($r['sum']).
+			'<td>'.
+				($r['refund'] ? '<span class="red">Возврат</span>. ' : '').
+				'<span class="type">'.
+					($r['refund'] ? _invoice($r['invoice_id']) : _income($r['income_id'])).
+					(empty($about) ? '' : ':').
+				'</span> '.
+				$about.
 			'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
 		(empty($filter['owner_id']) && empty($filter['ids']) && empty($filter['confirm']) ?
 			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" target="_blank" class="img_doc'._tooltip('Распечатать квитанцию', -140, 'r').'</a>'.

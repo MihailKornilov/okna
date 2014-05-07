@@ -1282,6 +1282,7 @@ switch(@$_POST['op']) {
 					`sum`,
 					`prim`,
 					`refund`,
+					`owner_id`,
 					`viewer_id_add`
 				) VALUES (
 					".$zayav_id.",
@@ -1290,6 +1291,7 @@ switch(@$_POST['op']) {
 					-".$sum.",
 					'".addslashes($prim)."',
 					1,
+					".VIEWER_ID.",
 					".VIEWER_ID."
 				)";
 		query($sql);
