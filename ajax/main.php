@@ -2171,7 +2171,7 @@ switch(@$_POST['op']) {
 
 		$sql = "SELECT *
 				FROM `money`
-				WHERE `deleted`=0
+				WHERE !`deleted`
 				  AND `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();

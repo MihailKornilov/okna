@@ -37,9 +37,9 @@ var hashLoc,
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success)
 					location.href = URL +
-						'&p=' + getCookie('p') +
-						'&d=' + getCookie('d') +
-						'&id=' + getCookie('id');
+						'&p=' + _cookie('p') +
+						'&d=' + _cookie('d') +
+						'&id=' + _cookie('id');
 				else {
 					$('.vkButton').removeClass('busy');
 					$('#pin').val('').focus();
@@ -934,7 +934,7 @@ $(document)
 		}
 	})
 	.on('change', '._attach input', function() {
-		setCookie('_attached', 0);
+		_ñookie('_attached', 0);
 		var t = $(this), att = t;
 		while(!att.hasClass('_attach'))
 			att = att.parent();
@@ -944,7 +944,7 @@ $(document)
 		f.addClass('_busy');
 		form.submit();
 		function start() {
-			var c = getCookie('_attached');
+			var c = _ñookie('_attached');
 			if(c > 0)
 				clearInterval(timer);
 			else return;
@@ -3706,8 +3706,7 @@ $(document)
 			$('#year').years({
 				func:expenseSpisok,
 				center:function() {
-					var arr = [],
-						inp = $('#monthList input'),
+					var inp = $('#monthList input'),
 						all = 0;
 					for(n = 1; n <= 12; n++)
 						if(inp.eq(n - 1).val() == 0) {

@@ -7,8 +7,9 @@ $mysql = array(
 	'names' => 'cp1251'
 );
 
-define('VKPATH', 'c:/www/nyandoma/vk/');
+define('API_ID', 3978722);
 define('PATH', 'c:/www/okna/');
+define('VKPATH', 'c:/www/nyandoma/vk/');
 define('SECRET', '');
 define('CACHE_PREFIX', 'okna_');
 

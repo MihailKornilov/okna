@@ -141,27 +141,6 @@ function _header() {
 			'<div id="frameBody">'.
 				'<iframe id="frameHidden" name="frameHidden"></iframe>';
 }//_header()
-function _footer() {
-	global $html, $sqlQuery, $sqlCount, $sqlTime;
-	if(SA) {
-		$cookie = '';
-		if(DEBUG && !empty($_COOKIE))
-			foreach($_COOKIE as $key => $val)
-				$cookie .= '&nbsp;<b>'.$key.'</b> '.$val.'<br />';
-		$html .=
-			'<div id="admin">'.
-				'<a class="debug_toggle'.(DEBUG ? ' on' : '').'">В'.(DEBUG ? 'ы' : '').'ключить Debug</a> :: '.
-				'<a id="cookie_clear">Очисить cookie</a> :: '.
-				'<a id="cache_clear">Очисить кэш ('.VERSION.')</a> :: '.
-				'<a href="'.SITE.'/_sxdump" target="_blank">sxd</a> :: '.
-				'sql <b>'.$sqlCount.'</b> ('.round($sqlTime, 3).') :: '.
-				'php '.round(microtime(true) - TIME, 3).' :: '.
-				'js <em></em>'.
-			'</div>'
-			.(DEBUG ? $sqlQuery.$cookie : '');
-	}
-	$html .= '</div></body></html>';
-}//_footer()
 
 function GvaluesCreate() {//Составление файла G_values.js
 	$save = //'function _toSpisok(s){var a=[];for(k in s)a.push({uid:k,title:s[k]});return a}'.
@@ -4102,6 +4081,24 @@ function income_unit($r, $filter=array()) {
 		: '');
 }//income_unit()
 
+function expenseFilter($v) {
+	$send = array(
+		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
+		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 30,
+		'category' => !empty($v['category']) && preg_match(REGEXP_NUMERIC, $v['category']) ? $v['category'] : 0,
+		'worker' => !empty($v['worker']) && preg_match(REGEXP_NUMERIC, $v['worker']) ? $v['worker'] : 0,
+		'invoice_id' => !empty($v['invoice_id']) && preg_match(REGEXP_NUMERIC, $v['invoice_id']) ? $v['invoice_id'] : 0,
+		'year' => !empty($v['year']) && preg_match(REGEXP_NUMERIC, $v['year']) ? $v['year'] : strftime('%Y'),
+		'month' => isset($v['month']) ? $v['month'] : intval(strftime('%m')),
+		'del' => isset($v['del']) && preg_match(REGEXP_BOOL, $v['del']) ? $v['del'] : 0
+	);
+	$mon = array();
+	if(!empty($send['month']))
+		foreach(explode(',', $send['month']) as $r)
+			$mon[$r] = 1;
+	$send['month'] = $mon;
+	return $send;
+}//expenseFilter()
 function expense_right() {
 	$workers = query_selJson("
 		SELECT
@@ -4169,24 +4166,6 @@ function expense() {
 	'<div class="headName">Список расходов организации<a class="add">Новый расход</a></div>'.
 	'<div id="spisok">'.$data['spisok'].'</div>';
 }//expense()
-function expenseFilter($v) {
-	$send = array(
-		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
-		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 30,
-		'category' => !empty($v['category']) && preg_match(REGEXP_NUMERIC, $v['category']) ? $v['category'] : 0,
-		'worker' => !empty($v['worker']) && preg_match(REGEXP_NUMERIC, $v['worker']) ? $v['worker'] : 0,
-		'invoice_id' => !empty($v['invoice_id']) && preg_match(REGEXP_NUMERIC, $v['invoice_id']) ? $v['invoice_id'] : 0,
-		'year' => !empty($v['year']) && preg_match(REGEXP_NUMERIC, $v['year']) ? $v['year'] : strftime('%Y'),
-		'month' => isset($v['month']) ? $v['month'] : intval(strftime('%m')),
-		'del' => isset($v['del']) && preg_match(REGEXP_BOOL, $v['del']) ? $v['del'] : 0
-	);
-	$mon = array();
-	if(!empty($send['month']))
-		foreach(explode(',', $send['month']) as $r)
-			$mon[$r] = 1;
-	$send['month'] = $mon;
-	return $send;
-}//expenseFilter()
 function expense_spisok($filter=array()) {
 	$filter = expenseFilter($filter);
 	$dtime = array();
