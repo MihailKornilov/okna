@@ -40,7 +40,7 @@ switch(@$_POST['op']) {
 		$zayav_id = intval($_POST['zayav_id']);
 
 		//Проверка наличия заявки
-		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id;
+		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id;
 		if(!$zayav = mysql_fetch_assoc(query($sql))) {
 			setcookie('_attached', 5, time() + 3600, '/');
 			exit;
@@ -59,7 +59,8 @@ switch(@$_POST['op']) {
 			mkdir($dir, 0777, true);
 		$fname = time().'_'.translit($f["name"]);
 		if(move_uploaded_file($f['tmp_name'], $dir.'/'.$fname)) {
-			$name = htmlspecialchars(trim($f["name"]));
+			$name = trim($f['name']);
+			echo $name;
 			$link = SITE.'/files/'.$type.'/'.$type.$zayav_id.'/'.$fname;
 			$sql = "INSERT INTO `attach` (
 						`type`,
@@ -70,8 +71,8 @@ switch(@$_POST['op']) {
 					) VALUES (
 						'".$type."',
 						".$zayav_id.",
-						'".$name."',
-						'".$link."',
+						'".addslashes($name)."',
+						'".addslashes($link)."',
 						".VIEWER_ID."
 					)";
 			query($sql);

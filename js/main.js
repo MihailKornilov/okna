@@ -934,7 +934,7 @@ $(document)
 		}
 	})
 	.on('change', '._attach input', function() {
-		_ñookie('_attached', 0);
+		_cookie('_attached', 0);
 		var t = $(this), att = t;
 		while(!att.hasClass('_attach'))
 			att = att.parent();
@@ -944,7 +944,7 @@ $(document)
 		f.addClass('_busy');
 		form.submit();
 		function start() {
-			var c = _ñookie('_attached');
+			var c = _cookie('_attached');
 			if(c > 0)
 				clearInterval(timer);
 			else return;
