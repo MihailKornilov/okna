@@ -35,12 +35,13 @@ while($r = mysql_fetch_assoc($q)) {
 				'".strftime('%Y-%m-%d', $time)."'
 			)";
 	query($sql);
-	history_insert(array(
-		'type' => 46,
-		'value' => round($r['rate'], 2),
-		'value1' => $r['viewer_id'],
-		'value2' => $about
-	));
+	_historyInsert(
+		46,
+		array(
+			'value' => round($r['rate'], 2),
+			'value1' => $r['viewer_id'],
+			'value2' => $about
+		));
 }
 
 exit;

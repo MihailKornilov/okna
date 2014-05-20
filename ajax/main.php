@@ -77,12 +77,14 @@ switch(@$_POST['op']) {
 					)";
 			query($sql);
 
-			history_insert(array(
-				'type' => 27,
-				'zayav_id' => $zayav_id,
-				'client_id' => $zayav['client_id'],
-				'value' => '<a href="'.$link.'">'.$name.'</a>'
-			));
+			_historyInsert(
+				27,
+				array(
+					'zayav_id' => $zayav_id,
+					'client_id' => $zayav['client_id'],
+					'value' => '<a href="'.$link.'">'.$name.'</a>'
+				)
+			);
 			setcookie('_attached', 1, time() + 3600, '/');
 			exit;
 		}
@@ -111,12 +113,14 @@ switch(@$_POST['op']) {
 		$sql = "UPDATE `attach` SET `deleted`=1 WHERE `id`=".$id;
 		query($sql);
 
-		history_insert(array(
-			'type' => 28,
-			'zayav_id' => $r['zayav_id'],
-			'client_id' => query_value("SELECT `client_id` FROM `zayav` WHERE `id`=".$r['zayav_id']),
-			'value' => '<a href="'.$r['link'].'">'.$r['name'].'</a>'
-		));
+		_historyInsert(
+			28,
+			array(
+				'zayav_id' => $r['zayav_id'],
+				'client_id' => query_value("SELECT `client_id` FROM `zayav` WHERE `id`=".$r['zayav_id']),
+				'value' => '<a href="'.$r['link'].'">'.$r['name'].'</a>'
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -199,10 +203,7 @@ switch(@$_POST['op']) {
 			'content' => utf8($fio.'<span>'.implode('<br />', $content).'</span>'),
 			'adres' => utf8($adres)
 		);
-		history_insert(array(
-			'type' => 1,
-			'client_id' => $send['uid']
-		));
+		_historyInsert(1, array('client_id'=>$send['uid']));
 		jsonSuccess($send);
 		break;
 	case 'client_spisok':
@@ -272,11 +273,13 @@ switch(@$_POST['op']) {
 		if($client['pasp_data'] != $pasp_data)
 			$changes .= '<tr><th>Паспорт когда выдан:<td>'.$client['pasp_data'].'<td>»<td>'.$pasp_data;
 		if($changes)
-			history_insert(array(
-				'type' => 2,
-				'client_id' => $client_id,
-				'value' => '<table>'.$changes.'</table>'
-			));
+			_historyInsert(
+				2,
+				array(
+					'client_id' => $client_id,
+					'value' => '<table>'.$changes.'</table>'
+				)
+			);
 		clientBalansUpdate($client_id);
 		$send = array(
 			'id' => $client_id,
@@ -310,10 +313,7 @@ switch(@$_POST['op']) {
 		query("UPDATE `zayav` SET `deleted`=1 WHERE `client_id`=".$client_id);
 		query("UPDATE `money` SET `deleted`=1,`viewer_id_del`=".VIEWER_ID.",`dtime_del`=CURRENT_TIMESTAMP WHERE `client_id`=".$client_id);
 		query("UPDATE `accrual` SET `deleted`=1,`viewer_id_del`=".VIEWER_ID.",`dtime_del`=CURRENT_TIMESTAMP WHERE `client_id`=".$client_id);
-		history_insert(array(
-			'type' => 3,
-			'client_id' => $client_id
-		));
+		_historyInsert(3, array('client_id'=>$client_id));
 		jsonSuccess();
 		break;
 
@@ -361,11 +361,13 @@ switch(@$_POST['op']) {
 
 		_vkCommentAdd('zayav', $send['id'], $comm);
 
-		history_insert(array(
-			'type' => 23,
-			'client_id' => $client_id,
-			'zayav_id' => $send['id']
-		));
+		_historyInsert(
+			23,
+			array(
+				'client_id' => $client_id,
+				'zayav_id' => $send['id']
+			)
+		);
 		jsonSuccess($send);
 		break;
 	case 'zakaz_edit':
@@ -436,11 +438,13 @@ switch(@$_POST['op']) {
 		if($zayav['nomer_t'] != $nomer_t)
 			$changes .= '<tr><th>Номер T:<td>'.$zayav['nomer_t'].'<td>»<td>'.$nomer_t;
 		if($changes)
-			history_insert(array(
-				'type' => 24,
-				'zayav_id' => $zayav_id,
-				'value1' => '<table>'.$changes.'</table>'
-			));
+			_historyInsert(
+				24,
+				array(
+					'zayav_id' => $zayav_id,
+					'value1' => '<table>'.$changes.'</table>'
+				)
+			);
 		jsonSuccess();
 		break;
 	case 'zakaz_status':
@@ -469,22 +473,26 @@ switch(@$_POST['op']) {
 			            `zakaz_status`=".$status."
 			        WHERE `id`=".$zayav_id;
 			query($sql);
-			history_insert(array(
-				'type' => 25,
-				'client_id' => $zayav['client_id'],
-				'zayav_id' => $zayav_id,
-				'value' => $zayav['zakaz_status'],
-				'value1' => $status,
-				'value2' => $status == 2 ? $day : ''
-			));
+			_historyInsert(
+				25,
+				array(
+					'client_id' => $zayav['client_id'],
+					'zayav_id' => $zayav_id,
+					'value' => $zayav['zakaz_status'],
+					'value1' => $status,
+					'value2' => $status == 2 ? $day : ''
+				)
+			);
 		} elseif($status == 2 && $zayav['status_day'] != $day) {
 			query("UPDATE `zayav` SET `status_day`='".$day."' WHERE `id`=".$zayav_id);
-			history_insert(array(
-				'type' => 31,
-				'client_id' => $zayav['client_id'],
-				'zayav_id' => $zayav_id,
-				'value' => $day
-			));
+			_historyInsert(
+				31,
+				array(
+					'client_id' => $zayav['client_id'],
+					'zayav_id' => $zayav_id,
+					'value' => $day
+				)
+			);
 		}
 
 		jsonSuccess();
@@ -513,12 +521,14 @@ switch(@$_POST['op']) {
 		            `adres`='".addslashes($adres)."'
 		        WHERE `id`=".$zayav_id;
 		query($sql);
-		history_insert(array(
-			'type' => 30,
-			'client_id' => $zayav['client_id'],
-			'zayav_id' => $zayav_id,
-			'value' => $adres
-		));
+		_historyInsert(
+			30,
+			array(
+				'client_id' => $zayav['client_id'],
+				'zayav_id' => $zayav_id,
+				'value' => $adres
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -604,11 +614,13 @@ switch(@$_POST['op']) {
 
 		_vkCommentAdd('zayav', $send['id'], $comm);
 
-		history_insert(array(
-			'type' => 4,
-			'client_id' => $client_id,
-			'zayav_id' => $send['id']
-		));
+		_historyInsert(
+			4,
+			array(
+				'client_id' => $client_id,
+				'zayav_id' => $send['id']
+			)
+		);
 		jsonSuccess($send);
 		break;
 	case 'zamer_info_get':
@@ -675,43 +687,51 @@ switch(@$_POST['op']) {
 				        WHERE `id`=".$zayav_id;
 				query($sql);
 				if($zayav['zamer_status'] == 3)
-					history_insert(array(
-						'type' => 18,
-						'client_id' => $zayav['client_id'],
-						'zayav_id' => $zayav_id
-					));
+					_historyInsert(
+						18,
+						array(
+							'client_id' => $zayav['client_id'],
+							'zayav_id' => $zayav_id
+						)
+					);
 				if($zayav['zamer_dtime'] != $zamer_dtime || $zayav['zamer_duration'] != $zamer_duration)
-					history_insert(array(
-						'type' => 15,
-						'client_id' => $zayav['client_id'],
-						'zayav_id' => $zayav_id,
-						'value1' => '<table>'.
-										'<tr><td>'.FullDataTime($zayav['zamer_dtime']).', '._zamerDuration($zayav['zamer_duration']).
-											'<td>»'.
-											'<td>'.FullDataTime($zamer_dtime).', '._zamerDuration($zamer_duration).
-									'</table>'
-					));
+					_historyInsert(
+						15,
+						array(
+							'client_id' => $zayav['client_id'],
+							'zayav_id' => $zayav_id,
+							'value1' => '<table>'.
+											'<tr><td>'.FullDataTime($zayav['zamer_dtime']).', '._zamerDuration($zayav['zamer_duration']).
+												'<td>»'.
+												'<td>'.FullDataTime($zamer_dtime).', '._zamerDuration($zamer_duration).
+										'</table>'
+						)
+					);
 				break;
 			case 2:
 				if($zayav['zamer_status'] != 2) {
 					$sql = "UPDATE `zayav` SET `zamer_status`=2,`set_status`=1,`dogovor_require`=1 WHERE `id`=".$zayav_id;
 					query($sql);
-					history_insert(array(
-						'type' => 16,
-						'client_id' => $zayav['client_id'],
-						'zayav_id' => $zayav_id
-					));
+					_historyInsert(
+						16,
+						array(
+							'client_id' => $zayav['client_id'],
+							'zayav_id' => $zayav_id
+						)
+					);
 				}
 				break;
 			case 3:
 				if($zayav['zamer_status'] != 3) {
 					$sql = "UPDATE `zayav` SET `zamer_status`=3 WHERE `id`=".$zayav_id;
 					query($sql);
-					history_insert(array(
-						'type' => 17,
-						'client_id' => $zayav['client_id'],
-						'zayav_id' => $zayav_id
-					));
+					_historyInsert(
+						17,
+						array(
+							'client_id' => $zayav['client_id'],
+							'zayav_id' => $zayav_id
+						)
+					);
 				}
 				break;
 			default:
@@ -793,11 +813,13 @@ switch(@$_POST['op']) {
 							'<td>»'.
 							'<td>'.FullDataTime($zamer_dtime).', '._zamerDuration($zamer_duration);
 		if($changes)
-			history_insert(array(
-				'type' => 5,
-				'zayav_id' => $zayav_id,
-				'value1' => '<table>'.$changes.'</table>'
-			));
+			_historyInsert(
+				5,
+				array(
+					'zayav_id' => $zayav_id,
+					'value1' => '<table>'.$changes.'</table>'
+				)
+			);
 		jsonSuccess();
 		break;
 	case 'dog_edit':
@@ -851,11 +873,13 @@ switch(@$_POST['op']) {
 		if($zayav['adres'] != $adres)
 			$changes .= '<tr><th>Адрес установки:<td>'.$zayav['adres'].'<td>»<td>'.$adres;
 		if($changes)
-			history_insert(array(
-				'type' => 22,
-				'zayav_id' => $zayav_id,
-				'value' => '<table>'.$changes.'</table>'
-			));
+			_historyInsert(
+				22,
+				array(
+					'zayav_id' => $zayav_id,
+					'value' => '<table>'.$changes.'</table>'
+				)
+			);
 		jsonSuccess();
 		break;
 	case 'set_add':
@@ -903,11 +927,13 @@ switch(@$_POST['op']) {
 
 		_vkCommentAdd('zayav', $send['id'], $comm);
 
-		history_insert(array(
-			'type' => 21,
-			'client_id' => $client_id,
-			'zayav_id' => $send['id']
-		));
+		_historyInsert(
+			21,
+			array(
+				'client_id' => $client_id,
+				'zayav_id' => $send['id']
+			)
+		);
 		jsonSuccess($send);
 		break;
 	case 'set_edit':
@@ -977,11 +1003,13 @@ switch(@$_POST['op']) {
 		if($zayav['nomer_t'] != $nomer_t)
 			$changes .= '<tr><th>Номер T:<td>'.$zayav['nomer_t'].'<td>»<td>'.$nomer_t;
 		if($changes)
-			history_insert(array(
-				'type' => 22,
-				'zayav_id' => $zayav_id,
-				'value' => '<table>'.$changes.'</table>'
-			));
+			_historyInsert(
+				22,
+				array(
+					'zayav_id' => $zayav_id,
+					'value' => '<table>'.$changes.'</table>'
+				)
+			);
 		jsonSuccess();
 		break;
 	case 'set_status':
@@ -1010,22 +1038,26 @@ switch(@$_POST['op']) {
 						`set_status`=".$status."
 					WHERE `id`=".$zayav_id;
 			query($sql);
-			history_insert(array(
-				'type' => 26,
-				'client_id' => $zayav['client_id'],
-				'zayav_id' => $zayav_id,
-				'value' => $zayav['set_status'],
-				'value1' => $status,
-				'value2' => $status == 2 ? $day : ''
-			));
+			_historyInsert(
+				26,
+				array(
+					'client_id' => $zayav['client_id'],
+					'zayav_id' => $zayav_id,
+					'value' => $zayav['set_status'],
+					'value1' => $status,
+					'value2' => $status == 2 ? $day : ''
+				)
+			);
 		} elseif($status == 2 && $zayav['status_day'] != $day) {
 			query("UPDATE `zayav` SET `status_day`='".$day."' WHERE `id`=".$zayav_id);
-			history_insert(array(
-				'type' => 31,
-				'client_id' => $zayav['client_id'],
-				'zayav_id' => $zayav_id,
-				'value' => $day
-			));
+			_historyInsert(
+				31,
+				array(
+					'client_id' => $zayav['client_id'],
+					'zayav_id' => $zayav_id,
+					'value' => $day
+				)
+			);
 		}
 
 		jsonSuccess();
@@ -1048,11 +1080,13 @@ switch(@$_POST['op']) {
 		        WHERE `id`=".$zayav_id;
 		query($sql);
 
-		history_insert(array(
-			'type' => 58,
-			'client_id' => $z['client_id'],
-			'zayav_id' => $zayav_id
-		));
+		_historyInsert(
+			58,
+			array(
+				'client_id' => $z['client_id'],
+				'zayav_id' => $zayav_id
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -1098,11 +1132,13 @@ switch(@$_POST['op']) {
 			}
 			_zayavBalansUpdate($zayav_id);
 			$changes = '<tr><td>'.$old.'<td>»<td>'.zayav_expense_spisok($zayav_id);
-			history_insert(array(
-				'type' => 29,
-				'zayav_id' => $zayav_id,
-				'value' => '<table>'.$changes.'</table>'
-			));
+			_historyInsert(
+				29,
+				array(
+					'zayav_id' => $zayav_id,
+					'value' => '<table>'.$changes.'</table>'
+				)
+			);
 		}
 		$expense = zayav_expense_spisok($zayav_id, 'all');
 		$send['html'] = utf8($expense['html']);
@@ -1141,11 +1177,13 @@ switch(@$_POST['op']) {
 
 		clientBalansUpdate($zayav['client_id']);
 
-		history_insert(array(
-			'type' => 6,
-			'client_id' => $zayav['client_id'],
-			'zayav_id' => $zayav_id
-		));
+		_historyInsert(
+			6,
+			array(
+				'client_id' => $zayav['client_id'],
+				'zayav_id' => $zayav_id
+			)
+		);
 
 		$send['client_id'] = $zayav['client_id'];
 		jsonSuccess($send);
@@ -1182,13 +1220,15 @@ switch(@$_POST['op']) {
 		clientBalansUpdate($zayav['client_id']);
 		_zayavBalansUpdate($zayav_id);
 
-		history_insert(array(
-			'type' => 7,
-			'zayav_id' => $zayav_id,
-			'client_id' => $zayav['client_id'],
-			'value' => round($sum, 2),
-			'value1' => $prim
-		));
+		_historyInsert(
+			7,
+			array(
+				'zayav_id' => $zayav_id,
+				'client_id' => $zayav['client_id'],
+				'value' => round($sum, 2),
+				'value1' => $prim
+			)
+		);
 
 		$send['html'] = utf8(zayav_money($zayav_id));
 
@@ -1219,13 +1259,15 @@ switch(@$_POST['op']) {
 		clientBalansUpdate($r['client_id']);
 		_zayavBalansUpdate($r['zayav_id']);
 
-		history_insert(array(
-			'type' => 8,
-			'value' => round($r['sum'], 2),
-			'value1' => $r['prim'],
-			'zayav_id' => $r['zayav_id'],
-			'client_id' => $r['client_id']
-		));
+		_historyInsert(
+			8,
+			array(
+				'value' => round($r['sum'], 2),
+				'value1' => $r['prim'],
+				'zayav_id' => $r['zayav_id'],
+				'client_id' => $r['client_id']
+			)
+		);
 		jsonSuccess();
 		break;
 	case 'accrual_rest':
@@ -1250,13 +1292,15 @@ switch(@$_POST['op']) {
 		clientBalansUpdate($r['client_id']);
 		_zayavBalansUpdate($r['zayav_id']);
 
-		history_insert(array(
-			'type' => 9,
-			'value' => round($r['sum'], 2),
-			'value1' => $r['prim'],
-			'zayav_id' => $r['zayav_id'],
-			'client_id' => $r['client_id']
-		));
+		_historyInsert(
+			9,
+			array(
+				'value' => round($r['sum'], 2),
+				'value1' => $r['prim'],
+				'zayav_id' => $r['zayav_id'],
+				'client_id' => $r['client_id']
+			)
+		);
 		jsonSuccess();
 		break;
 	case 'refund_add':
@@ -1306,13 +1350,15 @@ switch(@$_POST['op']) {
 //		clientBalansUpdate($z['client_id']);
 		_zayavBalansUpdate($zayav_id);
 
-		history_insert(array(
-			'type' => 56,
-			'zayav_id' => $zayav_id,
-			'client_id' => $z['client_id'],
-			'value' => round($sum, 2),
-			'value1' => $prim
-		));
+		_historyInsert(
+			56,
+			array(
+				'zayav_id' => $zayav_id,
+				'client_id' => $z['client_id'],
+				'value' => round($sum, 2),
+				'value1' => $prim
+			)
+		);
 
 		$send['html'] = utf8(zayav_money($zayav_id));
 
@@ -1346,13 +1392,15 @@ switch(@$_POST['op']) {
 			'id' => $id
 		));
 
-		history_insert(array(
-			'type' => 57,
-			'zayav_id' => $r['zayav_id'],
-			'client_id' => $r['client_id'],
-			'value' => round($r['sum'], 2),
-			'value1' => $r['prim']
-		));
+		_historyInsert(
+			57,
+			array(
+				'zayav_id' => $r['zayav_id'],
+				'client_id' => $r['client_id'],
+				'value' => round($r['sum'], 2),
+				'value1' => $r['prim']
+			)
+		);
 
 		$send['html'] = utf8(zayav_money($r['zayav_id']));
 		jsonSuccess($send);
@@ -1468,12 +1516,14 @@ switch(@$_POST['op']) {
 		        WHERE `id`=".$v['client_id'];
 		query($sql);
 
-		history_insert(array(
-			'type' => 19,
-			'client_id' => $v['client_id'],
-			'zayav_id' => $v['zayav_id'],
-			'dogovor_id' => $dog_id
-		));
+		_historyInsert(
+			19,
+			array(
+				'client_id' => $v['client_id'],
+				'zayav_id' => $v['zayav_id'],
+				'dogovor_id' => $dog_id
+			)
+		);
 
 		// Внесение авансового платежа, если есть
 		if($v['avans'] > 0)
@@ -1651,13 +1701,15 @@ switch(@$_POST['op']) {
 		if($dog['avans'] != $v['avans'])
 			$changes .= '<tr><th>Авансовый платёж:<td>'.round($dog['avans'], 2).'<td>»<td>'.round($v['avans'], 2);
 		if($changes)
-			history_insert(array(
-				'type' => 42,
-				'client_id' => $v['client_id'],
-				'zayav_id' => $v['zayav_id'],
-				'dogovor_id' => $dog['id'],
-				'value' => '<table>'.$changes.'</table>'
-			));
+			_historyInsert(
+				42,
+				array(
+					'client_id' => $v['client_id'],
+					'zayav_id' => $v['zayav_id'],
+					'dogovor_id' => $dog['id'],
+					'value' => '<table>'.$changes.'</table>'
+				)
+			);
 
 		jsonSuccess();
 		break;
@@ -1816,13 +1868,6 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 
-	case 'history_spisok':
-		if(!RULES_HISTORYSHOW)
-			jsonError();
-		$send['html'] = utf8(history_spisok($_POST));
-		jsonSuccess($send);
-		break;
-
 	case 'invoice_set':
 		if(!VIEWER_ADMIN)
 			jsonError();
@@ -1882,12 +1927,14 @@ switch(@$_POST['op']) {
 			'invoice_id' => $invoice_id
 		));
 
-		history_insert(array(
-			'type' => 38,
-			'value' => $sum,
-			'value1' => $invoice_id,
-			'value2' => $cashHistory ? '<table>'.$cashHistory.'</table>' : ''
-		));
+		_historyInsert(
+			38,
+			array(
+				'value' => $sum,
+				'value1' => $invoice_id,
+				'value2' => $cashHistory ? '<table>'.$cashHistory.'</table>' : ''
+			)
+		);
 
 		$cash = cash_spisok();
 		$send['c'] = utf8($cash['spisok']);
@@ -1963,12 +2010,14 @@ switch(@$_POST['op']) {
 		if($income_ids)
 			query("UPDATE `money` SET `owner_id`=".($to > 100 ? $to : 0)." WHERE `id` IN (".$income_ids.")");
 
-		history_insert(array(
-			'type' => 39,
-			'value' => $sum,
-			'value1' => $from,
-			'value2' => $to
-		));
+		_historyInsert(
+			39,
+			array(
+				'value' => $sum,
+				'value1' => $from,
+				'value2' => $to
+			)
+		);
 
 		$cash = cash_spisok();
 		$send['c'] = utf8($cash['spisok']);
@@ -2020,11 +2069,13 @@ switch(@$_POST['op']) {
 			));
 		}
 
-		history_insert(array(
-			'type' => 43,
-			'value' => count($ex),
-			'value1' => $ids
-		));
+		_historyInsert(
+			43,
+			array(
+				'value' => count($ex),
+				'value1' => $ids
+			)
+		);
 
 		$send['confirm'] = utf8(income_confirm_info());
 		$cash = cash_spisok();
@@ -2064,12 +2115,14 @@ switch(@$_POST['op']) {
 		foreach($ex as $id)
 			query("UPDATE `invoice_transfer` SET `confirm`=1,`about`='".addslashes($about)."' WHERE `id`=".$id);
 
-		history_insert(array(
-			'type' => 52,
-			'value' => count($ex),
-			'value1' => $ids,
-			'value2' => $about
-		));
+		_historyInsert(
+			52,
+			array(
+				'value' => count($ex),
+				'value1' => $ids,
+				'value2' => $about
+			)
+		);
 
 		$send['i'] = utf8(invoice_spisok());
 		jsonSuccess($send);
@@ -2102,10 +2155,7 @@ switch(@$_POST['op']) {
 			'id' => $r['id']
 		));
 
-		history_insert(array(
-			'type' => 53,
-			'value' => round($r['sum'], 2)
-		));
+		_historyInsert(53, array('value'=>round($r['sum'], 2)));
 
 		$cash = cash_spisok();
 		$send['c'] = utf8($cash['spisok']);
@@ -2194,14 +2244,16 @@ switch(@$_POST['op']) {
 		clientBalansUpdate($r['client_id']);
 		_zayavBalansUpdate($r['zayav_id']);
 
-		history_insert(array(
-			'type' => 11,
-			'zayav_id' => $r['zayav_id'],
-			'client_id' => $r['client_id'],
-			'value' => $r['sum'],
-			'value1' => $r['prim'],
-			'value2' => $r['income_id']
-		));
+		_historyInsert(
+			11,
+			array(
+				'zayav_id' => $r['zayav_id'],
+				'client_id' => $r['client_id'],
+				'value' => $r['sum'],
+				'value1' => $r['prim'],
+				'value2' => $r['income_id']
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2231,14 +2283,16 @@ switch(@$_POST['op']) {
 		clientBalansUpdate($r['client_id']);
 		_zayavBalansUpdate($r['zayav_id']);
 
-		history_insert(array(
-			'type' => 12,
-			'zayav_id' => $r['zayav_id'],
-			'client_id' => $r['client_id'],
-			'value' => $r['sum'],
-			'value1' => $r['prim'],
-			'value2' => $r['income_id']
-		));
+		_historyInsert(
+			12,
+			array(
+				'zayav_id' => $r['zayav_id'],
+				'client_id' => $r['client_id'],
+				'value' => $r['sum'],
+				'value1' => $r['prim'],
+				'value2' => $r['income_id']
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2296,13 +2350,15 @@ switch(@$_POST['op']) {
 			'id' => mysql_insert_id()
 		));
 
-		history_insert(array(
-			'type' => 32,
-			'value' => abs($sum),
-			'value1' => $category,
-			'value2' => $about,
-			'value3' => $worker ? $worker : ''
-		));
+		_historyInsert(
+			32,
+			array(
+				'value' => abs($sum),
+				'value1' => $category,
+				'value2' => $about,
+				'value3' => $worker ? $worker : ''
+			)
+		);
 		jsonSuccess();
 		break;
 	case 'expense_del':
@@ -2332,13 +2388,15 @@ switch(@$_POST['op']) {
 			'id' => $id
 		));
 
-		history_insert(array(
-			'type' => 33,
-			'value' => round(abs($r['sum']), 2),
-			'value1' => $r['expense_id'],
-			'value2' => $r['prim'],
-			'value3' => $r['worker_id'] ? $r['worker_id'] : ''
-		));
+		_historyInsert(
+			33,
+			array(
+				'value' => round(abs($r['sum']), 2),
+				'value1' => $r['expense_id'],
+				'value2' => $r['prim'],
+				'value3' => $r['worker_id'] ? $r['worker_id'] : ''
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2368,13 +2426,15 @@ switch(@$_POST['op']) {
 			'id' => $id
 		));
 
-		history_insert(array(
-			'type' => 34,
-			'value' => round(abs($r['sum']), 2),
-			'value1' => $r['expense_id'],
-			'value2' => $r['prim'],
-			'value3' => $r['worker_id'] ? $r['worker_id'] : ''
-		));
+		_historyInsert(
+			34,
+			array(
+				'value' => round(abs($r['sum']), 2),
+				'value1' => $r['expense_id'],
+				'value2' => $r['prim'],
+				'value3' => $r['worker_id'] ? $r['worker_id'] : ''
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2460,19 +2520,21 @@ switch(@$_POST['op']) {
 					'id' => $id
 				));
 */
-			history_insert(array(
-				'type' => 35,
-				'value' =>
-					'<table>'.
-						'<tr><th>Категория:<td>'._expense($r['expense_id']).'<td>»<td>'._expense($category).
-						'<tr><th>Сотрудник:<td>'.($r['worker_id'] ? _viewer($r['worker_id'], 'name') : '').'<td>»<td>'.($worker ? _viewer($worker, 'name') : '').
-						'<tr><th>Описание:<td>'.$r['prim'].'<td>»<td>'.$about.
-						'<tr><th>Со счёта:<td>'._invoice($r['invoice_id']).'<td>»<td>'._invoice($invoice).
-						'<tr><th>Сумма:<td>'.round(abs($r['sum']), 2).'<td>»<td>'.round(abs($sum), 2).
-					'</table>',
-				'value1' => $id,
-				'value2' => $r['dtime_add']
-			));
+			_historyInsert(
+				35,
+				array(
+					'value' =>
+						'<table>'.
+							'<tr><th>Категория:<td>'._expense($r['expense_id']).'<td>»<td>'._expense($category).
+							'<tr><th>Сотрудник:<td>'.($r['worker_id'] ? _viewer($r['worker_id'], 'name') : '').'<td>»<td>'.($worker ? _viewer($worker, 'name') : '').
+							'<tr><th>Описание:<td>'.$r['prim'].'<td>»<td>'.$about.
+							'<tr><th>Со счёта:<td>'._invoice($r['invoice_id']).'<td>»<td>'._invoice($invoice).
+							'<tr><th>Сумма:<td>'.round(abs($r['sum']), 2).'<td>»<td>'.round(abs($sum), 2).
+						'</table>',
+					'value1' => $id,
+					'value2' => $r['dtime_add']
+				)
+			);
 		}
 
 		jsonSuccess();
@@ -2504,17 +2566,16 @@ switch(@$_POST['op']) {
 			xcache_unset(CACHE_PREFIX.'viewer_'.$worker);
 
 			if($sum)
-				history_insert(array(
-					'type' => 40,
-					'value' => $worker,
-					'value1' => $sum,
-					'value2' => $day
-				));
+				_historyInsert(
+					40,
+					array(
+						'value' => $worker,
+						'value1' => $sum,
+						'value2' => $day
+					)
+				);
 			else
-				history_insert(array(
-					'type' => 41,
-					'value' => $worker
-				));
+				_historyInsert(41, array('value'=>$worker));
 		}
 
 		jsonSuccess();
@@ -2545,12 +2606,14 @@ switch(@$_POST['op']) {
 				)";
 		query($sql);
 
-		history_insert(array(
-			'type' => 36,
-			'value' => $sum,
-			'value1' => $about,
-			'value2' => $worker
-		));
+		_historyInsert(
+			36,
+			array(
+				'value' => $sum,
+				'value1' => $about,
+				'value2' => $worker
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2596,12 +2659,14 @@ switch(@$_POST['op']) {
 			'id' => mysql_insert_id()
 		));
 
-		history_insert(array(
-			'type' => 37,
-			'value' => abs($sum),
-			'value1' => $about,
-			'value2' => $worker
-		));
+		_historyInsert(
+			37,
+			array(
+				'value' => abs($sum),
+				'value1' => $about,
+				'value2' => $worker
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2631,12 +2696,14 @@ switch(@$_POST['op']) {
 				)";
 		query($sql);
 
-		history_insert(array(
-			'type' => 44,
-			'value' => $sum,
-			'value1' => $about,
-			'value2' => $worker
-		));
+		_historyInsert(
+			44,
+			array(
+				'value' => $sum,
+				'value1' => $about,
+				'value2' => $worker
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2670,11 +2737,13 @@ switch(@$_POST['op']) {
 
 		xcache_unset(CACHE_PREFIX.'viewer_'.$worker);
 
-		history_insert(array(
-			'type' => 45,
-			'value' => $worker,
-			'value1' => $sum
-		));
+		_historyInsert(
+			45,
+			array(
+				'value' => $worker,
+				'value1' => $sum
+			)
+		);
 
 		$send['html'] = utf8(salary_worker_spisok(array('worker_id'=>$worker)));
 		jsonSuccess($send);
@@ -2711,11 +2780,13 @@ switch(@$_POST['op']) {
 		$sql = "DELETE FROM `zayav_expense` WHERE `id`=".$id;
 		query($sql);
 
-		history_insert(array(
-			'type' => $r['sum'] > 0 ? 50 : 51,
-			'value' => round(abs($r['sum']), 2),
-			'value1' => $r['worker_id']
-		));
+		_historyInsert(
+			$r['sum'] > 0 ? 50 : 51,
+			array(
+				'value' => round(abs($r['sum']), 2),
+				'value1' => $r['worker_id']
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2765,13 +2836,15 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		$ex = explode('-', $mon);
-		history_insert(array(
-			'type' => 54,
-			'value' => $sum,
-			'value1' => $worker_id,
-			'value2' => $ex[0].'-'.$ex[1],
-			'value3' => _monthDef($ex[1], 1).' '.$ex[0]
-		));
+		_historyInsert(
+			54,
+			array(
+				'value' => $sum,
+				'value1' => $worker_id,
+				'value2' => $ex[0].'-'.$ex[1],
+				'value3' => _monthDef($ex[1], 1).' '.$ex[0]
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2790,13 +2863,15 @@ switch(@$_POST['op']) {
 		query("UPDATE `zayav_expense` SET `salary_list_id`=0 WHERE `id` IN (".$r['ids'].")");
 
 		$ex = explode('-', $r['mon']);
-		history_insert(array(
-			'type' => 55,
-			'value' => $r['sum'],
-			'value1' => $r['worker_id'],
-			'value2' => $ex[0].'-'.$ex[1],
-			'value3' => _monthDef($ex[1], 1).' '.$ex[0]
-		));
+		_historyInsert(
+			55,
+			array(
+				'value' => $r['sum'],
+				'value1' => $r['worker_id'],
+				'value2' => $ex[0].'-'.$ex[1],
+				'value3' => _monthDef($ex[1], 1).' '.$ex[0]
+			)
+		);
 
 		jsonSuccess();
 		break;
@@ -2909,10 +2984,7 @@ switch(@$_POST['op']) {
 			query($sql);
 		}
 
-		history_insert(array(
-			'type' => 13,
-			'value' => $viewer_id
-		));
+		_historyInsert(13, array('value'=>$viewer_id));
 
 		GvaluesCreate();
 
@@ -2937,10 +3009,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 14,
-			'value' => $viewer_id
-		));
+		_historyInsert(14, array('value'=>$viewer_id));
 
 		$send['html'] = utf8(setup_worker_spisok());
 		jsonSuccess($send);
@@ -2983,8 +3052,7 @@ switch(@$_POST['op']) {
 		if($r['post'] != $post)
 			$changes .= '<tr><th>Должность:<td>'.$r['post'].'<td>»<td>'.$post;
 		if($changes)
-			history_insert(array(
-				'type' => 514,
+			_historyInsert(514, array(
 				'value' => $viewer_id,
 				'value1' => '<table>'.$changes.'</table>'
 			));
@@ -3085,10 +3153,7 @@ switch(@$_POST['op']) {
 		if($g['ofice_adres'] != $ofice_adres)
 			$changes .= '<tr><th>Адрес офиса:<td>'.$g['ofice_adres'].'<td>»<td>'.$ofice_adres;
 		if($changes)
-			history_insert(array(
-				'type' => 510,
-				'value' => '<table>'.$changes.'</table>'
-			));
+			_historyInsert(510, array('value'=>'<table>'.$changes.'</table>'));
 
 		jsonSuccess();
 		break;
@@ -3109,10 +3174,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'product');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 501,
-			'value' => $name
-		));
+		_historyInsert(501, array('value'=>$name));
 
 		$send['html'] = utf8(setup_product_spisok());
 		jsonSuccess($send);
@@ -3144,8 +3206,7 @@ switch(@$_POST['op']) {
 		if($r['name'] != $name)
 			$changes = '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
 		if($changes)
-			history_insert(array(
-				'type' => 502,
+			_historyInsert(502, array(
 				'value' => '<table>'.$changes.'</table>',
 				'value1' => $name
 			));
@@ -3175,10 +3236,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'product');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 503,
-			'value' => $r['name']
-		));
+		_historyInsert(503, array('value'=>$r['name']));
 
 		jsonSuccess();
 		break;
@@ -3210,8 +3268,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'product_sub');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 504,
+		_historyInsert(504, array(
 			'value' => _product($product_id),
 			'value1' => $name
 		));
@@ -3240,8 +3297,7 @@ switch(@$_POST['op']) {
 		GvaluesCreate();
 
 		if($r['name'] != $name)
-			history_insert(array(
-				'type' => 505,
+			_historyInsert(505, array(
 				'value' => _product($r['product_id']),
 				'value1' => '<table><tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name.'</table>'
 			));
@@ -3267,8 +3323,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'product_sub');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 506,
+		_historyInsert(506, array(
 			'value' => _product($r['product_id']),
 			'value1' => $r['name']
 		));
@@ -3307,10 +3362,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'invoice');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 515,
-			'value' => $name
-		));
+		_historyInsert(515, array('value'=>$name));
 
 
 		$send['html'] = utf8(setup_invoice_spisok());
@@ -3366,8 +3418,7 @@ switch(@$_POST['op']) {
 		if($r['about'] != $about)
 			$changes .= '<tr><th>Описание:<td>'.str_replace("\n", '<br />', $r['about']).'<td>»<td>'.str_replace("\n", '<br />', $about);
 		if($changes)
-			history_insert(array(
-				'type' => 516,
+			_historyInsert(516, array(
 				'value' => $name,
 				'value1' => '<table>'.$changes.'</table>'
 			));
@@ -3392,10 +3443,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'invoice');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 517,
-			'value' => $r['name']
-		));
+		_historyInsert(517, array('value'=>$r['name']));
 
 		$send['html'] = utf8(setup_invoice_spisok());
 		jsonSuccess($send);
@@ -3424,10 +3472,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'income');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 507,
-			'value' => $name
-		));
+		_historyInsert(507, array('value'=>$name));
 
 
 		$send['html'] = utf8(setup_income_spisok());
@@ -3467,8 +3512,7 @@ switch(@$_POST['op']) {
 		if($r['confirm'] != $confirm)
 			$changes .= '<tr><th>Подтверждение поступления на счёт:<td>'.($r['confirm'] ? 'да' : 'нет').'<td>»<td>'.($confirm ? 'да' : 'нет');
 		if($changes)
-			history_insert(array(
-				'type' => 508,
+			_historyInsert(508, array(
 				'value' => $name,
 				'value1' => '<table>'.$changes.'</table>'
 			));
@@ -3499,10 +3543,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'income');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 509,
-			'value' => $r['name']
-		));
+		_historyInsert(509, array('value'=>$r['name']));
 
 		$send['html'] = utf8(setup_income_spisok());
 		jsonSuccess($send);
@@ -3533,11 +3574,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'expense');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 518,
-			'value' => $name
-		));
-
+		_historyInsert(518, array('value'=>$name));
 
 		$send['html'] = utf8(setup_expense_spisok());
 		jsonSuccess($send);
@@ -3576,8 +3613,7 @@ switch(@$_POST['op']) {
 		if($r['show_worker'] != $show_worker)
 			$changes .= '<tr><th>Список сотрудников:<td>'.($r['show_worker'] ? 'да' : 'нет').'<td>»<td>'.($show_worker ? 'да' : 'нет');
 		if($changes)
-			history_insert(array(
-				'type' => 519,
+			_historyInsert(519, array(
 				'value' => $name,
 				'value1' => '<table>'.$changes.'</table>'
 			));
@@ -3604,10 +3640,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'expense');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 520,
-			'value' => $r['name']
-		));
+		_historyInsert(520, array('value'=>$r['name']));
 
 		$send['html'] = utf8(setup_expense_spisok());
 		jsonSuccess($send);
@@ -3646,10 +3679,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'zayavrashod');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 511,
-			'value' => $name
-		));
+		_historyInsert(511, array('value'=>$name));
 
 
 		$send['html'] = utf8(setup_zayavexpense_spisok());
@@ -3698,8 +3728,7 @@ switch(@$_POST['op']) {
 		if($r['show_worker'] != $show_worker)
 			$changes .= '<tr><th>Список сотрудников:<td>'.($r['show_worker'] ? 'да' : 'нет').'<td>»<td>'.($show_worker ? 'да' : 'нет');
 		if($changes)
-			history_insert(array(
-				'type' => 512,
+			_historyInsert(512, array(
 				'value' => $name,
 				'value1' => '<table>'.$changes.'</table>'
 			));
@@ -3726,10 +3755,7 @@ switch(@$_POST['op']) {
 		xcache_unset(CACHE_PREFIX.'zayavrashod');
 		GvaluesCreate();
 
-		history_insert(array(
-			'type' => 513,
-			'value' => $r['name']
-		));
+		_historyInsert(513, array('value'=>$r['name']));
 
 		$send['html'] = utf8(setup_zayavexpense_spisok());
 		jsonSuccess($send);

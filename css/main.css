@@ -397,21 +397,9 @@
 /* Îò÷¸òû */
 #report .right{width:160px;padding-bottom:200px}
 #report .headName{margin:0 0 15px 0}
-.history .left{padding:10px}
-.history_unit{margin-bottom:12px;padding-bottom:8px;border-bottom:#dae1e8 solid 1px}
-.history_unit .head{font-size:10px}
-.history_unit .head span{color:#777;font-size:10px;margin-right:10px}
-.history_unit ul{margin:5px 0 7px 25px}
-.history_unit li{margin:0 0 8px;list-style-type:disc;display:list-item}
-.history_unit .li{margin-left:-4px}
-.history_unit .changes *{font-size:10px;color:#777}
-.history_unit .changes th{text-align:right;font-weight:700;vertical-align:top}
-.history_unit .changes td{padding:0 3px;vertical-align:top}
-.history_unit .changes .zayav-rashod-spisok{width:auto}
-.history_unit a.deleted{color:#b66}
-.history_unit em{color:#707070}
-.history_unit .oplata{color:#770}
-.history_unit .zstatus{display:inline-block;padding:2px 5px;margin-top:3px}
+._hist-un .changes .zayav-rashod-spisok{width:auto}
+._hist-un .z td{border:none}
+._hist-un .z .zayav-rashod-spisok td{border:#ddd solid 1px}
 .invoice#report .headName{margin:10px}
 .invoice#report .headName span{display:inline-block;float:right;margin:0 6px}
 .invoice#report .transfer{color:#d33}

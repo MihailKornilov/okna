@@ -8,7 +8,7 @@ function _hashRead() {
 	setcookie('hash', '', time() - 5, '/');
 	$_GET['p'] = isset($_GET['p']) ? $_GET['p'] : 'zayav';
 	if(empty($_GET['hash'])) {
-		if(isset($_GET['start'])) {// восстановление последней посещённой страницы
+		if(APP_START) {// восстановление последней посещённой страницы
 			$_GET['p'] = isset($_COOKIE['p']) ? $_COOKIE['p'] : $_GET['p'];
 			$_GET['d'] = isset($_COOKIE['d']) ? $_COOKIE['d'] : '';
 			$_GET['d1'] = isset($_COOKIE['d1']) ? $_COOKIE['d1'] : '';
@@ -182,7 +182,7 @@ function GvaluesCreate() {//Составление файла G_values.js
 				'{uid:40,title:40},'.
 				'{uid:50,title:50}],'.
 		"\n".'ZAMER_DURATION='._selJson(_zamerDuration()).','.
-		"\n".'HISTORY_GROUP='._selJson(history_group()).',';
+		"\n".'HISTORY_GROUP='._selJson(history_group_name()).',';
 
 	$sql = "SELECT * FROM `setup_product_sub` ORDER BY `product_id`,`name`";
 	$q = query($sql);
@@ -883,8 +883,8 @@ function client_info($client_id) {
 		)";
 	$remindCount = mysql_num_rows(query($sql));
 
-	if(RULES_HISTORYSHOW)
-		$histCount = query_value("SELECT COUNT(`id`) FROM `history` WHERE `client_id`=".$client_id);
+
+	$history = RULES_HISTORYSHOW ? history(array('client_id'=>$client_id,'limit'=>15)) : '';
 
 	$sql = "SELECT * FROM `zayav` WHERE ".(VIEWER_ADMIN ? '' : '!`deleted` AND ')." `client_id`=".$client_id;
 	$q = query($sql);
@@ -956,7 +956,7 @@ function client_info($client_id) {
 			'<a class="link" val="money">Платежи'.($money['all'] ? ' ('.$money['all'].')' : '').'</a>'.
 			'<a class="link" val="remind">Напоминания'.($remindCount ? ' ('.$remindCount.')' : '').'</a>'.
 			'<a class="link" val="comm">Заметки'.($commCount ? ' ('.$commCount.')' : '').'</a>'.
-			(RULES_HISTORYSHOW ? '<a class="link" val="hist">История'.($histCount ? ' ('.$histCount.')' : '').'</a>' : '').
+			(RULES_HISTORYSHOW ? '<a class="link" val="hist">История'.($history['all'] ? ' ('.$history['all'].')' : '').'</a>' : '').
 		'</div>'.
 
 		'<table class="tabLR">'.
@@ -965,7 +965,7 @@ function client_info($client_id) {
 					'<div id="income_spisok">'.$money['spisok'].'</div>'.
 					'<div class="remind_spisok">'.remind_spisok(array('client_id'=>$client_id)).'</div>'.
 					'<div id="comments">'._vkComment('client', $client_id).'</div>'.
-					(RULES_HISTORYSHOW ? '<div id="histories">'.history_spisok(array('client_id'=>$client_id)).'</div>' : '').
+					(RULES_HISTORYSHOW ? '<div id="histories">'.$history['spisok'].'</div>' : '').
 				'<td class="right">'.
 					'<div id="zayav_filter">'.
 						//'<div id="zayav_result">'.zayav_count($zayavData['all'], 0).'</div>'.
@@ -1859,6 +1859,8 @@ function zayav_info($zayav_id) {
 	$accSum = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE !`deleted` AND `zayav_id`=".$zayav_id);
 	$rashod = zayav_expense_spisok($z['id'], 'all');
 
+	$history = RULES_HISTORYSHOW ? history(array('zayav_id'=>$zayav_id)) : '';
+
 	return
 	'<script type="text/javascript">'.
 		'var ZAYAV={'.
@@ -2001,7 +2003,7 @@ function zayav_info($zayav_id) {
 			'<div class="histories">'.
 				'<div class="headName">'._zayavCategory($z, 'head').'<div class="zid">#'.$z['id'].'</div>'.
 			'</div>'.
-			history_spisok(array('zayav_id'=>$z['id']))
+			$history['spisok']
 		: '').
 	'</div>';
 }//zayav_info()
@@ -2756,7 +2758,8 @@ function report() {
 		default: $d = $def;
 		case 'history':
 			if(RULES_HISTORYSHOW) {
-				$left = history_spisok();
+				$data = history();
+				$left = $data['spisok'];
 				$right = history_right();
 			} else
 				_norules();
@@ -2834,31 +2837,19 @@ function report() {
 	'</table>';
 }//report()
 
-function history_insert($v) {
-	$sql = "INSERT INTO `history` (
-			   `type`,
-			   `value`,
-			   `value1`,
-			   `value2`,
-			   `value3`,
-			   `client_id`,
-			   `zayav_id`,
-			   `dogovor_id`,
-			   `viewer_id_add`
-			) VALUES (
-				".$v['type'].",
-				'".(isset($v['value']) ? $v['value'] : '')."',
-				'".(isset($v['value1']) ? $v['value1'] : '')."',
-				'".(isset($v['value2']) ? $v['value2'] : '')."',
-				'".(isset($v['value3']) ? $v['value3'] : '')."',
-				".(isset($v['client_id']) ? $v['client_id'] : 0).",
-				".(isset($v['zayav_id']) ? $v['zayav_id'] : 0).",
-				".(isset($v['dogovor_id']) ? $v['dogovor_id'] : 0).",
-				".VIEWER_ID."
-			)";
-	query($sql);
-}//history_insert()
-function history_group() {
+function history($v=array()) {
+	return _history(
+		'history_types',
+		array('_clientLink', '_zayavLink', '_dogNomer'),
+		$v,
+		array(
+			'client_id' => !empty($v['client_id']) && _isnum($v['client_id']) ? intval($v['client_id']) : 0,
+			'zayav_id' => !empty($v['zayav_id']) && _isnum($v['zayav_id']) ? intval($v['zayav_id']) : 0,
+			'dogovor_id' => !empty($v['dogovor_id']) && _isnum($v['dogovor_id']) ? intval($v['dogovor_id']) : 0
+		)
+	);
+}//history()
+function history_group_name() {
 	return array(
 		1 => 'Клиенты',
 		2 => 'Заявки',
@@ -2868,8 +2859,8 @@ function history_group() {
 		6 => 'Расходы организации',
 		7 => 'Настройки'
 	);
-}//history_group()
-function history_group_ids($v) {
+}//history_group_name()
+function history_group($v) {
 	$ids = array(
 		1 => '1,2,3',
 		2 => '4,5,6,7,8,9,15,16,17,18,21,22,23,24,25,26,29,30,31',
@@ -2880,7 +2871,7 @@ function history_group_ids($v) {
 		7 => '13,14,501,502,503,504,505,506,507,508,509,510,511,512,513,514,515,516,517,518,519,520'
 	);
 	return $ids[$v];
-}//history_group_ids()
+}//history_group()
 function history_types($v) {
 	switch($v['type']) {
 		case 1: return 'Внесение нового клиента '.$v['client_link'].'.';
@@ -2958,7 +2949,7 @@ function history_types($v) {
 		case 27: return 'Загрузка файла '.$v['value'].' для заявки '.$v['zayav_link'].'.';
 		case 28: return 'Удаление файла '.$v['value'].' у заявки '.$v['zayav_link'].'.';
 
-		case 29: return 'Изменение расходов по заявке '.$v['zayav_link'].':<div class="changes">'.$v['value'].'</div>';
+		case 29: return 'Изменение расходов по заявке '.$v['zayav_link'].':<div class="changes z">'.$v['value'].'</div>';
 		case 30: return 'Заявка '.$v['zayav_link'].' перенесена из <u>Заказов</u> в <u>Установки</u>. Указан адрес "'.$v['value'].'"';
 
 		case 31: return 'Указана новая дата выполнения заявки '.$v['zayav_link'].': <u>'.FullData($v['value']).'</u>.';
@@ -3079,88 +3070,6 @@ function history_types($v) {
 		default: return $v['type'];
 	}
 }//history_types()
-function history_spisok($v=array()) {
-	$filter = array(
-		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
-		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 30,
-		'worker_id' => !empty($v['worker_id']) && preg_match(REGEXP_NUMERIC, $v['worker_id']) ? $v['worker_id'] : 0,
-		'cat_id' => !empty($v['cat_id']) && preg_match(REGEXP_NUMERIC, $v['cat_id']) ? $v['cat_id'] : 0,
-		'client_id' => !empty($v['client_id']) && preg_match(REGEXP_NUMERIC, $v['client_id']) ? $v['client_id'] : 0,
-		'zayav_id' => !empty($v['zayav_id']) && preg_match(REGEXP_NUMERIC, $v['zayav_id']) ? $v['zayav_id'] : 0
-	);
-
-	$cond = "`id`";
-	if($filter['worker_id'])
-		$cond .= " AND `viewer_id_add`=".$filter['worker_id'];
-	if($filter['cat_id'])
-		$cond .= " AND `type` IN(".history_group_ids($filter['cat_id']).")";
-	if($filter['client_id'])
-		$cond .= " AND `client_id`=".$filter['client_id'];
-	if($filter['zayav_id'])
-		$cond .= " AND `zayav_id`=".$filter['zayav_id'];
-
-	$page = $filter['page'];
-	$limit = $filter['limit'];
-	$start = ($page - 1) * $limit;
-
-	$send = $page == 1 ?
-		'<input type="hidden" id="history_limit" value="'.$filter['limit'].'" />'.
-		'<input type="hidden" id="history_worker_id" value="'.$filter['worker_id'].'" />'.
-		'<input type="hidden" id="history_cat_id" value="'.$filter['cat_id'].'" />'.
-		'<input type="hidden" id="history_client_id" value="'.$filter['client_id'].'" />'.
-		'<input type="hidden" id="history_zayav_id" value="'.$filter['zayav_id'].'" />'
-		: '';
-
-	$sql = "SELECT COUNT(`id`) AS `all`
-			FROM `history`
-			WHERE ".$cond."
-			LIMIT 1";
-	$all = query_value($sql);
-	if(!$all)
-		return $send.'Истории по указанным условиям нет.';
-
-	$sql = "SELECT *
-			FROM `history`
-			WHERE ".$cond."
-			ORDER BY `id` DESC
-			LIMIT ".$start.",".$limit;
-	$q = query($sql);
-	$history = array();
-	while($r = mysql_fetch_assoc($q))
-		$history[$r['id']] = $r;
-	$history = _viewer($history);
-	$history = _clientLink($history);
-	$history = _zayavLink($history);
-	$history = _dogNomer($history);
-
-	$txt = '';
-	end($history);
-	$keyEnd = key($history);
-	reset($history);
-	foreach($history as $r) {
-		if(!$txt) {
-			$time = strtotime($r['dtime_add']);
-			$viewer_id = $r['viewer_id_add'];
-		}
-		$txt .= '<li><div class="li">'.history_types($r).'</div>';
-		$key = key($history);
-		if(!$key ||
-			$key == $keyEnd ||
-			$time - strtotime($history[$key]['dtime_add']) > 900 ||
-			$viewer_id != $history[$key]['viewer_id_add']) {
-			$send .=
-				'<div class="history_unit">'.
-					'<div class="head"><span>'.FullDataTime($r['dtime_add']).'</span>'.($r['viewer_id_add'] ? $r['viewer_name'] : '').'</div>'.
-					'<ul>'.$txt.'</ul>'.
-				'</div>';
-			$txt = '';
-		}
-		next($history);
-	}
-	if($start + $limit < $all)
-		$send .= '<div class="_next" id="history_next" val="'.($page + 1).'"><span>Показать более ранние записи...</span></div>';
-	return $send;
-}//history_spisok()
 function history_right() {
 	$workers = query_selJson("
 		SELECT
@@ -3171,9 +3080,9 @@ function history_right() {
 	return
 		'<script type="text/javascript">var WORKERS='.$workers.';</script>'.
 		'<div class="findHead">Сотрудник</div>'.
-		'<input type="hidden" id="worker_id">'.
+		'<input type="hidden" id="viewer_id_add">'.
 		'<div class="findHead">Категория</div>'.
-		'<input type="hidden" id="cat_id">';
+		'<input type="hidden" id="action">';
 }//history_right()
 
 function _invoiceBalans($invoice_id, $start=false) {// Получение текущего баланса счёта
@@ -3896,15 +3805,17 @@ function income_insert($v) {//Внесение платежа
 	clientBalansUpdate($v['client_id']);
 	_zayavBalansUpdate($v['zayav_id']);
 
-	history_insert(array(
-		'type' => 10,
-		'zayav_id' => $v['zayav_id'],
-		'client_id' => $v['client_id'],
-		'dogovor_id' => $v['dogovor_id'],
-		'value' => $v['sum'],
-		'value1' => $v['prim'],
-		'value2' => $v['type']
-	));
+	_historyInsert(
+		10,
+		array(
+			'zayav_id' => $v['zayav_id'],
+			'client_id' => $v['client_id'],
+			'dogovor_id' => $v['dogovor_id'],
+			'value' => $v['sum'],
+			'value1' => $v['prim'],
+			'value2' => $v['type']
+		)
+	);
 
 	switch($v['from']) {
 		case 'client':

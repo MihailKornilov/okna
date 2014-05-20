@@ -777,11 +777,13 @@ if(CRON) {
 				'".$link."'
 			)";
 	query($sql);
-	history_insert(array(
-		'type' => 47,
-		'value' => MONTH,
-		'value1' => $link
-	));
+	_historyInsert(
+		47,
+		array(
+			'value' => MONTH,
+			'value1' => $link
+		)
+	);
 }
 
 mysql_close();

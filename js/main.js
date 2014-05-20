@@ -447,26 +447,6 @@ var hashLoc,
 		}, 'json');
 	},
 
-	historyFilter = function() {
-		return {
-			op:'history_spisok',
-			limit:$('#history_limit').val(),
-			worker_id:$('#history_worker_id').val(),
-			cat_id:$('#history_cat_id').val(),
-			client_id:$('#history_client_id').val(),
-			zayav_id:$('#history_zayav_id').val()
-		};
-	},
-	historySpisok = function(v, id) {
-		var send = historyFilter();
-		send[id] = v;
-		$('#mainLinks').addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			$('#mainLinks').removeClass('busy');
-			if(res.success)
-				$('.left').html(res.html);
-		}, 'json');
-	},
 	incomeSpisok = function() {
 		var send = {
 			op:'income_spisok',
@@ -1738,21 +1718,6 @@ $(document)
 			hist.removeClass('_busy');
 			if(res.success)
 				hist.html(res.html);
-		}, 'json');
-	})
-
-	.on('click', '#history_next', function() {
-		var t = $(this),
-			send = historyFilter();
-		if(t.hasClass('busy'))
-			return;
-		send.page = $(this).attr('val');
-		t.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				t.after(res.html).remove();
-			else
-				t.removeClass('busy');
 		}, 'json');
 	})
 
@@ -3571,17 +3536,17 @@ $(document)
 		}
 
 		if($('#report.history').length) {
-			$('#worker_id')._select({
+			$('#viewer_id_add')._select({
 				width:160,
 				title0:'Все сотрудники',
 				spisok:WORKERS,
-				func:historySpisok
+				func:_history
 			});
-			$('#cat_id')._select({
+			$('#action')._select({
 				width:160,
 				title0:'Любая категория',
 				spisok:HISTORY_GROUP,
-				func:historySpisok
+				func:_history
 			});
 		}
 		if($('#report.income').length) {
