@@ -1114,6 +1114,10 @@ $(document)
 						_msg('Пин-код сброшен.');
 				}, 'json');
 			});
+			$('#rules_cash')._check(function(v) {
+				$('.tr_selmoney')[(v ? 'remove' : 'add') + 'Class']('dn');
+				$('#rules_selmoney')._check(0);
+			});
 			$('#rules_appenter')._check(function(v) {
 				$('.app-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
 				$('#rules_worker')._check(0);
@@ -1157,13 +1161,14 @@ $(document)
 			});
 			$('.dop-save').click(function() {
 					var send = {
-						op:'setup_worker_dop_save',
-						viewer_id:RULES_VIEWER_ID,
-						rules_cash:$('#rules_cash').val(),
-						rules_getmoney:$('#rules_getmoney').val(),
-						rules_nosalary:$('#rules_nosalary').val()
-					},
-					but = $(this);
+							op:'setup_worker_dop_save',
+							viewer_id:RULES_VIEWER_ID,
+							rules_cash:$('#rules_cash').val(),
+							rules_selmoney:$('#rules_selmoney').val(),
+							rules_getmoney:$('#rules_getmoney').val(),
+							rules_nosalary:$('#rules_nosalary').val()
+						},
+						but = $(this);
 				if(but.hasClass('busy'))
 					return;
 				but.addClass('busy');

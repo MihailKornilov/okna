@@ -325,6 +325,8 @@
 .refund-add-tab{border-spacing:8px}
 .refund-add-tab .label{width:80px;text-align:right}
 .refund-add-tab .img_edit{position:relative;top:-4px;left:4px}
+.refund-add-tab #isum{color:#888;font-size:10px;margin-left:10px}
+.refund-add-tab #isum b{font-size:10px}
 .refund-add-tab #prim{width:220px}
 
 /* Изменение статуса заявки */
@@ -417,6 +419,7 @@
 .transfer-about input{width:350px}
 .invoice-transfer{border-spacing:10px}
 .invoice-transfer .income-choice{margin-left:10px}
+.invoice-transfer #sum[readonly="readonly"]{background-color:#f8f8f8}
 .income_choice_sum{margin-top:10px}
 .invoice-history{margin-top:10px}
 .invoice-history .action{width:80px}

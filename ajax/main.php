@@ -1304,17 +1304,19 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'refund_add':
-		if(empty($_POST['zayav_id']) || !preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
+		if(!$zayav_id = _isnum($_POST['zayav_id']))
 			jsonError();
-		if(empty($_POST['invoice_id']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
+		if(!$invoice_id = _isnum($_POST['invoice_id']))
 			jsonError();
 		if(!preg_match(REGEXP_CENA, $_POST['sum']) || $_POST['sum'] == 0)
 			jsonError();
 
-		$zayav_id = intval($_POST['zayav_id']);
-		$invoice_id = intval($_POST['invoice_id']);
 		$sum = str_replace(',', '.', $_POST['sum']);
 		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
+
+		$iBalans = _invoiceBalans($invoice_id == 1 && _viewerRules(VIEWER_ID, 'RULES_SELMONEY') ? VIEWER_ID : $invoice_id);
+		if($sum > $iBalans)
+			jsonError();
 
 		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id;
 		if(!$z = mysql_fetch_assoc(query($sql)))
@@ -3084,10 +3086,8 @@ switch(@$_POST['op']) {
 	case 'setup_worker_dop_save':
 		if(!RULES_WORKER)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
+		if(!$viewer_id = _isnum($_POST['viewer_id']))
 			jsonError();
-
-		$viewer_id = intval($_POST['viewer_id']);
 
 		$u = _viewer($viewer_id);
 		if(!$u['worker'])

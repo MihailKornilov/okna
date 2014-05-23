@@ -3471,7 +3471,9 @@ $(document)
 					'<tr><td class="label">Клиент:<td>' + OPL.client_fio +
 					'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice_id">' +
 						'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -56) + '</a>' +
-					'<tr><td class="label">Сумма: <td><input type="text" id="sum" class="money" maxlength="11" /> руб.' +
+					'<tr><td class="label">Сумма:' +
+						'<td><input type="text" id="sum" class="money" maxlength="11" /> руб.' +
+							'<span id="isum"></span>' +
 					'<tr><td class="label">Комментарий:<td><input type="text" id="prim" maxlength="100" />' +
 					'</table>';
 				var dialog = _dialog({
@@ -3485,8 +3487,9 @@ $(document)
 				$('#invoice_id')._select({
 					title0:'Не выбран',
 					spisok:INVOICE_SPISOK,
-					func:function() {
+					func:function(v) {
 						$('#sum').focus();
+						$('#isum').html(ZAYAV.isum[v] ? 'max: <b>' + ZAYAV.isum[v] + '</b>' : '');
 					}
 				});
 
@@ -3494,12 +3497,13 @@ $(document)
 					var send = {
 						op:'refund_add',
 						zayav_id:ZAYAV.id,
-						invoice_id:$('#invoice_id').val(),
+						invoice_id:$('#invoice_id').val() * 1,
 						sum:$('#sum').val(),
 						prim:$.trim($('#prim').val())
 					};
-					if(send.invoice_id == 0) err('Не указан счёт');
+					if(!send.invoice_id) err('Не указан счёт');
 					else if(!REGEXP_CENA.test(send.sum)) { err('Некорректно указана сумма'); $('#sum').focus(); }
+					//else if(send.sum.replace(',', '.') > ZAYAV.isum[send.invoice_id]) { err('Возврат не может превышать сумму на счёте'); $('#sum').focus(); }
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function(res) {
@@ -3711,7 +3715,12 @@ $(document)
 				$('#from')._select({
 					width:250,
 					title0:'Не выбран',
-					spisok:INVOICE_SPISOK
+					spisok:INVOICE_SPISOK,
+					func:function(v) {
+						$('.income-choice').html('Выбрать платежи');
+						$('#ids').val('');
+						$('#sum').val('').attr('readonly', SELMONEY[v] ? true : false);
+					}
 				});
 				$('#to')._select({
 					width:250,

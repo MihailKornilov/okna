@@ -442,7 +442,10 @@ function _setupRules($rls, $admin=0) {
 		'RULES_CASH' => array(	    // Внутренний наличный счёт
 			'def' => 0
 		),
-		'RULES_GETMONEY' => array(	// Может принимать и передавать деньги:
+		'RULES_SELMONEY' => array(	// Перевод денег строго через выбор платежей (галочками)
+			'def' => 0
+		),
+		'RULES_GETMONEY' => array(	// Может принимать и передавать деньги
 			'def' => 0
 		),
 		'RULES_NOSALARY' => array(	// Не отображать в начислениях з/п:
@@ -1847,8 +1850,7 @@ function zayav_info($zayav_id) {
 	define('DOG', $type == 'dog');
 	define('SET', $type == 'set');
 
-	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `id`=".$z['client_id']." LIMIT 1";
-	$client = mysql_fetch_assoc(query($sql));
+	$client = query_assoc("SELECT * FROM `client` WHERE !`deleted` AND `id`=".$z['client_id']);
 
 	$dog = $z['dogovor_id'] ? query_assoc("SELECT * FROM `zayav_dogovor` WHERE `id`=".$z['dogovor_id']) : array();
 	$dogSpisok = $z['dogovor_id'] ? zayavDogovorList($z['id']).'<input type="hidden" id="dogovor_reaction" />' : '<input type="hidden" id="dogovor_action" />';
@@ -1860,6 +1862,10 @@ function zayav_info($zayav_id) {
 	$rashod = zayav_expense_spisok($z['id'], 'all');
 
 	$history = RULES_HISTORYSHOW ? history(array('zayav_id'=>$zayav_id)) : '';
+
+	$invoices_sum = array();
+	foreach(_invoice() as $id => $r)
+		$invoices_sum[$id] = _invoiceBalans($id == 1 && _viewerRules(VIEWER_ID, 'RULES_SELMONEY') ? VIEWER_ID : $id);
 
 	return
 	'<script type="text/javascript">'.
@@ -1883,7 +1889,8 @@ function zayav_info($zayav_id) {
 			'day:"'.$d[0].'",'.
 			'hour:'.intval($time[0]).','.
 			'min:'.intval($time[1]).','.
-			'dur:'.$z['zamer_duration'].
+			'dur:'.$z['zamer_duration'].','.
+			'isum:'._assJson($invoices_sum).
 		'},'.
 		'DOG={'.
 			'id:'.(empty($dog) ? 0 : $dog['id']).','.
@@ -3102,11 +3109,13 @@ function invoice() {
 				'uid:'.$r['viewer_id'].','.
 				'title:"'.addslashes(_viewer($r['viewer_id'], 'name')).'"'.
 			'}';
+	$selmoney = query_ptpJson("SELECT `viewer_id`,1 FROM `vk_user_rules` WHERE `key`='RULES_SELMONEY' AND `value`");
 	return
 		'<script type="text/javascript">'.
 			'var CASH=['.implode(',', $data['cash']).'],'.
 				'CASH_SPISOK=['.implode(',', $data['cash_spisok']).'],'.
-				'INVOICE_NAME="'._invoice(1).'";'.
+				'INVOICE_NAME="'._invoice(1).'",'.
+				'SELMONEY='.$selmoney.';'.
 		'</script>'.
 		'<div class="headName">'.
 			'Счета'.
@@ -4745,6 +4754,8 @@ function setup_worker_rules($viewer_id) {
 	'<div class="headName">Дополнительно</div>'.
 	'<table class="rtab">'.
 		'<tr><td class="lab">Внутренний наличный счёт:<td>'._check('rules_cash', '', $rule['RULES_CASH']).
+		'<tr  class="tr_selmoney'.($rule['RULES_CASH'] ? '' : ' dn').'">'.
+			'<td class="lab">Перевод денег строго<br />через выбор платежей<br />(галочками):<td>'._check('rules_selmoney', '', $rule['RULES_SELMONEY']).
 		'<tr><td class="lab">Может принимать<br />и передавать деньги:<td>'._check('rules_getmoney', '', $rule['RULES_GETMONEY']).
 		'<tr><td class="lab">Не отображать<br />в начислениях з/п:<td>'._check('rules_nosalary', '', $rule['RULES_NOSALARY']).
 		'<tr><td><td><div class="vkButton dop-save"><button>Сохранить</button></div>'.
