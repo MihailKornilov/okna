@@ -1,7 +1,7 @@
 <?php
 define('DOCUMENT_ROOT', dirname(__FILE__));
 define('NAMES', 'cp1251');
-define('DOMAIN', defined('CRON') ? 'okna.nyandoma.ru' : $_SERVER['SERVER_NAME']);
+define('DOMAIN', defined('CRON') && CRON ? 'okna.nyandoma.ru' : $_SERVER['SERVER_NAME']);
 define('LOCAL', DOMAIN == 'okna');
 
 //$SA[166424274] = 1; // Тестовая запись

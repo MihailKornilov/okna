@@ -193,8 +193,9 @@ var hashLoc,
 			op:'zayav_spisok',
 			category:$('#zayav').attr('val'),
 			product:$('#product_id').val(),
-			status:$('#status').val(),
+			status:$('#status').length ? $('#status').val() : 0,
 			zpe:$('#zp_expense').length ? $('#zp_expense').val() : 0,
+			zpe_worker:$('#zpe_worker').length ? $('#zpe_worker').val() : 0,
 			account:$('#account').length ? $('#account').val() : 0
 		};
 	},
@@ -1054,8 +1055,15 @@ $(document)
 	.on('click', '#zayav .filter_clear', function() {
 		$('.find-hide').removeClass('dn');
 		$('#find')._search('clear');
-		$('#status').rightLink(0);
+		if($('#status').length)
+			$('#status').rightLink(0);
 		$('#product_id')._select(0);
+		if($('#zp_expense').length) {
+			$('#zp_expense')._radio(0);
+			$('#zpe_worker_select').addClass('dn');
+			$('#zpe_worker')._select(0);
+			$('#account')._check(0);
+		}
 		zayavSpisok();
 	})
 
@@ -2983,7 +2991,19 @@ $(document)
 				spisok:spisok,
 				func:zayavSpisok
 			});
-			$('#zp_expense')._radio(zayavSpisok);
+			$('#zp_expense')._radio(function(v) {
+				$('#zpe_worker_select')[(v == 3 ? 'remove' : 'add') + 'Class']('dn');
+				$('#zpe_worker')._select(0);
+				zayavSpisok();
+			});
+			if($('#zpe_worker').length)
+				$('#zpe_worker')._select({
+					width:155,
+					title0:'Сотрудник не выбран',
+					spisok:ZPE_WORKER,
+					func:zayavSpisok
+				});
+			$('#zpe_worker_select').addClass('dn');
 			$('#account')._check(zayavSpisok);
 		}
 		if($('.zayav-info').length) {

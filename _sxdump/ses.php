@@ -1,6 +1,6 @@
 <?php
 $SES = array (
-  'e0597d0675039697e15e49ca3bbbecf6' => 
+  '200a32b07d8ce85114b6878b82927ac9' => 
   array (
     'cfg' => 
     array (
@@ -17,14 +17,14 @@ $SES = array (
       'my_user' => 'root',
       'my_pass' => '4909099',
       'my_comp' => 0,
-      'my_db' => '',
+      'my_db' => 'okna',
       'auth' => 'mysql cfg',
       'user' => 'miha',
       'pass' => '111',
       'confirm' => '6',
       'exitURL' => './',
     ),
-    'time' => 1395596030,
+    'time' => 1401194215,
     'lng' => 'ru',
   ),
 );

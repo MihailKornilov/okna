@@ -1315,18 +1315,30 @@ function zayav() {
 	switch($_GET['d']) {
 		default:
 		case 'zakaz':
-			$right =
-				'<div id="buttonCreate" class="zakaz_add"><a>Новый заказ</a></div>';
+			$right = '<div id="buttonCreate" class="zakaz_add"><a>Новый заказ</a></div>';
 			$data = zayav_spisok('zakaz');
 			$status = '<div class="findHead">Статус заявки</div>'.
 					  _rightLink('status', _zayavStatusName());
-			$accrual = '<div class="findHead">Начисления з/п</div>'.
+		$worker = query_selJson("SELECT
+						DISTINCT `ze`.`worker_id`,
+						CONCAT(`u`.`first_name`,' ',`u`.`last_name`)
+					FROM `zayav_expense` `ze`,
+						 `vk_user` `u`
+					WHERE `ze`.`worker_id`=`u`.`viewer_id`
+					  AND `ze`.`category_id`=2
+					  AND `ze`.`zayav_id`
+					  AND `ze`.`worker_id`
+					  AND !`ze`.`acc`");
+
+		$accrual = '<div class="findHead">Начисления з/п</div>'.
 					_radio('zp_expense', array(
 						0 => 'Любые заявки',
 						1 => 'Начислений з/п нет',
 						2 => 'Сотрудник не указан',
 						3 => 'Сотрудник указан, но не начислено'
-					), 0, 1);
+					), 0, 1).
+				'<script type="text/javascript">var ZPE_WORKER='.$worker.';</script>'.
+				'<input type="hidden" id="zpe_worker">';
 			$account = '<div class="findHead">Дополнительно</div>'.
 						_check('account', 'Не указан счёт');
 			break;
@@ -1349,13 +1361,25 @@ function zayav() {
 			$data = zayav_spisok('set');
 			$status = '<div class="findHead">Статус заявки</div>'.
 					  _rightLink('status', _zayavStatusName());
+			$worker = query_selJson("SELECT
+						DISTINCT `ze`.`worker_id`,
+						CONCAT(`u`.`first_name`,' ',`u`.`last_name`)
+					FROM `zayav_expense` `ze`,
+						 `vk_user` `u`
+					WHERE `ze`.`worker_id`=`u`.`viewer_id`
+					  AND `ze`.`category_id`=2
+					  AND `ze`.`zayav_id`
+					  AND `ze`.`worker_id`
+					  AND !`ze`.`acc`");
 			$accrual = '<div class="findHead">Начисления з/п</div>'.
 					_radio('zp_expense', array(
 						0 => 'Любые заявки',
 						1 => 'Начислений з/п нет',
 						2 => 'Сотрудник не указан',
 						3 => 'Сотрудник указан, но не начислено'
-					), 0, 1);
+					), 0, 1).
+				'<script type="text/javascript">var ZPE_WORKER='.$worker.';</script>'.
+				'<input type="hidden" id="zpe_worker">';
 			$account = '<div class="findHead">Дополнительно</div>'.
 						_check('account', 'Не указан счёт');
 			break;
@@ -1420,8 +1444,9 @@ function zayavFilter($v) {
 		'client' => !empty($v['client']) && preg_match(REGEXP_NUMERIC, $v['client']) ? intval($v['client']) : 0,
 		'product' => !empty($v['product']) && preg_match(REGEXP_NUMERIC, $v['product']) ? intval($v['product']) : 0,
 		'status' => !empty($v['status']) && preg_match(REGEXP_NUMERIC, $v['status']) ? intval($v['status']) : 0,
-		'zpe' => !empty($v['zpe']) && preg_match(REGEXP_NUMERIC, $v['zpe']) ? intval($v['zpe']) : 0,
-		'account' => !empty($v['account']) && preg_match(REGEXP_BOOL, $v['account']) ? intval($v['account']) : 0
+		'zpe' => _isnum(@$v['zpe']),
+		'zpe_worker' => _isnum(@$v['zpe_worker']),
+		'account' => _isbool(@$v['account'])
 	);
 }//zayavFilter()
 function zayav_spisok($category, $v=array()) {
@@ -1482,7 +1507,7 @@ function zayav_spisok($category, $v=array()) {
 					FROM `zayav_expense`
 					WHERE `category_id`=2
 					  AND `zayav_id`
-					  AND `worker_id`
+					  AND `worker_id`".($filter['zpe_worker'] ? '='.$filter['zpe_worker'] : '')."
 					  AND !`acc`";
 			$cond .= " AND `id` IN (".query_ids($sql).")";
 			break;
@@ -4526,7 +4551,11 @@ function salary_worker_acc($v) {
 			'<th>';
 
 	foreach($spisok as $r) {
-		$about = $r['zayav_id'] ? '<span style="background-color:#'.$r['zayav_status_color'].'">'.$r['zayav_link'].'</span>' : $r['about'];
+		$about = $r['zayav_id'] ?
+					'<span style="background-color:#'.$r['zayav_status_color'].'">'.$r['zayav_link'].'</span>'.
+					'<tt>от '.FullData($r['zayav_add'], 1).'</tt>'
+					:
+					$r['about'];
 		$send .=
 			'<tr val="'.$r['id'].'" class="'.($r['salary_list_id'] ? 'lost' : '').($v['acc_id'] == $r['id'] ? ' show' : '').'">'.
    ($chechAll ? '<td class="ch">'.(!$r['salary_list_id'] && $r['type'] != 'З/п' ? _check('s'.$r['id']) : '') : '').

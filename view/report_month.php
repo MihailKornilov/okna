@@ -166,7 +166,7 @@ function contentShow() {
 	global $sheet, $line, $colLast;
 	$sql = "SELECT *
         FROM `zayav`
-        WHERE `deleted`=0
+        WHERE !`deleted`
           AND `dtime_add` LIKE '".MON."-%'
         ORDER BY `id`";
 	$q = query($sql);
@@ -200,7 +200,7 @@ function contentShow() {
 				$zayav[$r['zayav_id']]['invoice_sum'] += $r['sum'];
 				break;
 			case 2:
-				if($r['worker_id'])
+				if($r['worker_id'] && substr($r['mon'], 0, 7) == MON)
 					$zayav[$r['zayav_id']]['zp_'.(_viewer($r['worker_id'], 'sex') == 1 ? 'wo' : '').'men'] += $r['sum'];
 				break;
 		}
@@ -212,7 +212,7 @@ function contentShow() {
 		 	 `zayav` AS `z`
 		WHERE `acc`.`zayav_id`=`z`.`id`
 		  AND `z`.`id` IN (".$zayav_ids.")
-		  AND `acc`.`deleted`=0
+		  AND !`acc`.`deleted`
 		GROUP BY `z`.`id`";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
@@ -225,7 +225,7 @@ function contentShow() {
 		 	 `zayav` AS `z`
 		WHERE `m`.`zayav_id`=`z`.`id`
 		  AND `z`.`id` IN (".$zayav_ids.")
-		  AND `m`.`deleted`=0
+		  AND !`m`.`deleted`
 		  AND `m`.`sum`>0
 		GROUP BY `z`.`id`";
 	$q = query($sql);
