@@ -25,7 +25,7 @@
 ._attach .form:hover .attach_a{text-decoration:underline}
 ._attach .form._busy{background-position:left 4px}
 ._attach .form._busy form{display:none}
-._attach iframe{display:none}
+._attach iframe{display:block}
 ._attach .form._busy .attach_a{visibility:hidden}
 
 

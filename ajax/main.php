@@ -47,11 +47,15 @@ switch(@$_POST['op']) {
 		}
 
 		$f = $_FILES['f1']['name'] ? $_FILES['f1'] : $_FILES['f2'];
+		echo $f['type'];
 		switch($f['type']) {
-			case 'application/pdf': break;
-			case 'application/rtf': break;
-			case 'application/msword': break;
-			case 'application/vnd.ms-excel': break;
+			case 'application/pdf':             //pdf
+			case 'application/rtf':             //rtf
+			case 'application/msword':          //doc
+			case 'application/vnd.ms-excel':    //xls
+			case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':       //xlsx
+			case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': //docx
+			break;
 			default: setcookie('_attached', 3, time() + 3600, '/'); exit;
 		}
 		$dir = PATH.'files/'.$type.'/'.$type.$zayav_id;
@@ -60,7 +64,6 @@ switch(@$_POST['op']) {
 		$fname = time().'_'.translit($f["name"]);
 		if(move_uploaded_file($f['tmp_name'], $dir.'/'.$fname)) {
 			$name = trim($f['name']);
-			echo $name;
 			$link = SITE.'/files/'.$type.'/'.$type.$zayav_id.'/'.$fname;
 			$sql = "INSERT INTO `attach` (
 						`type`,
