@@ -52,6 +52,12 @@ elseif(PIN_ENTER) {
 		case 'remind': $html .= remind(); break;
 		case 'report': $html .= report(); break;
 		case 'setup': $html .= setup(); break;
+		case 'sa':
+			if(!SA)
+				header('Location:'.URL.'&p=zayav');
+			require_once('view/sa.php');
+			$html .= sa_index();
+			break;
 		default: header('Location:'.URL.'&p=zayav');
 	}
 }

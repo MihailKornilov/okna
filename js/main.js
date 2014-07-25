@@ -742,9 +742,12 @@ $.fn.zayavExpense = function(o) {
 
 	t.html('<div class="_zayav-rashod"></div>');
 	var zr = t.find('._zayav-rashod'),
-		zrmon = []; // Преобразование списка месяцев из ассоциативного
+		zrmon = [], // Преобразование списка месяцев из ассоциативного
+		zeyear = [];
 	for(var k in  MONTH_DEF)
 		zrmon.push({uid:k,title:MONTH_DEF[k]});
+	for(n = 2014; n <= (new Date()).getFullYear(); n++)
+		zeyear.push({uid:n,title:n});
 
 	if(typeof o == 'object')
 		for(n = 0; n < o.length; n++)
@@ -853,12 +856,7 @@ $.fn.zayavExpense = function(o) {
 				delayShow:1000
 			});
 		$('#' + attr_mon)._dropdown({disabled:v[6],spisok:zrmon});
-		$('#' + attr_year)._dropdown({
-			disabled:v[6],
-			spisok:[
-				{uid:2014,title:2014}
-			]
-		});
+		$('#' + attr_year)._dropdown({disabled:v[6],spisok:zeyear});
 		num++;
 	}
 	return t;

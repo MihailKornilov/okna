@@ -136,6 +136,10 @@ function _header() {
 		(@$_GET['p'] == 'setup' ? '<script type="text/javascript" src="'.SITE.'/js/setup'.(DEBUG ? '' : '.min').'.js?'.VERSION.'"></script>' : '').
 		'<script type="text/javascript" src="'.SITE.'/js/G_values.js?'.G_VALUES_VERSION.'"></script>'.
 
+		//Скрипты и стили для суперадминистратора
+		(@$_GET['p'] == 'sa' ? '<link href="/css/sa'.(DEBUG ? '' : '.min').'.css?'.VERSION.'" rel="stylesheet" type="text/css" />' : '').
+		(@$_GET['p'] == 'sa' ? '<script type="text/javascript" src="/js/sa'.(DEBUG ? '' : '.min').'.js?'.VERSION.'"></script>' : '').
+
 		'</head>'.
 		'<body>'.
 			'<div id="frameBody">'.
@@ -4448,7 +4452,7 @@ function salary_worker_spisok($v) {
 	} else
 		$balans = '<a class="start-set">установить</a>';
 
-	$client = query_assoc("SELECT * FROM `client` WHERE !`deleted` AND `balans`<0 AND `worker_id`=".$filter['worker_id']);
+	$client = query_assoc("SELECT * FROM `client` WHERE !`deleted` AND `worker_id`=".$filter['worker_id']);
 	$rate = _viewer($filter['worker_id'], 'rate');
 	$send =
 		'<div class="uhead">'.
@@ -4463,14 +4467,17 @@ function salary_worker_spisok($v) {
 				'<a class="deduct">Внести вычет</a>'.
 			'</div>'.
 		'</div>'.
-		($client ?
-			'<div class="_info">'.
-				'Присутствует клиентский долг в размере '.
-				'<a href="'.URL.'&p=client&d=info&id='.$client['id'].'" class="'._tooltip('Перейти на клиентскую страницу', -85).
-					round($client['balans'], 2).
-				'</a> руб.'.
-			'</div>'
-		: '').
+	($client ?
+		'<div class="_info">'.
+		($client['balans'] < 0 ?
+			'Присутствует клиентский долг в размере '.
+			'<a href="'.URL.'&p=client&d=info&id='.$client['id'].'" class="dolg '._tooltip('Перейти на клиентскую страницу', -85).
+				round($client['balans'], 2).
+			'</a> руб.'
+			: 'Сотрудник привязан к клиенту <a href="'.URL.'&p=client&d=info&id='.$client['id'].'">'.$client['fio'].'</a>'
+		).
+		'</div>'
+	: '').
 		'<div id="salary-sel">&nbsp;</div>';
 
 	$send .= salary_worker_acc($filter);

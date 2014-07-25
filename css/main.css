@@ -3,7 +3,7 @@
 #pin-enter .red{margin-top:10px}
 
 
-/* Итоговая сумма для списка платежей */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 ._moneysum{margin-bottom:7px}
 
 ._attach,
@@ -25,24 +25,24 @@
 ._attach .form:hover .attach_a{text-decoration:underline}
 ._attach .form._busy{background-position:left 4px}
 ._attach .form._busy form{display:none}
-._attach iframe{display:block}
+._attach iframe{display:none}
 ._attach .form._busy .attach_a{visibility:hidden}
 
 
-/* Разбивка платежа на части при заключении договора */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 .cut-money{border-spacing:8px}
 .cut-money .label{text-align:right;width:90px}
 .cut-money input{width:50px}
 .cut-money ._calendar{margin-left:5px}
 
-/* Таблица для внесения платежа */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 .income-add-tab{border-spacing:8px}
 .income-add-tab .label{width:150px;text-align:right}
 .income-add-tab .img_edit{position:relative;top:-4px;left:4px}
 .income-add-tab #prim{width:220px}
 
 
-/* Таблица замеров */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 #zamer-table .mon{font-weight:bold;margin:0 10px 0 16px}
 #zamer-table .mon b{display:inline-block;width:90px}
 #zamer-table .mon a{display:inline-block;padding:3px 8px 4px;font-size:12px;margin-right:5px}
@@ -91,7 +91,7 @@
 #zamer-table .ztu:hover{background-color:#6d6}
 #zamer-table .ztu:hover .title{display:block}
 
-/* Внесение и редактирование клиента */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 .client-add{border-spacing:10px}
 .client-add .label{width:75px;text-align:right}
 .client-add.e .label{width:120px}
@@ -107,7 +107,7 @@
 .client-add #pasp_nomer{width:104px}
 .client-add #pasp_data{width:180px}
 
-/* Список клиентов */
+/* пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 #client #find{background-color:#F7F7F7;padding:10px;border-bottom:#dae1e8 solid 1px}
 #client .result.busy{background-position:585px center}
 #client .dolg_sum{color:#999;margin-left:10px;font-size:10px}
@@ -127,7 +127,7 @@
 }
 #client ._next{margin:0 10px}
 
-/* Информация о клиенте */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 #clientInfo .left{padding-bottom:10px}
 #clientInfo ._info{margin:10px;font-weight:bold;text-align:center;background-color:#fee;color:red}
 #clientInfo .fio{color:#31618C;font-size:12px;font-weight:bold;margin:15px 5px 5px 20px}
@@ -149,14 +149,14 @@
 #clientInfo .right{width:145px;height:auto}
 #clientInfo .cdel{color:red}
 
-/* Поля изделий при управлении заявкой */
+/* пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 ._product-list .ptab{padding-bottom:6px}
 ._product-list ._select{margin-right:5px}
 ._product-list .count{width:20px}
 ._product-list .img_del{margin:0 0 -4px 6px}
 ._product-list .add{display:inline-block;text-align:center;padding:4px 0 8px}
 
-/* Изменение списка расходов в заявке */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 ._zayav-rashod .ptab{margin-bottom:6px}
 /*._zayav-rashod .tddop{width:155px}*/
 ._zayav-rashod .zrtxt{width:142px;margin-right:5px}
@@ -173,7 +173,7 @@
 .zayav-rashod-spisok .itog{text-align:right}
 .zayav-rashod-spisok .noacc *{background-color:#f2f2f2;color:#777}
 
-/* Внесение новой заявки */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 .zayav-add{border-spacing:12px;margin-bottom:30px}
 .zayav-add .label{width:140px;text-align:right}
 .zayav-add .product_edit{margin:0 4px -4px 0}
@@ -195,7 +195,7 @@
 .zayav-zamer-dtime #zamer_hour_select{margin-right:2px}
 .zayav-zamer-dtime #zamer_min_select{margin-left:1px}
 
-/* Дописывание номера договора к заголовку о заявке */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 .zayav-dog{color:#777}
 
 .zayav_unit{
@@ -223,7 +223,7 @@
 .zayav_unit .label{width:60px}
 .zayav_unit .product td{padding:1px 4px 3px 0}
 
-/* список заявок */
+/* пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 #zayav ._search{float:right;margin:-3px -5px 0 0}
 #zayav .filter_clear{float:right}
 #zayav #spisok{padding-bottom:10px;background-color:#f7f7f7;vertical-align:top}
@@ -234,7 +234,7 @@
 #zayav #desc_check{margin-top:10px}
 #zayav ._empty{margin-right:6px;}
 
-/* Информация о заявке */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 .zayav-info ._info{margin:10px;font-weight:bold;text-align:center;background-color:#fee;color:red}
 .zayav-info .delete{float:right;margin-top:4px;color:#933}
 .zayav-info:not(.h) .histories,.zayav-info.h .content{display:none}
@@ -329,7 +329,7 @@
 .refund-add-tab #isum b{font-size:10px}
 .refund-add-tab #prim{width:220px}
 
-/* Изменение статуса заявки */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 .zayav-status{margin:10px}
 .zayav-status .st{
 	padding:10px 15px;
@@ -396,7 +396,7 @@
 .remind-add-tab #txt{width:240px;height:40px}
 
 
-/* Отчёты */
+/* пїЅпїЅпїЅпїЅпїЅпїЅ */
 #report .right{width:160px;padding-bottom:200px}
 #report .headName{margin:0 0 15px 0}
 ._hist-un .changes .zayav-rashod-spisok{width:auto}
@@ -469,7 +469,7 @@
 .salary a.rate-set:hover{color:#d33}
 .salary .uhead span{color:#888;margin-left:8px}
 .salary ._info{text-align:center}
-.salary ._info a{color:#a00;font-weight:bold}
+.salary ._info .dolg{color:#a00;font-weight:bold}
 .salary h2{padding:15px}
 .salary #salary-sel{margin-bottom:2px}
 .salary #salary-sel a{float:right}
@@ -583,3 +583,4 @@
 #setup_zayavexpense .worker{width:80px;text-align:center}
 #setup_zayavexpense .use{width:55px;text-align:center}
 #setup_zayavexpense .set{width:35px}
+
