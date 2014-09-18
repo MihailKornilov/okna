@@ -187,7 +187,6 @@ function contentShow() {
 	$zayav = _dogNomer($zayav);
 	$zayav = _clientLink($zayav);
 	$zayav = zayav_product_array($zayav);
-
 	$zayav_ids = implode(',', array_keys($zayav));
 
 	//Номер договора и сумма. Берутся из расходов по заявке.
@@ -208,12 +207,12 @@ function contentShow() {
 	//Начисления (вставляются в сумму договора)
 	$sql = "SELECT `z`.`id`,
 			   SUM(`acc`.`sum`) AS `sum`
-		FROM `accrual` AS `acc`,
-		 	 `zayav` AS `z`
-		WHERE `acc`.`zayav_id`=`z`.`id`
-		  AND `z`.`id` IN (".$zayav_ids.")
-		  AND !`acc`.`deleted`
-		GROUP BY `z`.`id`";
+			FROM `accrual` AS `acc`,
+			     `zayav` AS `z`
+			WHERE `acc`.`zayav_id`=`z`.`id`
+			  AND `z`.`id` IN (".$zayav_ids.")
+			  AND !`acc`.`deleted`
+			GROUP BY `z`.`id`";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
 		$zayav[$r['id']]['accrual'] = $r['sum'];

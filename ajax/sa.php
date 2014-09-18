@@ -14,7 +14,6 @@ switch(@$_POST['op']) {
 				  LEFT JOIN `money` AS `m`
 				  ON !`m`.`deleted`
 					AND `c`.`id`=`m`.`client_id`
-					AND `m`.`sum`>0
 				WHERE !`c`.`deleted`
 				GROUP BY `c`.`id`
 				ORDER BY `c`.`id`";
@@ -75,7 +74,6 @@ switch(@$_POST['op']) {
 				  LEFT JOIN `money` AS `m`
 				  ON `z`.`id`=`m`.`zayav_id`
 					AND !`m`.`deleted`
-					AND `m`.`sum`>0
 				GROUP BY `z`.`id`
 				ORDER BY `z`.`id`";
 		$q = query($sql);

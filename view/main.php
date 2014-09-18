@@ -648,7 +648,7 @@ function _clientLink($arr, $fio=0) {//Добавление имени и ссылки клиента в массив
 	return $arr;
 }//_clientLink()
 function clientBalansUpdate($client_id) {//Обновление баланса клиента
-	$prihod = query_value("SELECT SUM(`sum`) FROM `money` WHERE !`deleted` AND `zayav_id` AND `client_id`=".$client_id." AND `sum`>0");
+	$prihod = query_value("SELECT SUM(`sum`) FROM `money` WHERE !`deleted` AND `client_id`=".$client_id);
 	$acc = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE !`deleted` AND `client_id`=".$client_id);
 	$balans = $prihod - $acc;
 	query("UPDATE `client` SET `balans`=".$balans." WHERE `id`=".$client_id);
@@ -1175,6 +1175,9 @@ function zayav_product_test($product) {// Проверка корректности данных изделий п
 function zayav_product_array($arr) {//Добавление к элементам массива заявок массив product
 	if(empty($arr))
 		return array();
+	foreach($arr as $r)
+		if(!empty($r['id']))
+			$arr[$r['id']]['product'] = array();
 	$sql = "SELECT * FROM `zayav_product` WHERE `zayav_id` IN (".implode(',', array_keys($arr)).") ORDER BY `id`";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))

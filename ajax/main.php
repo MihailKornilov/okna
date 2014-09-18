@@ -1903,7 +1903,7 @@ switch(@$_POST['op']) {
 				$sql = "SELECT COUNT(`viewer_id`)
 				        FROM `vk_user_rules`
 				        WHERE `viewer_id`=".$id."
-						  AND `rules`='RULES_CASH'
+						  AND `key`='RULES_CASH'
 						  AND `value`=1";
 				if(!query_value($sql))
 					jsonError();
