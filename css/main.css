@@ -276,8 +276,9 @@
 .zayav-info .mon{margin-top:15px}
 .zayav-info .mon em{float:right;margin:0 5px}
 .zayav-info a.refund-add,.zayav-info a.refund-add:hover{color:#c22}
-.zayav-info .sum.acc{color:#07a;cursor:default}
-.zayav-info .sum.opl{color:#090;cursor:default}
+.zayav-info .acc{color:#07a;cursor:default}
+.zayav-info .opl{color:#090;cursor:default}
+.zayav-info .dopl{margin-left:10px;color:#888;cursor:default}
 .zayav-info .sum.ref{color:#a22;cursor:default}
 .zayav-info .dtime_add{font-size:10px;color:#999;text-align:right;margin:10px 0}
 .zayav-info .vkComment{margin-bottom:15px}
@@ -539,8 +540,8 @@
 
 #setup_rules{padding-bottom:30px}
 #setup_rules .utab td{padding-right:10px;vertical-align:top}
-#setup_rules .vklink{color:#777;display:inline-block;margin-top:10px}
-#setup_rules .name{font-weight:bold;font-size:12px;color:#45688e}
+#setup_rules .vklink{color:#777;display:block}
+#setup_rules .name{font-weight:bold;font-size:12px;color:#45688e;margin-bottom:10px}
 #setup_rules .headName{margin:20px 0 10px}
 #setup_rules .pin-clear{margin-left:97px}
 #setup_rules .rtab{border-spacing:8px}

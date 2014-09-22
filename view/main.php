@@ -4,10 +4,12 @@ function _hashRead() {
 		setcookie('hash', empty($_GET['hash']) ? @$_COOKIE['hash'] : $_GET['hash'], time() + 2592000, '/');
 		return;
 	}
+
 	$_GET['hash'] = isset($_COOKIE['hash']) ? $_COOKIE['hash'] : @$_GET['hash'];
 	setcookie('hash', '', time() - 5, '/');
 	$_GET['p'] = isset($_GET['p']) ? $_GET['p'] : 'zayav';
 	if(empty($_GET['hash'])) {
+		define('HASH_VALUES', false);
 		if(APP_START) {// восстановление последней посещённой страницы
 			$_GET['p'] = isset($_COOKIE['p']) ? $_COOKIE['p'] : $_GET['p'];
 			$_GET['d'] = isset($_COOKIE['d']) ? $_COOKIE['d'] : '';
@@ -20,6 +22,7 @@ function _hashRead() {
 	$ex = explode('.', $_GET['hash']);
 	$r = explode('_', $ex[0]);
 	unset($ex[0]);
+	define('HASH_VALUES', empty($ex) ? false : implode('.', $ex));
 	$_GET['p'] = $r[0];
 	unset($_GET['d']);
 	unset($_GET['d1']);
@@ -658,7 +661,7 @@ function clientBalansUpdate($client_id) {//Обновление баланса клиента
 function clientFilter($v) {
 	return array(
 		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? intval($v['page']) : 1,
-		'fast' => !empty($v['fast']) && preg_match(REGEXP_WORDFIND, win1251($v['fast'])) ? win1251(htmlspecialchars(trim($v['fast']))) : '',
+		'find' => !empty($v['find']) && preg_match(REGEXP_WORDFIND, win1251($v['find'])) ? win1251(htmlspecialchars(trim($v['find']))) : '',
 		'dolg' => !empty($v['dolg']) && preg_match(REGEXP_BOOL, $v['dolg']) ? intval($v['dolg']) : 0,
 		'worker' => !empty($v['worker']) && preg_match(REGEXP_BOOL, $v['worker']) ? intval($v['worker']) : 0,
 		'note' => !empty($v['note']) && preg_match(REGEXP_BOOL, $v['note']) ? intval($v['note']) : 0,
@@ -671,18 +674,18 @@ function client_data($filter=array()) {
 	$cond = "!`deleted`";
 	$reg = '';
 	$regEngRus = '';
-	if($filter['fast']) {
-		$engRus = _engRusChar($filter['fast']);
-		$cond .= " AND (`fio` LIKE '%".$filter['fast']."%'
-					 OR `telefon` LIKE '%".$filter['fast']."%'
-					 OR `adres` LIKE '%".$filter['fast']."%'
+	if($filter['find']) {
+		$engRus = _engRusChar($filter['find']);
+		$cond .= " AND (`fio` LIKE '%".$filter['find']."%'
+					 OR `telefon` LIKE '%".$filter['find']."%'
+					 OR `adres` LIKE '%".$filter['find']."%'
 					 ".($engRus ?
 						"OR `fio` LIKE '%".$engRus."%'
 						OR `telefon` LIKE '%".$engRus."%'
 						OR `adres` LIKE '%".$engRus."%'"
 				: '')."
 					 )";
-		$reg = '/('.$filter['fast'].')/i';
+		$reg = '/('.$filter['find'].')/i';
 		if($engRus)
 			$regEngRus = '/('.$engRus.')/i';
 	} else {
@@ -693,7 +696,7 @@ function client_data($filter=array()) {
 			$sql = "SELECT `z`.`client_id`
 			        FROM `zayav` AS `z`,
 			             `zayav_product` AS `p`
-			        WHERE `z`.`deleted`=0
+			        WHERE !`z`.`deleted`
 			          AND `z`.`id`=`p`.`zayav_id`
 			          AND `p`.`product_id`=".$filter['product_id'];
 			foreach(explode(',', query_ids($sql)) as $id)
@@ -718,7 +721,7 @@ function client_data($filter=array()) {
 		if($filter['note']) {
 			$sql = "SELECT DISTINCT `table_id`
 					FROM `vk_comment`
-					WHERE `status`=1 AND `table_name`='client'";
+					WHERE `status` AND `table_name`='client'";
 			foreach(explode(',', query_ids($sql)) as $id)
 				$cids[$id] = $id;
 		}
@@ -731,7 +734,8 @@ function client_data($filter=array()) {
 		return array(
 			'all' => 0,
 			'result' => 'Клиентов не найдено.',
-			'spisok' => '<div class="_empty">Клиентов не найдено.</div>'
+			'spisok' => '<div class="_empty">Клиентов не найдено.</div>',
+			'filter' => $filter
 		);
 
 	$page = $filter['page'];
@@ -747,7 +751,7 @@ function client_data($filter=array()) {
 	while($r = mysql_fetch_assoc($q)) {
 		$spisok[$r['id']] = $r;
 		unset($spisok[$r['id']]['adres']);
-		if(!empty($filter['fast'])) {
+		if(!empty($filter['find'])) {
 			if(preg_match($reg, $r['fio']))
 				$spisok[$r['id']]['fio'] = preg_replace($reg, '<em>\\1</em>', $r['fio'], 1);
 			if(preg_match($reg, $r['telefon']))
@@ -767,7 +771,7 @@ function client_data($filter=array()) {
 				`client_id` AS `id`,
 				COUNT(`id`) AS `count`
 			FROM `zayav`
-			WHERE `deleted`=0
+			WHERE !`deleted`
 			  AND `client_id` IN (".implode(',', array_keys($spisok)).")
 			GROUP BY `client_id`";
 	$q = query($sql);
@@ -785,12 +789,13 @@ function client_data($filter=array()) {
 	while($r = mysql_fetch_assoc($q))
 		$spisok[$r['id']]['comm'] = 1;
 
-	$dolg = $filter['dolg'] ? abs(query_value("SELECT SUM(`balans`) FROM `client` WHERE `deleted`=0 AND `balans`<0 LIMIT 1")) : 0;
+	$dolg = $filter['dolg'] ? abs(query_value("SELECT SUM(`balans`) FROM `client` WHERE !`deleted` AND `balans`<0 LIMIT 1")) : 0;
 	$send = array(
 		'all' => $all,
 		'spisok' => '',
 		'result' => 'Найден'._end($all, ' ', 'о ').$all.' клиент'._end($all, '', 'а', 'ов').
-					($dolg ? '<span class="dolg_sum">(Общая сумма долга = <b>'._sumSpace($dolg).'</b> руб.)</span>' : '')
+					(empty($filter['find']) && $dolg ? '<span class="dolg_sum">(Общая сумма долга = <b>'._sumSpace($dolg).'</b> руб.)</span>' : ''),
+		'filter' => $filter
 	);
 	foreach($spisok as $r)
 		$send['spisok'] .= '<div class="unit'.(isset($r['comm']) ? ' i' : '').'">'.
@@ -809,8 +814,9 @@ function client_data($filter=array()) {
 	}
 	return $send;
 }//client_data()
-function client_list() {
-	$data = client_data();
+function client_list($v) {
+	$data = client_data($v);
+	$v = $data['filter'];
 	return
 	'<div id="client">'.
 		'<div id="find"></div>'.
@@ -819,17 +825,22 @@ function client_list() {
 			'<tr><td class="left">'.$data['spisok'].
 				'<td class="right">'.
 					'<div id="buttonCreate"><a>Новый клиент</a></div>'.
-					'<div class="filter">'.
-						_check('dolg', 'Должники').
-						_check('worker', 'Сотрудник').
-						_check('note', 'Есть заметки').
+					'<div class="filter'.(empty($v['find']) ? '' : ' dn').'">'.
+						_check('dolg', 'Должники', $v['dolg']).
+						_check('worker', 'Сотрудник', $v['worker']).
+						_check('note', 'Есть заметки', $v['note']).
 						'<div class="findHead">Категории заявок</div>'.
-						'<input type="hidden" id="zayav_cat">'.
+						'<input type="hidden" id="zayav_cat" value="'.$v['zayav_cat'].'" />'.
 						'<div class="findHead">Заказывались изделия</div>'.
-						'<input type="hidden" id="product_id">'.
+						'<input type="hidden" id="product_id" value="'.$v['product_id'].'" />'.
 					'</div>'.
 		'</table>'.
-	'</div>';
+	'</div>'.
+	'<script type="text/javascript">'.
+		'var C={'.
+			'find:"'.unescape($v['find']).'"'.
+		'};'.
+	'</script>';
 }//client_list()
 
 function clientInfoGet($client) {
@@ -1892,6 +1903,7 @@ function zayav_info($zayav_id) {
 
 	$accSum = query_value("SELECT SUM(`sum`) FROM `accrual` WHERE !`deleted` AND `zayav_id`=".$zayav_id);
 	$rashod = zayav_expense_spisok($z['id'], 'all');
+	define('DOPL', $z['accrual_sum'] - $z['oplata_sum']);
 
 	$history = RULES_HISTORYSHOW ? history(array('zayav_id'=>$zayav_id)) : '';
 
@@ -2001,6 +2013,13 @@ function zayav_info($zayav_id) {
 									(_zayavCategory($z, 'status_id') == 2  && !DOG ? ' '.FullData($z['status_day'], 1) : '').
 								'</div>'
 					: '').
+						'<tr class="acc_tr'.($z['accrual_sum'] ? '' : ' dn').'">'.
+							'<td class="label">Начислено:'.
+							'<td><b class="acc">'.$z['accrual_sum'].'</b> руб.'.
+						'<tr class="opl_tr'.($z['oplata_sum'] ? '' : ' dn').'">'.
+							'<td class="label">Оплачено:'.
+							'<td><b class="opl">'.$z['oplata_sum'].'</b> руб.'.
+								'<span class="dopl'.(DOPL ? '' : ' dn')._tooltip('Необходимая доплата', -60).(DOPL > 0 ? '+' : '').DOPL.'</span>'.
 					'</table>'.
 	(ZAKAZ || SET ?
 				'<TD class="mainright">'.
@@ -4773,7 +4792,8 @@ function setup_worker_rules($viewer_id) {
 		'<table class="utab">'.
 			'<tr><td>'.$u['photo'].
 				'<td><div class="name">'.$u['name'].'</div>'.
-					 ($viewer_id < VIEWER_MAX ? '<a href="http://vk.com/id'.$viewer_id.'" class="vklink" target="_blank">Перейти на страницу VK</a>' : '').
+					 ($viewer_id < VIEWER_MAX ? '<a href="http://vk.com/id'.$viewer_id.'" class="vklink" target="_blank">Страница VK</a>' : '').
+					 '<a href="'.URL.'&p=report&d=salary&id='.$viewer_id.'" class="vklink">Страница з/п</a>'.
 		'</table>'.
 
 		'<div class="headName">Общее</div>'.

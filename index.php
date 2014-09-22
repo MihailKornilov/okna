@@ -23,7 +23,22 @@ elseif(PIN_ENTER) {
 					$html .= client_info(intval($_GET['id']));
 					break;
 				default:
-					$html .= client_list();
+					$v = array();
+					if(HASH_VALUES) {
+						$ex = explode('.', HASH_VALUES);
+						foreach($ex as $r) {
+							$arr = explode('=', $r);
+							$v[$arr[0]] = $arr[1];
+						}
+					} else {
+						foreach($_COOKIE as $k => $val) {
+							$arr = explode('client_', $k);
+							if(isset($arr[1]))
+								$v[$arr[1]] = $val;
+						}
+					}
+					$v['find'] = unescape(@$v['find']);
+					$html .= client_list($v);
 			}
 			break;
 		case 'zayav':

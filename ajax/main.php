@@ -648,6 +648,22 @@ switch(@$_POST['op']) {
 		$send['dur'] = $zayav['zamer_duration'];
 		jsonSuccess($send);
 		break;
+	case 'zayav_info_money_update':
+		if(!$zayav_id = _isnum($_POST['zayav_id']))
+			jsonError();
+
+		$sql = "SELECT *
+				FROM `zayav`
+				WHERE !`deleted`
+				  AND `id`=".$zayav_id;
+		if(!$z = query_assoc($sql))
+			jsonError();
+
+		$send['acc'] = round($z['accrual_sum'], 2);
+		$send['opl'] = round($z['oplata_sum'], 2);
+		$send['dopl'] = round($z['accrual_sum'] - $z['oplata_sum'], 2);
+		jsonSuccess($send);
+		break;
 	case 'zamer_status':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
 			jsonError();
@@ -2130,6 +2146,7 @@ switch(@$_POST['op']) {
 		);
 
 		$send['i'] = utf8(invoice_spisok());
+		$send['t'] = utf8(transfer_spisok());
 		jsonSuccess($send);
 		break;
 	case 'transfer_show':

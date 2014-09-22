@@ -114,24 +114,42 @@ var hashLoc,
 	},
 	clientFilter = function() {
 		var v = {
-			op:'client_spisok',
-			fast:cFind.inp(),
-			dolg:$('#dolg').val(),
-			worker:$('#worker').val(),
-			note:$('#note').val(),
-			zayav_cat:$('#zayav_cat').val(),
-			product_id:$('#product_id').val()
-		};
-		$('.filter')[v.fast ? 'hide' : 'show']();
+				op:'client_spisok',
+				find:$.trim($('#find')._search('val')),
+				dolg:$('#dolg').val(),
+				worker:$('#worker').val(),
+				note:$('#note').val(),
+				zayav_cat:$('#zayav_cat').val(),
+				product_id:$('#product_id').val()
+			},
+			loc = '';
+		$('.filter')[v.find ? 'hide' : 'show']();
+
+		if(v.find) loc += '.find=' + escape(v.find);
+		else {
+			if(v.dolg > 0) loc += '.dolg=' + v.dolg;
+			if(v.worker > 0) loc += '.worker=' + v.worker;
+			if(v.note > 0) loc += '.note=' + v.note;
+			if(v.zayav_cat > 0) loc += '.zayav_cat=' + v.zayav_cat;
+			if(v.product_id > 0) loc += '.product_id=' + v.product_id;
+		}
+		VK.callMethod('setLocation', hashLoc + loc);
+
+		_cookie('client_find', escape(v.find));
+		_cookie('client_worker', v.worker);
+		_cookie('client_dolg', v.dolg);
+		_cookie('client_note', v.note);
+		_cookie('client_zayav_cat', v.zayav_cat);
+		_cookie('client_product_id', v.product_id);
+
 		return v;
 	},
 	clientSpisok = function() {
-		var send = clientFilter(),
-			result = $('.result');
+		var result = $('.result');
 		if(result.hasClass('busy'))
 			return;
 		result.addClass('busy');
-		$.post(AJAX_MAIN, send, function(res) {
+		$.post(AJAX_MAIN, clientFilter(), function(res) {
 			result.removeClass('busy');
 			if(res.success) {
 				result.html(res.result);
@@ -426,6 +444,23 @@ var hashLoc,
 				}, 'json');
 			}
 		}
+	},
+	zayavInfoMoneyUpdate = function() {
+		var send = {
+			op:'zayav_info_money_update',
+			zayav_id:ZAYAV.id
+		};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success) {
+				$('b.acc').html(res.acc);
+				$('.acc_tr')[(!res.acc ? 'add' : 'remove') + 'Class']('dn');
+				$('b.opl').html(res.opl);
+				$('.opl_tr')[(!res.opl ? 'add' : 'remove') + 'Class']('dn');
+				$('.dopl')
+					[(!res.dopl ? 'add' : 'remove') + 'Class']('dn')
+					.html((res.dopl > 0 ? '+' : '') + res.dopl);
+			}
+		}, 'json');
 	},
 
 	remindSpisok = function(day) {
@@ -976,6 +1011,7 @@ $(document)
 		$.post(AJAX_MAIN, send, function(res) {
 			t.removeClass('deleting');
 			if(res.success) {
+				zayavInfoMoneyUpdate();
 				t.after('<tr class="deleted" val="' + send.id + '">' +
 					'<td colspan="4"><div>Начисление удалено. <a class="accrual-rest">Восстановить</a></div>');
 				t.addClass('dn');
@@ -997,6 +1033,7 @@ $(document)
 		$.post(AJAX_MAIN, send, function(res) {
 			div.removeClass('busy');
 			if(res.success) {
+				zayavInfoMoneyUpdate();
 				t.prev().removeClass('dn');
 				t.remove();
 			}
@@ -1995,6 +2032,7 @@ $(document)
 			if(res.success) {
 				var html = res.html + '<div class="transfer-about">Описание: <input type="text" id="about" /></div>';
 				dialog.content.html(html);
+				$('#about').keyEnter(submit);
 			} else
 				dialog.loadError();
 		}, 'json');
@@ -2019,6 +2057,7 @@ $(document)
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success) {
 					$('#invoice-spisok').html(res.i);
+					$('.transfer-spisok').html(res.t);
 					dialog.close();
 					_msg('Переводы подтверждены.');
 				}
@@ -2137,6 +2176,7 @@ $(document)
 								$('.left:first').html(res.balans);
 								break;
 							case 'zayav':
+								zayavInfoMoneyUpdate();
 								$('#income_spisok').html(res.html);
 								break;
 							case 'income':
@@ -2173,8 +2213,11 @@ $(document)
 		};
 		$.post(AJAX_MAIN, send, function(res) {
 			t.removeClass('deleting');
-			if(res.success)
+			if(res.success) {
+				if(window.ZAYAV)
+					zayavInfoMoneyUpdate();
 				t.addClass('deleted');
+			}
 		}, 'json');
 	})
 	.on('click', '.income-rest', function() {
@@ -2186,8 +2229,11 @@ $(document)
 			id:t.attr('val')
 		};
 		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
+			if(res.success) {
+				if(window.ZAYAV)
+					zayavInfoMoneyUpdate();
 				t.removeClass('deleted');
+			}
 		}, 'json');
 	})
 	.on('click', '#income_next', function() {
@@ -2795,13 +2841,13 @@ $(document)
 			$('.vkButton').click(pinEnter);
 		}
 		if($('#client').length) {
-			window.cFind = $('#find')._search({
+			$('#find')._search({
 				width:602,
 				focus:1,
 				enter:1,
 				txt:'Начните вводить данные клиента',
 				func:clientSpisok
-			});
+			}).inp(C.find);
 			$('#buttonCreate').vkHint({
 				msg:'<B>Внесение нового клиента в базу.</B><br /><br />' +
 					'После внесения Вы попадаете на страницу с информацией о клиенте для дальнейших действий.<br /><br />' +
@@ -3314,6 +3360,7 @@ $(document)
 						$.post(AJAX_MAIN, send, function(res) {
 							dialog.abort();
 							if(res.success) {
+								zayavInfoMoneyUpdate();
 								dialog.close();
 								_msg('Начисление успешно произведено.');
 								$('#income_spisok').html(res.html);
