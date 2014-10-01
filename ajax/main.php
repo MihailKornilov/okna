@@ -659,9 +659,9 @@ switch(@$_POST['op']) {
 		if(!$z = query_assoc($sql))
 			jsonError();
 
-		$send['acc'] = round($z['accrual_sum'], 2);
-		$send['opl'] = round($z['oplata_sum'], 2);
-		$send['dopl'] = round($z['accrual_sum'] - $z['oplata_sum'], 2);
+		$send = _zayavBalansUpdate($zayav_id);
+		$send['dolg'] *= -1;
+		$send['expense'] = utf8(zayav_expense_spisok($zayav_id));
 		jsonSuccess($send);
 		break;
 	case 'zamer_status':
@@ -1110,26 +1110,32 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'zayav_expense_edit':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
+		if(!$zayav_id = _isnum($_POST['zayav_id']))
 			jsonError();
 
-		$zayav_id = intval($_POST['zayav_id']);
 		$expenseNew = zayav_expense_test($_POST['rashod']);
 		if($expenseNew === false)
 			jsonError();
 
-		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id." LIMIT 1";
-		if(!$z = mysql_fetch_assoc(query($sql)))
+		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id;
+		if(!$z = query_assoc($sql))
 			jsonError();
 
-		$rashodOld = zayav_expense_spisok($zayav_id, 'array');
-		if($expenseNew != $rashodOld) {
+		$expenseOld = zayav_expense_spisok($zayav_id, 'array');
+
+		if(!zayav_expense_equal($expenseOld, $expenseNew)) {
 			$old = zayav_expense_spisok($zayav_id);
-			$sql = "DELETE FROM `zayav_expense` WHERE !`salary_list_id` AND `zayav_id`=".$zayav_id;
-			query($sql);
+			query("DELETE FROM `zayav_expense` WHERE !`salary_list_id` AND `zayav_id`=".$zayav_id);
+			$dolg = $z['accrual_sum'] && $z['accrual_sum'] - $z['oplata_sum'] <= 0 ? 0 : 1;
 			foreach($expenseNew as $r) {
-				if($r[6])
+				if($r[3])
 					continue;
+				$acc = 0;
+				if(_zayavRashod($r[0], 'worker') && $r[1]) {
+					$acc = 1;
+					if(_viewerRules($r[1], 'RULES_ZPZAYAVAUTO') && $dolg)
+						$acc = 0;
+				}
 				$sql = "INSERT INTO `zayav_expense` (
 							`zayav_id`,
 							`category_id`,
@@ -1144,8 +1150,8 @@ switch(@$_POST['op']) {
 							'".(_zayavRashod($r[0], 'txt') ? addslashes($r[1]) : '')."',
 							".(_zayavRashod($r[0], 'worker') ? intval($r[1]) : 0).",
 							".$r[2].",
-							".$r[3].",
-							'".($r[3] ? $r[5].'-'.($r[4] < 10 ? 0 : '').$r[4].'-'.strftime('%d') : '0000-00-00')."'
+							".$acc.",
+							'".($acc ? strftime('%Y-%m-%d') : '0000-00-00')."'
 						)";
 				query($sql);
 			}
@@ -1164,6 +1170,8 @@ switch(@$_POST['op']) {
 		foreach($expense['array'] as $n => $r)
 			$expense['array'][$n][1] = utf8($expense['array'][$n][1]);
 		$send['array'] = $expense['array'];
+		$history = RULES_HISTORYSHOW ? history(array('zayav_id'=>$zayav_id)) : '';
+		$send['history'] = utf8($history['spisok']);
 		jsonSuccess($send);
 		break;
 	case 'zayav_spisok':
@@ -2212,7 +2220,7 @@ switch(@$_POST['op']) {
 			'from' => trim($_POST['from']),
 			'prim' => win1251(htmlspecialchars(trim($_POST['prim'])))
 		);
-		if(!preg_match(REGEXP_NUMERIC, $_POST['type']) || !$_POST['type'])
+		if(!$v['type'] = _isnum($_POST['type']))
 			jsonError();
 		if(!preg_match(REGEXP_BOOL, $_POST['confirm']))
 			jsonError();
@@ -2223,7 +2231,6 @@ switch(@$_POST['op']) {
 		if(preg_match(REGEXP_NUMERIC, $_POST['client_id']))
 			$v['client_id'] = intval($_POST['client_id']);
 
-		$v['type'] = intval($_POST['type']);
 		$v['confirm'] = _income($v['type'], 'confirm') ? intval($_POST['confirm']) : 0;
 		$v['sum'] = str_replace(',', '.', $_POST['sum']);
 
@@ -2238,17 +2245,18 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'income_del':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+		if(!$id = _isnum($_POST['id']))
 			jsonError();
-		$id = intval($_POST['id']);
 
 		$sql = "SELECT *
 				FROM `money`
 				WHERE !`deleted`
 				  AND `id`=".$id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
+		if(!$r = query_assoc($sql))
 			jsonError();
 		if($r['dogovor_id'])
+			jsonError();
+		if(TODAY != substr($r['dtime_add'], 0, 10))
 			jsonError();
 
 		$sql = "UPDATE `money` SET
@@ -2496,7 +2504,7 @@ switch(@$_POST['op']) {
 		$id = intval($_POST['id']);
 		$sql = "SELECT *
 				FROM `money`
-				WHERE `deleted`=0
+				WHERE !`deleted`
 				  AND `sum`<0
 				  AND `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
@@ -3781,5 +3789,4 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 }
-
 jsonError();

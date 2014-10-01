@@ -1166,7 +1166,8 @@ $(document)
 							rules_cash:$('#rules_cash').val(),
 							rules_selmoney:$('#rules_selmoney').val(),
 							rules_getmoney:$('#rules_getmoney').val(),
-							rules_nosalary:$('#rules_nosalary').val()
+							rules_nosalary:$('#rules_nosalary').val(),
+							rules_zpzayavauto:$('#rules_zpzayavauto').val()
 						},
 						but = $(this);
 				if(but.hasClass('busy'))

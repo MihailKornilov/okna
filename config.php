@@ -12,7 +12,8 @@ _appAuth();
 require_once(DOCUMENT_ROOT.'/view/main.php');
 
 define('API_URL', 'http://vk.com/app'.API_ID);
-define('TODAY_UNIXTIME', strtotime(strftime('%Y-%m-%d')));
+define('TODAY', strftime('%Y-%m-%d'));
+define('TODAY_UNIXTIME', strtotime(TODAY));
 define('PATH_DOGOVOR', PATH.'files/dogovor/');
 define('LINK_DOGOVOR', SITE.'/files/dogovor/');
 

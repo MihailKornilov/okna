@@ -455,7 +455,10 @@ function _setupRules($rls, $admin=0) {
 		'RULES_GETMONEY' => array(	// Может принимать и передавать деньги
 			'def' => 0
 		),
-		'RULES_NOSALARY' => array(	// Не отображать в начислениях з/п:
+		'RULES_NOSALARY' => array(	// Не отображать в начислениях з/п
+			'def' => 0
+		),
+		'RULES_ZPZAYAVAUTO' => array(	// Начислять бонус по заявке при отсутствии долга
 			'def' => 0
 		),
 		'RULES_APPENTER' => array(	// Разрешать вход в приложение
@@ -659,15 +662,31 @@ function clientBalansUpdate($client_id) {//Обновление баланса клиента
 }//clientBalansUpdate()
 
 function clientFilter($v) {
-	return array(
+	$default = array(
+		'page' => 1,
+		'find' => '',
+		'dolg' => 0,
+		'worker' => 0,
+		'note' => 0,
+		'zayav_cat' => 0,
+		'product_id' => 0
+	);
+	$filter = array(
 		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? intval($v['page']) : 1,
 		'find' => !empty($v['find']) && preg_match(REGEXP_WORDFIND, win1251($v['find'])) ? win1251(htmlspecialchars(trim($v['find']))) : '',
 		'dolg' => !empty($v['dolg']) && preg_match(REGEXP_BOOL, $v['dolg']) ? intval($v['dolg']) : 0,
 		'worker' => !empty($v['worker']) && preg_match(REGEXP_BOOL, $v['worker']) ? intval($v['worker']) : 0,
 		'note' => !empty($v['note']) && preg_match(REGEXP_BOOL, $v['note']) ? intval($v['note']) : 0,
 		'zayav_cat' => !empty($v['zayav_cat']) && preg_match(REGEXP_NUMERIC, $v['zayav_cat']) ? intval($v['zayav_cat']) : 0,
-		'product_id' => !empty($v['product_id']) && preg_match(REGEXP_NUMERIC, $v['product_id']) ? intval($v['product_id']) : 0
+		'product_id' => !empty($v['product_id']) && preg_match(REGEXP_NUMERIC, $v['product_id']) ? intval($v['product_id']) : 0,
+		'clear' => ''
 	);
+	foreach($default as $k => $r)
+		if($r != $filter[$k]) {
+			$filter['clear'] = '<a id="filter_clear">Очистить фильтр</a>';
+			break;
+		}
+	return $filter;
 }//clientFilter()
 function client_data($filter=array()) {
 	$filter = clientFilter($filter);
@@ -733,7 +752,7 @@ function client_data($filter=array()) {
 	if(!$all)
 		return array(
 			'all' => 0,
-			'result' => 'Клиентов не найдено.',
+			'result' => 'Клиентов не найдено.'.$filter['clear'],
 			'spisok' => '<div class="_empty">Клиентов не найдено.</div>',
 			'filter' => $filter
 		);
@@ -794,7 +813,8 @@ function client_data($filter=array()) {
 		'all' => $all,
 		'spisok' => '',
 		'result' => 'Найден'._end($all, ' ', 'о ').$all.' клиент'._end($all, '', 'а', 'ов').
-					(empty($filter['find']) && $dolg ? '<span class="dolg_sum">(Общая сумма долга = <b>'._sumSpace($dolg).'</b> руб.)</span>' : ''),
+					(empty($filter['find']) && $dolg ? '<span class="dolg_sum">(Общая сумма долга = <b>'._sumSpace($dolg).'</b> руб.)</span>' : '').
+					$filter['clear'],
 		'filter' => $filter
 	);
 	foreach($spisok as $r)
@@ -1043,6 +1063,8 @@ function _zayavLink($arr) {
 			$arr[$key]['zayav_add'] = $r['dtime_add'];
 			$arr[$key]['zayav_status_day'] = $r['status_day'];
 			$arr[$key]['zayav_status_color'] = _zayavCategory($r, 'status_color');
+			$dolg = $r['accrual_sum'] - $r['oplata_sum'];
+			$arr[$key]['zayav_dolg'] = $dolg > 0 ? $dolg : 0;
 		}
 	return $arr;
 }//_zayavLink()
@@ -1164,7 +1186,11 @@ function _zayavBalansUpdate($zayav_id) {//Обновление начислений, суммы платежей,
 				`net_profit`=".($accrual_sum - $expense_sum)."
 			WHERE `id`=".$zayav_id;
 	query($sql);
-	return true;
+	return array(
+		'acc' => round($accrual_sum, 2),
+		'opl' => round($oplata_sum, 2),
+		'dolg' => round($oplata_sum - $accrual_sum)
+	);
 }//_zayavBalansUpdate()
 
 function zayav_product_test($product) {// Проверка корректности данных изделий при внесении в базу
@@ -1241,28 +1267,29 @@ function zayav_expense_test($v) {// Проверка корректности данных расходов заявки
 			return false;
 		if(!preg_match(REGEXP_NUMERIC, $ids[2]) || !$ids[2])
 			return false;
-		if(!preg_match(REGEXP_BOOL, $ids[3]))
-			return false;
-		if(!preg_match(REGEXP_NUMERIC, $ids[4]))
-			return false;
-		if(!preg_match(REGEXP_NUMERIC, $ids[5]))
-			return false;
-		if(!preg_match(REGEXP_NUMERIC, $ids[6]))
+		if(!preg_match(REGEXP_NUMERIC, $ids[3]))
 			return false;
 		if(_zayavRashod($ids[0], 'txt'))
 			$ids[1] = win1251(htmlspecialchars(trim($ids[1])));
 		if(!_zayavRashod($ids[0], 'txt') && !_zayavRashod($ids[0], 'worker'))
 			$ids[1] = '';
-		if(!$ids[1])
-			$ids[3] = 0;
-		if(!$ids[3]) {
-			$ids[4] = 0;
-			$ids[5] = 0;
-		}
 		$send[] = $ids;
 	}
 	return $send;
 }//zayav_expense_test()
+function zayav_expense_equal($old, $new) {// Сравнение старого и нового массивов расходов заявки
+	if(empty($old) && empty($new))
+		return true;
+	if(empty($old) || empty($new))
+		return false;
+	if(count($old) != count($new))
+		return false;
+	foreach($old as $k => $arr)
+		foreach($arr as $i => $r)
+			if($r != $new[$k][$i])
+				return false;
+	return true;
+}//zayav_expense_equal()
 function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расходов заявки
 	$sql = "SELECT * FROM `zayav_expense` WHERE `zayav_id`=".$zayav_id." ORDER BY `id`";
 	$q = query($sql);
@@ -1279,8 +1306,10 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 					'<td>'.(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
 						   (_zayavRashod($r['category_id'], 'worker') && $r['worker_id'] ?
 							   (!_viewerRules($r['worker_id'], 'RULES_NOSALARY') ?
-								   '<a href="'.URL.'&p=report&d=salary&id='.$r['worker_id'].'&mon='.substr($r['mon'], 0, 7).'&acc_id='.$r['id'].'">'._viewer($r['worker_id'], 'name').'</a>' :
-								   _viewer($r['worker_id'], 'name')
+									'<a href="'.URL.'&p=report&d=salary&id='.$r['worker_id'].'&mon='.substr($r['mon'], 0, 7).'&acc_id='.$r['id'].'">'.
+										_viewer($r['worker_id'], 'name').
+									'</a>' :
+									_viewer($r['worker_id'], 'name')
 							   )
 						   : '').
 					'<td class="sum'.($r['acc'] ? _tooltip(_monthCut($mon[1]).' '.$mon[0], -7) : '">').$r['sum'].' р.';
@@ -1289,9 +1318,6 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 					(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
 					(_zayavRashod($r['category_id'], 'worker') ? $r['worker_id'] : '').'",'.
 					$r['sum'].','.
-					$r['acc'].','.
-					intval($mon[1]).','.
-					intval($mon[0]).','.
 					$r['salary_list_id'].
 				  ']';
 		$array[] = array(
@@ -1299,9 +1325,6 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 			(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
 			(_zayavRashod($r['category_id'], 'worker') ? intval($r['worker_id']) : ''),
 			intval($r['sum']),
-			intval($r['acc']),
-			intval($mon[1]),
-			intval($mon[0]),
 			intval($r['salary_list_id'])
 		);
 	}
@@ -2059,9 +2082,12 @@ function zayav_info($zayav_id) {
 		'</div>'.
 		(RULES_HISTORYSHOW ?
 			'<div class="histories">'.
-				'<div class="headName">'._zayavCategory($z, 'head').'<div class="zid">#'.$z['id'].'</div>'.
-			'</div>'.
-			$history['spisok']
+				'<div class="headName">'.
+					_zayavCategory($z, 'head').
+					'<div class="zid">#'.$z['id'].'</div>'.
+				'</div>'.
+				'<div id="hspisok">'.$history['spisok'].'</div>'.
+			'</div>'
 		: '').
 	'</div>';
 }//zayav_info()
@@ -3863,7 +3889,7 @@ function income_insert($v) {//Внесение платежа
 		'id' => $insert_id
 	));
 	clientBalansUpdate($v['client_id']);
-	_zayavBalansUpdate($v['zayav_id']);
+	$zu = _zayavBalansUpdate($v['zayav_id']);
 
 	_historyInsert(
 		10,
@@ -3881,7 +3907,17 @@ function income_insert($v) {//Внесение платежа
 		case 'client':
 			$data = income_spisok(array('client_id'=>$v['client_id'],'limit'=>15));
 			return $data['spisok'];
-		case 'zayav': return zayav_money($v['zayav_id']);
+		case 'zayav':
+			if($zu['dolg'] >= 0) {
+				$sql = "UPDATE `zayav_expense`
+						SET `acc`=1,
+							`mon`=CURRENT_TIMESTAMP
+						WHERE `zayav_id`=".$v['zayav_id']."
+						  AND !`acc`
+						  AND `worker_id`";
+				query($sql);
+			}
+			return zayav_money($v['zayav_id']);
 		default: return $insert_id;
 	}
 }//income_insert()
@@ -4045,7 +4081,7 @@ function income_unit($r, $filter=array()) {
 			'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
 		(empty($filter['owner_id']) && empty($filter['ids']) && empty($filter['confirm']) ?
 			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" target="_blank" class="img_doc'._tooltip('Распечатать квитанцию', -140, 'r').'</a>'.
-				(!$r['dogovor_id'] ?
+				(!$r['dogovor_id'] && TODAY == substr($r['dtime_add'], 0, 10) ?
 					'<div class="img_del income-del'._tooltip('Удалить платёж', -95, 'r').'</div>'.
 					'<div class="img_rest income-rest'._tooltip('Восстановить платёж', -125, 'r').'</div>'
 				: '')
@@ -4503,6 +4539,7 @@ function salary_worker_spisok($v) {
 		'<div id="salary-sel">&nbsp;</div>';
 
 	$send .= salary_worker_acc($filter);
+	$send .= salary_worker_noacc($filter);
 	$send .= salary_worker_zp($filter);
 	$send .= salary_worker_list($filter);
 	return $send;
@@ -4582,7 +4619,8 @@ function salary_worker_acc($v) {
 	foreach($spisok as $r) {
 		$about = $r['zayav_id'] ?
 					'<span style="background-color:#'.$r['zayav_status_color'].'">'.$r['zayav_link'].'</span>'.
-					'<tt>от '.FullData($r['zayav_add'], 1).'</tt>'
+					'<tt>от '.FullData($r['zayav_add'], 1).'</tt>'.
+					($r['zayav_dolg'] ? '<span class="z-dolg'._tooltip('Долг по заявке', -40).$r['zayav_dolg'].'</span>' : '')
 					:
 					$r['about'];
 		$send .=
@@ -4597,6 +4635,49 @@ function salary_worker_acc($v) {
 	$send .= '</table>';
 	return $send;
 }//salary_worker_acc()
+function salary_worker_noacc($v) {
+	if($v['mon'] != strftime('%Y-%m'))
+		return '';
+	$sql = "SELECT
+			    `e`.`id`,
+			    `e`.`sum`,
+				`e`.`zayav_id`
+			FROM `zayav_expense` `e`,
+				 `zayav` `z`
+			WHERE `z`.`id`=`e`.`zayav_id`
+			  AND !`z`.`deleted`
+			  AND !`e`.`acc`
+			  AND `e`.`worker_id`=".$v['worker_id']."
+			  AND `e`.`sum`>0
+			GROUP BY `e`.`id`";
+	$q = query($sql);
+	if(!mysql_num_rows($q))
+		return '';
+	$spisok = array();
+	while($r = mysql_fetch_assoc($q)) {
+		$spisok[$r['id']] = $r;
+	}
+	$spisok = _zayavLink($spisok);
+	$send = '<div class="list-head"><b>Не начислено:</b></div>'.
+		'<table class="_spisok _money">'.
+		'<tr>'.
+			'<th>Вид'.
+			'<th>Сумма'.
+			'<th>Описание';
+	foreach($spisok as $r) {
+		$about =
+			'<span style="background-color:#'.$r['zayav_status_color'].'">'.$r['zayav_link'].'</span>'.
+			'<tt>от '.FullData($r['zayav_add'], 1).'</tt>'.
+			($r['zayav_dolg'] ? '<span class="z-dolg'._tooltip('Долг по заявке', -40).$r['zayav_dolg'].'</span>' : '');
+		$send .=
+			'<tr val="'.$r['id'].'" class="noacc">'.
+				'<td class="type">Начисление'.
+				'<td class="sum">'.round($r['sum'], 2).
+				'<td class="about">'.$about;
+	}
+	$send .= '</table>';
+	return $send;
+}//salary_worker_noacc()
 function salary_worker_zp($v) {
 	$sql = "SELECT *
 			FROM `money`
@@ -4615,7 +4696,7 @@ function salary_worker_zp($v) {
 		$summa += $sum;
 		$zp .= '<tr>'.
 			'<td class="sum">'.$sum.
-			'<td class="about"><tt class="type">'._invoice($r['invoice_id']).(empty($r['prim']) ? '' : ':').'</tt> '.$r['prim'].
+			'<td class="about"><span class="type">'._invoice($r['invoice_id']).(empty($r['prim']) ? '' : ':').'</span> '.$r['prim'].
 			'<td class="dtime">'.FullDataTime($r['dtime_add']).
 			'<td class="ed"><div val="'.$r['id'].'" class="img_del zp_del'._tooltip('Удалить', -29).'</div>';
 	}
@@ -4817,6 +4898,7 @@ function setup_worker_rules($viewer_id) {
 			'<td class="lab">Перевод денег строго<br />через выбор платежей<br />(галочками):<td>'._check('rules_selmoney', '', $rule['RULES_SELMONEY']).
 		'<tr><td class="lab">Может принимать<br />и передавать деньги:<td>'._check('rules_getmoney', '', $rule['RULES_GETMONEY']).
 		'<tr><td class="lab">Не отображать<br />в начислениях з/п:<td>'._check('rules_nosalary', '', $rule['RULES_NOSALARY']).
+		'<tr><td class="lab">Начислять бонус по заявке<br />при отсутствии долга:<td>'._check('rules_zpzayavauto', '', $rule['RULES_ZPZAYAVAUTO']).
 		'<tr><td><td><div class="vkButton dop-save"><button>Сохранить</button></div>'.
 	'</table>'.
 

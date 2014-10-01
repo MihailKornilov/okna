@@ -457,8 +457,10 @@ var hashLoc,
 				$('b.opl').html(res.opl);
 				$('.opl_tr')[(!res.opl ? 'add' : 'remove') + 'Class']('dn');
 				$('.dopl')
-					[(!res.dopl ? 'add' : 'remove') + 'Class']('dn')
-					.html((res.dopl > 0 ? '+' : '') + res.dopl);
+					[(!res.dolg ? 'add' : 'remove') + 'Class']('dn')
+					.html((res.dolg > 0 ? '+' : '') + res.dolg);
+				$('.acc-sum').html(res.acc != 0 ? 'Общая сумма начислений: <b>' + res.acc + '</b> руб.' : 'Начислений нет.');
+				$('.zrashod').html(res.expense);
 			}
 		}, 'json');
 	},
@@ -745,30 +747,18 @@ $.fn.zayavExpense = function(o) {
 					attr = id + u.attr('val'),
 					cat_id = $('#' + attr + 'cat').val(),
 					sum = u.find('.zrsum').val(),
-					dop = '',
-					acc = 0,
-					mon = 0,
-					year = 0;
+					dop = '';
 				if(cat_id == 0)
 					continue;
 				if(!REGEXP_NUMERIC.test(sum) || sum == 0)
 					return 'sum_error';
 				if(ZAYAVEXPENSE_TXT[cat_id])
 					dop = u.find('.zrtxt').val();
-				else if(ZAYAVEXPENSE_WORKER[cat_id]) {
+				else if(ZAYAVEXPENSE_WORKER[cat_id])
 					dop = $('#' + attr + 'worker').val();
-					acc = $('#' + attr + 'acc').val();
-					if(acc == 1) {
-						mon = $('#' + attr + 'mon').val();
-						year = $('#' + attr + 'year').val();
-					}
-				}
 				send.push(cat_id + ':' +
 						  dop + ':' +
 						  sum + ':' +
-						  acc + ':' +
-						  mon + ':' +
-						  year + ':' +
 						  $('#' + attr + 'list').val());
 			}
 			return send.join();
@@ -776,13 +766,7 @@ $.fn.zayavExpense = function(o) {
 	}
 
 	t.html('<div class="_zayav-rashod"></div>');
-	var zr = t.find('._zayav-rashod'),
-		zrmon = [], // Преобразование списка месяцев из ассоциативного
-		zeyear = [];
-	for(var k in  MONTH_DEF)
-		zrmon.push({uid:k,title:MONTH_DEF[k]});
-	for(n = 2014; n <= (new Date()).getFullYear(); n++)
-		zeyear.push({uid:n,title:n});
+	var zr = t.find('._zayav-rashod');
 
 	if(typeof o == 'object')
 		for(n = 0; n < o.length; n++)
@@ -796,17 +780,11 @@ $.fn.zayavExpense = function(o) {
 				0, //0 - категория
 				'',//1 - описаие или id сотрудника
 				'',//2 - сумма
-				0, //3 - галочка для начисления
-				0, //4 - месяц
-				0, //5 - год
-				0  //6 - лист зп
+				0  //3 - лист зп
 			];
 		var attr = id + num,
 			attr_cat = attr + 'cat',
 			attr_worker = attr + 'worker',
-			attr_acc = attr + 'acc',
-			attr_mon = attr + 'mon',
-			attr_year = attr + 'year',
 			attr_list = attr + 'list',
 			html = '<table id="ptab'+ num + '" class="ptab" val="' + num + '"><tr>' +
 						'<td><input type="hidden" id="' + attr_cat + '" value="' + v[0] + '" />' +
@@ -814,23 +792,16 @@ $.fn.zayavExpense = function(o) {
 							(v[0] && ZAYAVEXPENSE_TXT[v[0]] ? '<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
 							(v[0] && ZAYAVEXPENSE_WORKER[v[0]] ? '<input type="hidden" id="' + attr_worker + '" value="' + v[1] + '" />' : '') +
 						'<td class="tdsum' + (v[0] ? '' : ' dn') + '">' +
-							'<input type="text" class="zrsum" maxlength="6"' + (v[6] ? ' disabled' : '') + ' tabindex="' + (num * 10) + '" value="' + v[2] + '" />руб.' +
-						'<td class="tdacc' + (v[0] && ZAYAVEXPENSE_WORKER[v[0]] && v[1] ? '' : ' dn') + '">' +
-							'<input type="hidden" id="' + attr_acc + '" value="' + v[3] + '" />' +
-						'<td class="tdmon' + (v[3] ? '' : ' dn') + '">' +
-							'<input type="hidden" id="' + attr_mon + '" value="' + (v[4] || (new Date()).getMonth() + 1) + '" />' +
-							'<input type="hidden" id="' + attr_year + '" value="' + (v[5] || (new Date()).getFullYear()) + '" />' +
-							'<input type="hidden" id="' + attr_list + '" value="' + v[6] + '" />' +
+							'<input type="text" class="zrsum" maxlength="6"' + (v[3] ? ' disabled' : '') + ' tabindex="' + (num * 10) + '" value="' + v[2] + '" />руб.' +
+							'<input type="hidden" id="' + attr_list + '" value="' + v[3] + '" />' +
 					'</table>';
 		zr.append(html);
 		var ptab = $('#ptab' + num),
 			tddop = ptab.find('.tddop'),
-			zrsum = ptab.find('.zrsum'),
-			tdacc = ptab.find('.tdacc'),
-			tdmon = ptab.find('.tdmon');
+			zrsum = ptab.find('.zrsum');
 		$('#' + attr_cat)._select({
 			width:120,
-			disabled:v[6],
+			disabled:v[3],
 			title0:'Категория',
 			spisok:ZAYAVEXPENSE_SPISOK,
 			func:function(id) {
@@ -846,9 +817,6 @@ $.fn.zayavExpense = function(o) {
 						spisok:WORKER_SPISOK,
 						func:function(v) {
 							zrsum.focus();
-							tdacc[(v ? 'remove' : 'add') + 'Class']('dn');
-							$('#' + attr_acc)._check(0);
-							tdmon.addClass('dn');
 						}
 					});
 					zrsum.focus();
@@ -859,39 +827,18 @@ $.fn.zayavExpense = function(o) {
 				zrsum.val('');
 				if(id > 0 && !ptab.next().hasClass('ptab'))
 					itemAdd();
-				tdacc.addClass('dn');
-				$('#' + attr_acc)._check(0);
-				tdmon.addClass('dn');
 			}
 		});
 		if(v[0] && ZAYAVEXPENSE_WORKER[v[0]])
 			$('#' + attr_worker)._select({
 				width:150,
-				disabled:v[6],
+				disabled:v[3],
 				title0:'Сотрудник',
 				spisok:WORKER_SPISOK,
 				func:function(v) {
 					zrsum.focus();
-					tdacc[(v ? 'remove' : 'add') + 'Class']('dn');
-					$('#' + attr_acc)._check(0);
-					tdmon.addClass('dn');
 				}
 			});
-		$('#' + attr_acc)._check({
-			disabled:v[6],
-			func:function(v) {
-				tdmon[(v ? 'remove' : 'add') + 'Class']('dn');
-			}
-		});
-		if(!v[6])
-			$('#' + attr_acc + '_check').vkHint({
-				msg:'Начислить',
-				top:-58,
-				left:-28,
-				delayShow:1000
-			});
-		$('#' + attr_mon)._dropdown({disabled:v[6],spisok:zrmon});
-		$('#' + attr_year)._dropdown({disabled:v[6],spisok:zeyear});
 		num++;
 	}
 	return t;
@@ -1053,6 +1000,15 @@ $(document)
 			else
 				t.removeClass('busy');
 		}, 'json');
+	})
+	.on('click', '#client #filter_clear', function() {
+		$('#find')._search('clear');
+		$('#dolg')._check(0);
+		$('#worker')._check(0);
+		$('#note')._check(0);
+		$('#zayav_cat')._select(0);
+		$('#product_id')._select(0);
+		clientSpisok();
 	})
 
 	.on('click', '.zayav_add', function() {
@@ -2457,10 +2413,12 @@ $(document)
 	.on('click', '.salary .up', function() {
 		var html =
 				'<table class="salary-tab">' +
-					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
-					'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="50">' +
-					'<tr><td class="label">Месяц:<td><input type="hidden" id="tabmon" value="' + MON + '" /> ' +
-													'<input type="hidden" id="tabyear" value="' + YEAR + '" />' +
+					'<tr><td class="label">Месяц:' +
+						'<td><input type="hidden" id="tabmon" value="' + MON + '" /> ' +
+							'<input type="hidden" id="tabyear" value="' + YEAR + '" />' +
+							'<a id="days-sel">Выбрать дни</a>' +
+					'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="8" /> руб.' +
+					'<tr><td class="label">Описание:<td><input type="text" id="about" maxlength="50" />' +
 				'</table>',
 			dialog = _dialog({
 				head:'Внесение начисления для сотрудника',
@@ -2477,6 +2435,34 @@ $(document)
 		$('#tabyear')._select({
 			width:60,
 			spisok:YEAR_SPISOK
+		});
+		$('#days-sel').click(function() {
+			var html =
+					'<div id="days-sel-tab">' +
+						'<table id="days-cal">' +
+							'<tr><th>Пн' +
+								'<th>Вт' +
+								'<th>Ср' +
+								'<th>Чт' +
+								'<th>Пт' +
+								'<th>Сб' +
+								'<th>Вс' +
+							'<tr><td>1' +
+								'<td>2' +
+								'<td>3' +
+								'<td>4' +
+								'<td>5' +
+								'<td>6' +
+								'<td>7' +
+						'</table>' +
+					'</div>',
+				days = _dialog({
+					top:40,
+					width:495,
+					head:'Выбор дней',
+					content:html,
+					submit:function() {}
+				});
 		});
 		function submit() {
 			var send = {
@@ -3426,6 +3412,7 @@ $(document)
 						$.post(AJAX_MAIN, send, function(res) {
 							if(res.success) {
 								$('.zrashod').html(res.html);
+								$('#hspisok').html(res.history);
 								ZAYAV.rashod = res.array;
 								dialog.close();
 								_msg('Сохранено.');
