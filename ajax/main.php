@@ -2254,9 +2254,7 @@ switch(@$_POST['op']) {
 				  AND `id`=".$id;
 		if(!$r = query_assoc($sql))
 			jsonError();
-		if($r['dogovor_id'])
-			jsonError();
-		if(TODAY != substr($r['dtime_add'], 0, 10))
+		if(!$r['confirm'] && ($r['dogovor_id'] || TODAY != substr($r['dtime_add'], 0, 10)))
 			jsonError();
 
 		$sql = "UPDATE `money` SET
@@ -2611,7 +2609,7 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'salary_up':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
+		if(!$worker = _isnum($_POST['worker']))
 			jsonError();
 		if(empty($_POST['sum']) || !preg_match(REGEXP_NUMERIC, $_POST['sum']))
 			jsonError();
@@ -2620,21 +2618,44 @@ switch(@$_POST['op']) {
 		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
 			jsonError();
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
-		$worker = intval($_POST['worker']);
 		$sum = intval($_POST['sum']);
-		$mon = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']);
+		$mon = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']).'-';
+		$days = array();
+		if(!empty($_POST['daysel']))
+			$days = explode(',', $_POST['daysel']);
+
 		$sql = "INSERT INTO `zayav_expense` (
 					`worker_id`,
 					`sum`,
 					`txt`,
-					`mon`
+					`mon`,
+					`days_count`
 				) VALUES (
 					".$worker.",
 					".$sum.",
 					'".addslashes($about)."',
-					'".$mon.'-'.strftime('%d')."'
+					'".$mon.strftime('%d')."',
+					".count($days)."
 				)";
 		query($sql);
+		$insert_id = mysql_insert_id();
+
+		if(!empty($days))
+			foreach($days as $r) {
+				$ex = explode(':', $r);
+				$sql = "INSERT INTO `salary_days` (
+					`expense_id`,
+					`worker_id`,
+					`day`,
+					`sum`
+				) VALUES (
+					".$insert_id.",
+					".$worker.",
+					'".$mon.($ex[0] < 10 ? 0 : '').$ex[0]."',
+					".$ex[1]."
+				)";
+				query($sql);
+			}
 
 		_historyInsert(
 			36,
@@ -2796,9 +2817,8 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'salary_del':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+		if(!$id = _isnum($_POST['id']))
 			jsonError();
-		$id = intval($_POST['id']);
 
 		$sql = "SELECT *
 				FROM `zayav_expense`
@@ -2808,6 +2828,9 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		$sql = "DELETE FROM `zayav_expense` WHERE `id`=".$id;
+		query($sql);
+
+		$sql = "DELETE FROM `salary_days` WHERE `expense_id`=".$id;
 		query($sql);
 
 		_historyInsert(

@@ -4081,7 +4081,7 @@ function income_unit($r, $filter=array()) {
 			'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
 		(empty($filter['owner_id']) && empty($filter['ids']) && empty($filter['confirm']) ?
 			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" target="_blank" class="img_doc'._tooltip('Распечатать квитанцию', -140, 'r').'</a>'.
-				(!$r['dogovor_id'] && TODAY == substr($r['dtime_add'], 0, 10) ?
+				(!$r['dogovor_id'] && TODAY == substr($r['dtime_add'], 0, 10) || $r['confirm'] ?
 					'<div class="img_del income-del'._tooltip('Удалить платёж', -95, 'r').'</div>'.
 					'<div class="img_rest income-rest'._tooltip('Восстановить платёж', -125, 'r').'</div>'
 				: '')
@@ -4552,7 +4552,8 @@ function salary_worker_acc($v) {
 				'' AS `about`,
 				`e`.`zayav_id`,
 				`e`.`salary_list_id`,
-				`e`.`mon`
+				`e`.`mon`,
+				0 AS `days_count`
 			FROM `zayav_expense` `e`,
 				 `zayav` `z`
 			WHERE `z`.`id`=`e`.`zayav_id`
@@ -4570,7 +4571,8 @@ function salary_worker_acc($v) {
 				`txt` AS `about`,
 				0 AS `zayav_id`,
 				`salary_list_id`,
-				`mon`
+				`mon`,
+				`days_count`
 			FROM `zayav_expense`
 			WHERE !`zayav_id`
 			  AND `worker_id`=".$v['worker_id']."
@@ -4584,13 +4586,14 @@ function salary_worker_acc($v) {
 				`txt` AS `about`,
 				0 AS `zayav_id`,
 				`salary_list_id`,
-				`mon`
+				`mon`,
+				0 AS `days_count`
 			FROM `zayav_expense`
 			WHERE `worker_id`=".$v['worker_id']."
 			  AND `sum`<0
 			  AND `mon` LIKE '".$v['mon']."%'
 		)
-		ORDER BY `mon` DESC";
+		ORDER BY `mon` DESC,`id` ASC";
 	$q = query($sql);
 	if(!mysql_num_rows($q))
 		return '';
@@ -4623,6 +4626,8 @@ function salary_worker_acc($v) {
 					($r['zayav_dolg'] ? '<span class="z-dolg'._tooltip('Долг по заявке', -40).$r['zayav_dolg'].'</span>' : '')
 					:
 					$r['about'];
+		if($r['days_count'])
+			$about = '<a class="salary-days" val="'.$r['id'].'">'.$r['days_count'].' д'._end($r['days_count'], 'ень', 'ня', 'ней').'</a>. '.$about;
 		$send .=
 			'<tr val="'.$r['id'].'" class="'.($r['salary_list_id'] ? 'lost' : '').($v['acc_id'] == $r['id'] ? ' show' : '').'">'.
    ($chechAll ? '<td class="ch">'.(!$r['salary_list_id'] && $r['type'] != 'З/п' ? _check('s'.$r['id']) : '') : '').

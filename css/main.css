@@ -496,6 +496,7 @@
 .salary-list-tab ._info b{display:block;margin-bottom:3px;text-align:center}
 .salary-list-tab table{border-spacing:8px;margin:0 0 15px 30px}
 .salary-list-tab h1{text-align:center}
+#days-sel-tab #head-mon{text-align:center;margin:5px 0 10px;font-weight:bold}
 #days-sel-tab #days-cal{border-collapse:collapse}
 #days-sel-tab #days-cal th,
 #days-sel-tab #days-cal td{
@@ -510,7 +511,25 @@
 }
 #days-sel-tab #days-cal td{
 	text-align:center;
+	height:45px;
+	font-size:14px;
 }
+#days-sel-tab .onday{
+	cursor:pointer;
+}
+#days-sel-tab .onday:not(.sel) input{
+	visibility:hidden;
+}
+#days-sel-tab .onday.sel{
+	background-color:#cfc;
+}
+#days-sel-tab #days-cal input{
+	width:40px;
+	border-color:#ddd;
+	text-align:center;
+}
+#days-selected{margin-top:10px}
+
 
 #report_month{margin:10px 15px}
 #report_month .yr{display:block;font:bold 13px Tahoma}

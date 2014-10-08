@@ -2411,12 +2411,19 @@ $(document)
 		}
 	})
 	.on('click', '.salary .up', function() {
-		var html =
+		var n,
+			SUMDAY = 300,
+			SUMM,
+			DAYSEL = '',
+			DAYSELARR,
+			ddays,
+			day_sel_default = 'Выбрать дни',
+			html =
 				'<table class="salary-tab">' +
 					'<tr><td class="label">Месяц:' +
 						'<td><input type="hidden" id="tabmon" value="' + MON + '" /> ' +
 							'<input type="hidden" id="tabyear" value="' + YEAR + '" />' +
-							'<a id="days-sel">Выбрать дни</a>' +
+							'<a id="days-sel">' + day_sel_default + '</a>' +
 					'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="8" /> руб.' +
 					'<tr><td class="label">Описание:<td><input type="text" id="about" maxlength="50" />' +
 				'</table>',
@@ -2426,55 +2433,160 @@ $(document)
 				submit:submit
 			});
 
-		$('#sum').focus();
+		$('#sum').focus().keyup(function() {
+			if($(this).val() == SUMM)
+				return;
+			$('#days-sel').html(day_sel_default);
+			DAYSEL = '';
+		});
 		$('#sum,#about').keyEnter(submit);
 		$('#tabmon')._select({
 			width:80,
-			spisok:MON_SPISOK
+			spisok:MON_SPISOK,
+			func:function() {
+				$('#days-sel').html(day_sel_default);
+				DAYSEL = '';
+				$('#sum').focus();
+			}
 		});
 		$('#tabyear')._select({
 			width:60,
-			spisok:YEAR_SPISOK
+			spisok:YEAR_SPISOK,
+			func:function() {
+				$('#days-sel').html(day_sel_default);
+				DAYSEL = '';
+				$('#sum').focus();
+			}
 		});
 		$('#days-sel').click(function() {
-			var html =
+			var year = $('#tabyear').val(),
+				mon = $('#tabmon').val(),
+				df = dayFirst(year, mon),
+				dc = dayCount(year, mon),
+				html =
 					'<div id="days-sel-tab">' +
+						'<div id="head-mon">' + MONTH_DEF[mon] + ' ' + year + '</div>' +
 						'<table id="days-cal">' +
-							'<tr><th>Пн' +
-								'<th>Вт' +
-								'<th>Ср' +
-								'<th>Чт' +
-								'<th>Пт' +
-								'<th>Сб' +
-								'<th>Вс' +
-							'<tr><td>1' +
-								'<td>2' +
-								'<td>3' +
-								'<td>4' +
-								'<td>5' +
-								'<td>6' +
-								'<td>7' +
-						'</table>' +
-					'</div>',
-				days = _dialog({
-					top:40,
-					width:495,
-					head:'Выбор дней',
-					content:html,
-					submit:function() {}
-				});
+							'<tr><th>Пн<th>Вт<th>Ср<th>Чт<th>Пт<th>Сб<th>Вс' +
+							'<tr>';
+			//установка пустых ячеек
+			if(df > 1)
+				for(n = 0; n < df - 1; n++)
+					html += '<td>';
+			if(!DAYSEL)
+				DAYSELARR = {};
+			for(n = 1; n <= dc; n++) {
+				html +=
+					'<td class="onday' + (DAYSELARR[n] ? ' sel' : '') + '">' + n + '<br />' +
+						'<input type="text" maxlength="5" val="' + n + '" value="' + DAYSELARR[n] + '" />';
+				df++;
+				if(df == 8 && n != dc) {
+					html += "<tr>";
+					df = 1;
+				}
+			}
+			html +=	'</table>' +
+					'<div id="days-selected"></div>' +
+				'</div>';
+			ddays = _dialog({
+				top:40,
+				width:495,
+				head:'Выбор дней',
+				butSubmit:'Готово',
+				content:html,
+				submit:daysSubmit
+			});
+			daysSum();
+			$('#days-sel-tab .onday').click(function(e) {
+				var t = $(this);
+				if($(e.target)[0].tagName == 'INPUT')
+					return;
+				if(t.hasClass('sel'))
+					t.removeClass('sel');
+				else
+					t.addClass('sel')
+					 .find('input').focus().val(SUMDAY);
+				daysSum();
+			});
+			$('#days-sel-tab input').keyup(function() {
+				var v = $(this).val();
+				if(REGEXP_NUMERIC.test(v))
+					SUMDAY = v;
+				daysSum();
+			});
 		});
+		function dayFirst(year, mon) {//номер первой недели в месяце
+			var first = new Date(year, mon - 1, 1).getDay();
+			return first == 0 ? 7 : first;
+		}
+		function dayCount(year, mon) {//количество дней в месяце
+			mon--;
+			if(mon == 0) {
+				mon = 12;
+				year--;
+			}
+			return 32 - new Date(year, mon, 32).getDate();
+		}
+		function daysSum() {
+			var days = $('#days-sel-tab .sel'),
+				len = days.length,
+				inp,
+				d,
+				v;
+			SUMM = 0;
+			DAYSEL = [];
+			DAYSELARR = {};
+			for(n = 0; n < len; n++) {
+				inp = days.eq(n).find('input');
+				d = inp.attr('val');
+				v = inp.val();
+				if(!REGEXP_NUMERIC.test(v)) {
+					len = 0;
+					DAYSEL = '';
+					break;
+				}
+				SUMM += v * 1;
+				DAYSEL.push(d + ':' + v);
+				DAYSELARR[d] = v;
+			}
+			DAYSEL = DAYSEL.join();
+			$('#days-selected').html(len ? 'Выбран' + _end(len, ['','о']) + ' <b>' + len + '</b> д' + _end(len, ['ень','ня','ней']) +
+										   ', сумма: <b>' + SUMM + '</b> руб.'
+									 : '');
+			return len;
+		}
+		function daysSubmit() {
+			var count = daysSum();
+			if(!count) {
+				ddays.bottom.vkHint({
+					msg:'<SPAN class="red">Не выбраны дни или некорректно заполнены суммы</SPAN>',
+					remove:1,
+					indent:40,
+					show:1,
+					top:-47,
+					left:162
+				});
+				return false;
+			}
+			$('#days-sel').html('Выбран' + _end(count, ['','о']) + ' ' + count + ' д' + _end(count, ['ень','ня','ней']));
+			$('#sum').val(SUMM);
+			ddays.close();
+			return true;
+		}
 		function submit() {
 			var send = {
 				op:'salary_up',
 				worker:WORKER_ID,
+				daysel:DAYSEL,
 				sum:$('#sum').val(),
 				about:$('#about').val(),
 				mon:$('#tabmon').val(),
 				year:$('#tabyear').val()
 			};
-			if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
-			else {
+			if(!REGEXP_NUMERIC.test(send.sum)) {
+				err('Некорректно указана сумма.');
+				$('#sum').focus();
+			} else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
@@ -2579,7 +2691,6 @@ $(document)
 				content:html,
 				submit:submit
 			});
-
 		$('#sum').focus();
 		$('#sum,#about').keyEnter(submit);
 		$('#tabmon')._select({
@@ -2811,6 +2922,26 @@ $(document)
 					dialog.abort();
 			}, 'json');
 		}
+	})
+	.on('click', '.salary-days', function() {
+		var dialog = _dialog({
+				width:495,
+				top:40,
+				head:'Начисления за определённые дни',
+				load:1,
+				butSubmit:'',
+				butCancel:'Закрыть'
+			}),
+			send = {
+				op:'salary_days',
+				id:$(this).attr('val')
+			};
+		$.post(AJAX_MAIN, send, function(res) {
+			if(res.success) {
+				dialog.content.html(res.html);
+			} else
+				dialog.loadError();
+		}, 'json');
 	})
 	.on('mouseenter', '.salary .show', function() {
 		$(this).removeClass('show');
