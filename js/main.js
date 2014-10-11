@@ -595,6 +595,33 @@ var hashLoc,
 				$('#monthList').html(res.month);
 			}
 		}, 'json');
+	},
+	salaryDaysGet = function(m, y) {
+		var send = {
+			op:'salary_days_get',
+			worker_id:WORKER_ID,
+			mon:m,
+			year:y
+		};
+		$('#days-sel').addClass('_busy');
+		$.post(AJAX_MAIN, send, function(res) {
+			$('#days-sel').removeClass('_busy');
+			if(res.success)
+				SALARY_DAYS = res.days;
+		}, 'json');
+	},
+
+	dayFirst = function(year, mon) {//номер первой недели в мес€це
+		var first = new Date(year, mon - 1, 1).getDay();
+		return first == 0 ? 7 : first;
+	},
+	dayCount = function(year, mon) {//количество дней в мес€це
+		mon--;
+		if(mon == 0) {
+			mon = 12;
+			year--;
+		}
+		return 32 - new Date(year, mon, 32).getDate();
 	};
 
 $.fn.clientSel = function(o) {
@@ -2433,6 +2460,7 @@ $(document)
 				submit:submit
 			});
 
+		salaryDaysGet(MON, YEAR);
 		$('#sum').focus().keyup(function() {
 			if($(this).val() == SUMM)
 				return;
@@ -2443,7 +2471,8 @@ $(document)
 		$('#tabmon')._select({
 			width:80,
 			spisok:MON_SPISOK,
-			func:function() {
+			func:function(v) {
+				salaryDaysGet(v, $('#tabyear').val());
 				$('#days-sel').html(day_sel_default);
 				DAYSEL = '';
 				$('#sum').focus();
@@ -2452,7 +2481,8 @@ $(document)
 		$('#tabyear')._select({
 			width:60,
 			spisok:YEAR_SPISOK,
-			func:function() {
+			func:function(v) {
+				salaryDaysGet($('#tabmon').val(), v);
 				$('#days-sel').html(day_sel_default);
 				DAYSEL = '';
 				$('#sum').focus();
@@ -2477,8 +2507,12 @@ $(document)
 				DAYSELARR = {};
 			for(n = 1; n <= dc; n++) {
 				html +=
-					'<td class="onday' + (DAYSELARR[n] ? ' sel' : '') + '">' + n + '<br />' +
-						'<input type="text" maxlength="5" val="' + n + '" value="' + DAYSELARR[n] + '" />';
+					'<td class="onday' + (SALARY_DAYS[n] ? ' all' : ' to') + (DAYSELARR[n] ? ' sel' : '') + '">' + n +
+						(SALARY_DAYS[n] ?
+							'<div class="dsum"><b>' + SALARY_DAYS[n] + '</b> руб.</div>'
+							:
+							'<br /><input type="text" maxlength="5" val="' + n + '" value="' + DAYSELARR[n] + '" />'
+						);
 				df++;
 				if(df == 8 && n != dc) {
 					html += "<tr>";
@@ -2497,7 +2531,7 @@ $(document)
 				submit:daysSubmit
 			});
 			daysSum();
-			$('#days-sel-tab .onday').click(function(e) {
+			$('#days-sel-tab .onday.to').click(function(e) {
 				var t = $(this);
 				if($(e.target)[0].tagName == 'INPUT')
 					return;
@@ -2515,18 +2549,6 @@ $(document)
 				daysSum();
 			});
 		});
-		function dayFirst(year, mon) {//номер первой недели в мес€це
-			var first = new Date(year, mon - 1, 1).getDay();
-			return first == 0 ? 7 : first;
-		}
-		function dayCount(year, mon) {//количество дней в мес€це
-			mon--;
-			if(mon == 0) {
-				mon = 12;
-				year--;
-			}
-			return 32 - new Date(year, mon, 32).getDate();
-		}
 		function daysSum() {
 			var days = $('#days-sel-tab .sel'),
 				len = days.length,
@@ -2938,7 +2960,32 @@ $(document)
 			};
 		$.post(AJAX_MAIN, send, function(res) {
 			if(res.success) {
-				dialog.content.html(res.html);
+				var n,
+					df = dayFirst(res.year, res.mon),
+					dc = dayCount(res.year, res.mon),
+					html =
+					'<div id="days-sel-tab">' +
+						'<div id="head-mon">' + MONTH_DEF[res.mon] + ' ' + res.year + '</div>' +
+						'<table id="days-cal">' +
+							'<tr><th>ѕн<th>¬т<th>—р<th>„т<th>ѕт<th>—б<th>¬с' +
+							'<tr>';
+				//установка пустых €чеек
+				if(df > 1)
+					for(n = 0; n < df - 1; n++)
+						html += '<td>';
+				for(n = 1; n <= dc; n++) {
+					html +=
+						'<td class="onday' + (res.all[n] ? ' all' : '') + (res.sel[n] ? ' sel' : '') + '">' + n +
+							(res.all[n] ? '<div class="dsum"><b>' + res.all[n] + '</b> руб.</div>' : '');
+					df++;
+					if(df == 8 && n != dc) {
+						html += "<tr>";
+						df = 1;
+					}
+				}
+				html +=	'</table>' +
+					'</div>';
+				dialog.content.html(html);
 			} else
 				dialog.loadError();
 		}, 'json');

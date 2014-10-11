@@ -493,6 +493,7 @@
 .salary-tab #day{width:30px}
 .salary-tab .img_edit{position:relative;top:-4px;left:4px}
 .salary-tab #days-sel{display:inline-block;position:relative;top:-5px;left:10px}
+.salary-tab #days-sel._busy{color:transparent}
 .salary-list-tab ._info b{display:block;margin-bottom:3px;text-align:center}
 .salary-list-tab table{border-spacing:8px;margin:0 0 15px 30px}
 .salary-list-tab h1{text-align:center}
@@ -505,30 +506,22 @@
 	padding:3px;
 	font-weight:bold;
 }
-#days-sel-tab #days-cal th{
-	background-color:#f4f4f4;
-	color:#777;
-}
+#days-sel-tab #days-cal th{background-color:#f4f4f4;color:#777}
 #days-sel-tab #days-cal td{
+	vertical-align:top;
 	text-align:center;
-	height:45px;
+	height:40px;
 	font-size:14px;
 }
-#days-sel-tab .onday{
-	cursor:pointer;
-}
-#days-sel-tab .onday:not(.sel) input{
-	visibility:hidden;
-}
-#days-sel-tab .onday.sel{
-	background-color:#cfc;
-}
-#days-sel-tab #days-cal input{
-	width:40px;
-	border-color:#ddd;
-	text-align:center;
-}
+#days-sel-tab .onday.to{cursor:pointer}
+#days-sel-tab .onday.to:not(.sel):hover{background-color:#efe}
+#days-sel-tab .onday.all{background-color:#f5f5f5}
+#days-sel-tab .onday:not(.sel) input{visibility:hidden}
+#days-sel-tab .onday.sel{background-color:#bfb}
+#days-sel-tab #days-cal input{width:40px;border-color:#ddd;text-align:center}
+#days-sel-tab .dsum{color:#777;margin-top:6px}
 #days-selected{margin-top:10px}
+
 
 
 #report_month{margin:10px 15px}

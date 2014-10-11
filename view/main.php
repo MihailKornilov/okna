@@ -3057,7 +3057,12 @@ function history_types($v) {
 
 		case 36: return
 			'Внесение начисления з/п на сумму <b>'.$v['value'].'</b> '.
-			($v['value1'] ? '<em>('.$v['value1'].')</em> ' : '').
+			($v['value1'] || $v['value4'] ?
+				'<em>('.
+					($v['value4'] ? '<a class="salary-days" val="'.$v['value3'].'">'.$v['value4'].' д'._end($v['value4'], 'ень', 'ня', 'ней').'</a>' : '').
+					($v['value1'] && $v['value4'] ? '. ' : '').$v['value1'].
+				')</em> '
+			: '').
 			'для сотрудника <u>'._viewer($v['value2'], 'name').'</u>.';
 		case 37: return
 			'Выдача з/п на сумму <b>'.$v['value'].'</b> '.
@@ -4473,6 +4478,7 @@ function salary_worker($v) {
 	$year = array();
 	for($n = 2014; $n <= $filter['y']; $n++)
 		$year[$n] = $n;
+
 	return
 		'<script type="text/javascript">'.
 			'var WORKER_ID='.$filter['worker_id'].','.

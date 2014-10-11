@@ -2609,20 +2609,31 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'salary_up':
-		if(!$worker = _isnum($_POST['worker']))
+		if(!$worker_id = _isnum($_POST['worker']))
 			jsonError();
-		if(empty($_POST['sum']) || !preg_match(REGEXP_NUMERIC, $_POST['sum']))
+		if(!$sum = _isnum($_POST['sum']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
 			jsonError();
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
-		$sum = intval($_POST['sum']);
 		$mon = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']).'-';
 		$days = array();
 		if(!empty($_POST['daysel']))
 			$days = explode(',', $_POST['daysel']);
+
+		if(!empty($days)) {
+			$arr = array();
+			foreach($days as $r) {
+				$ex = explode(':', $r);
+				$arr["'".$mon.($ex[0] < 10 ? 0 : '').$ex[0]."'"] = $ex[1];
+			}
+			$days = $arr;
+			$sql = "SELECT COUNT(`id`) FROM `salary_days` WHERE `day` IN (".implode(',', array_keys($days)).")";
+			if(query_value($sql))
+				jsonError();
+		}
 
 		$sql = "INSERT INTO `zayav_expense` (
 					`worker_id`,
@@ -2631,7 +2642,7 @@ switch(@$_POST['op']) {
 					`mon`,
 					`days_count`
 				) VALUES (
-					".$worker.",
+					".$worker_id.",
 					".$sum.",
 					'".addslashes($about)."',
 					'".$mon.strftime('%d')."',
@@ -2641,8 +2652,7 @@ switch(@$_POST['op']) {
 		$insert_id = mysql_insert_id();
 
 		if(!empty($days))
-			foreach($days as $r) {
-				$ex = explode(':', $r);
+			foreach($days as $d => $s) {
 				$sql = "INSERT INTO `salary_days` (
 					`expense_id`,
 					`worker_id`,
@@ -2650,9 +2660,9 @@ switch(@$_POST['op']) {
 					`sum`
 				) VALUES (
 					".$insert_id.",
-					".$worker.",
-					'".$mon.($ex[0] < 10 ? 0 : '').$ex[0]."',
-					".$ex[1]."
+					".$worker_id.",
+					".$d.",
+					".$s."
 				)";
 				query($sql);
 			}
@@ -2662,7 +2672,9 @@ switch(@$_POST['op']) {
 			array(
 				'value' => $sum,
 				'value1' => $about,
-				'value2' => $worker
+				'value2' => $worker_id,
+				'value3' => $insert_id,
+				'value4' => !empty($days) ? count($days) : ''
 			)
 		);
 
@@ -2927,6 +2939,49 @@ switch(@$_POST['op']) {
 		);
 
 		jsonSuccess();
+		break;
+	case 'salary_days': // вывод начислений зп по дн€м по expense_id
+		if(!$id = _isnum($_POST['id']))
+			jsonError();
+
+		$sql = "SELECT * FROM `zayav_expense` WHERE `id`=".$id;
+		if(!$r = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$ex = explode('-', $r['mon']);
+		$send['year'] = intval($ex[0]);
+		$send['mon'] = intval($ex[1]);
+
+		$send['all'] = array();
+		$send['sel'] = array();
+		$sql = "SELECT * FROM `salary_days` WHERE `worker_id`=".$r['worker_id']." AND `day` LIKE '".substr($r['mon'], 0, 8)."%'";
+		$q = query($sql);
+		while($r = mysql_fetch_assoc($q)) {
+			$day = intval(substr($r['day'], 8, 2));
+			$send['all'][$day] = intval($r['sum']);
+			if($r['expense_id'] == $id)
+				$send['sel'][$day] = intval($r['sum']);
+		}
+
+		jsonSuccess($send);
+		break;
+	case 'salary_days_get': // вывод начислений зп по дн€м за определЄнный мес€ц
+		if(!$worker_id = _isnum($_POST['worker_id']))
+			jsonError();
+		if(!$mon = _isnum($_POST['mon']))
+			jsonError();
+		if(!$year = _isnum($_POST['year']))
+			jsonError();
+
+		$send['days'] = array();
+		$sql = "SELECT * FROM `salary_days` WHERE `worker_id`=".$worker_id." AND `day` LIKE '".$year.'-'.($mon < 10 ? '0' : '').$mon."%'";
+		$q = query($sql);
+		while($r = mysql_fetch_assoc($q)) {
+			$d = intval(substr($r['day'], 8, 2));
+			$send['days'][$d] = intval($r['sum']);
+		}
+
+		jsonSuccess($send);
 		break;
 
 	case 'pin_enter':
