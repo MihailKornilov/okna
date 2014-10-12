@@ -2598,7 +2598,7 @@ $(document)
 		function submit() {
 			var send = {
 				op:'salary_up',
-				worker:WORKER_ID,
+				worker_id:WORKER_ID,
 				daysel:DAYSEL,
 				sum:$('#sum').val(),
 				about:$('#about').val(),

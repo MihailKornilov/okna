@@ -2609,7 +2609,7 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'salary_up':
-		if(!$worker_id = _isnum($_POST['worker']))
+		if(!$worker_id = _isnum($_POST['worker_id']))
 			jsonError();
 		if(!$sum = _isnum($_POST['sum']))
 			jsonError();
@@ -2622,7 +2622,6 @@ switch(@$_POST['op']) {
 		$days = array();
 		if(!empty($_POST['daysel']))
 			$days = explode(',', $_POST['daysel']);
-
 		if(!empty($days)) {
 			$arr = array();
 			foreach($days as $r) {
@@ -2630,7 +2629,7 @@ switch(@$_POST['op']) {
 				$arr["'".$mon.($ex[0] < 10 ? 0 : '').$ex[0]."'"] = $ex[1];
 			}
 			$days = $arr;
-			$sql = "SELECT COUNT(`id`) FROM `salary_days` WHERE `day` IN (".implode(',', array_keys($days)).")";
+			$sql = "SELECT COUNT(`id`) FROM `salary_days` WHERE `worker_id`=".$worker_id." AND `day` IN (".implode(',', array_keys($days)).")";
 			if(query_value($sql))
 				jsonError();
 		}

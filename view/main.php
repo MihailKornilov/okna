@@ -5291,9 +5291,51 @@ function setup_zayavexpense_spisok() {
 }//setup_zayavexpense_spisok()
 
 
-
-
 /*
+function histChangeVk() { // правка ссылок в истории (vk.com)
+	$sql = "SELECT * FROM `history` WHERE value like '%zayav-rashod-spisok%' AND `value` LIKE '%vk.com%' limit 500";
+	$q = query($sql);
+	$txt = '';
+	while($r = mysql_fetch_assoc($q)) {
+		$ex = explode('href="', $r['value'], 2);
+		$ex1 = explode('" target="_blank"', $ex[1], 2);
+		$txt .= $ex1[0].'<br />';
+		$ex2 = explode('id', $ex1[0]);
+		$value = $ex[0].'class="go-report-salary" val="'.$ex2[1].':0:0"'.$ex1[1];
+		$sql = "UPDATE `history` SET `value`='".addslashes($value)."' where id=".$r['id'];
+		query($sql);
+	}
+	echo $txt;
+}
+function histChangeHref() { // правка ссылок в истории (href)
+	$sql = "SELECT * FROM `history` WHERE value like '%zayav-rashod-spisok%' AND `value` LIKE '%href=%' limit 300";
+	$q = query($sql);
+	$txt = '';
+	while($r = mysql_fetch_assoc($q)) {
+		$ex = explode('href="', $r['value'], 2);
+		$ex1 = explode('">', $ex[1], 2);
+		$txt .= $ex1[0].'<br />';
+		$worker = explode('&id=', $ex1[0]);
+		$mon = 0;
+		$acc = 0;
+		if(!_isnum($worker[1])) {
+			$mon = explode('&mon=', $worker[1]);
+			$acc = explode('&acc_id=', $mon[1]);
+			$worker = $mon[0];
+			$mon = $acc[0];
+			$acc = $acc[1];
+		} else
+			$worker = $worker[1];
+		$txt .= $worker.':'.$mon.':'.$acc.'<br />';
+		$value = $ex[0].'class="go-report-salary" val="'.$worker.':'.$mon.':'.$acc.'">'.$ex1[1];
+		$sql = "UPDATE `history` SET `value`='".addslashes($value)."' where id=".$r['id'];
+		//echo '<textarea style="width:700px;height:500px">'.$sql.'</textarea>'.$value;
+		query($sql);
+	}
+	echo $txt;
+}
+
+
 function zayav_expense_remake() {//перепись в базе данных расходов по заявкам для сотрудников
 	$sql = "SELECT DISTINCT `worker_id` FROM `zayav_expense` WHERE `worker_id`";
 	$q = query($sql);
