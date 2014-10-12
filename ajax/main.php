@@ -2090,7 +2090,7 @@ switch(@$_POST['op']) {
 				jsonError();
 
 		foreach($ex as $id) {
-			query("UPDATE `money` SET `confirm`=0 WHERE `id`=".$id);
+			query("UPDATE `money` SET `confirm`=0,`confirm_dtime`=CURRENT_TIMESTAMP WHERE `id`=".$id);
 			invoice_history_insert(array(
 				'action' => 11,
 				'table' => 'money',

@@ -439,6 +439,7 @@
 .income ._empty{margin:0}
 .income_data{margin:15px 0 3px;text-align:center}
 .income_client,.income_client a{font-size:10px}
+.confirmed{font-size:10px;color:#777}
 .expense#report .headName{margin:10px}
 .expense #spisok{margin:15px 10px}
 .expense .years{margin-top:20px}

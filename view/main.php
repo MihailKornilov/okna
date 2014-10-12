@@ -1306,7 +1306,7 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 					'<td>'.(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
 						   (_zayavRashod($r['category_id'], 'worker') && $r['worker_id'] ?
 							   (!_viewerRules($r['worker_id'], 'RULES_NOSALARY') ?
-									'<a href="'.URL.'&p=report&d=salary&id='.$r['worker_id'].'&mon='.substr($r['mon'], 0, 7).'&acc_id='.$r['id'].'">'.
+									'<a class="go-report-salary" val="'.$r['worker_id'].':'.substr($r['mon'], 0, 7).':'.$r['id'].'">'.
 										_viewer($r['worker_id'], 'name').
 									'</a>' :
 									_viewer($r['worker_id'], 'name')
@@ -2104,6 +2104,7 @@ function zayav_money($zayav_id) {
 			`dogovor_id`,
 			`prim`,
 			0 AS `confirm`,
+			'' AS `confirm_dtime`,
 			0 AS `refund`,
 			`dtime_add`,
 			`viewer_id_add`,
@@ -2123,6 +2124,7 @@ function zayav_money($zayav_id) {
 			`dogovor_id`,
 			`prim`,
 			`confirm`,
+			`confirm_dtime`,
 			`refund`,
 			`dtime_add`,
 			`viewer_id_add`,
@@ -2950,7 +2952,9 @@ function history_group($v) {
 		2 => '4,5,6,7,8,9,15,16,17,18,21,22,23,24,25,26,29,30,31',
 		3 => '19,20,42',
 		4 => '27,28',
-		5 => '10,11,12,20,36,37,38,39,40,41',
+
+		5 => '10,11,12,20,36,37,38,39,40,41,43,52,53,56,57',
+
 		6 => '32,33,34,35,37',
 		7 => '13,14,501,502,503,504,505,506,507,508,509,510,511,512,513,514,515,516,517,518,519,520'
 	);
@@ -4083,6 +4087,7 @@ function income_unit($r, $filter=array()) {
 					(empty($about) ? '' : ':').
 				'</span> '.
 				$about.
+				($r['confirm_dtime'] != '0000-00-00 00:00:00' ? '<div class="confirmed">Подтверждён '.FullDataTime($r['confirm_dtime']).'</div>' : '').
 			'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
 		(empty($filter['owner_id']) && empty($filter['ids']) && empty($filter['confirm']) ?
 			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" target="_blank" class="img_doc'._tooltip('Распечатать квитанцию', -140, 'r').'</a>'.
@@ -5340,4 +5345,9 @@ insert into zayav (id,client_id,viewer_id_add,expense_sum)
 on duplicate key update expense_sum=values(expense_sum);
 
 update zayav set `net_profit`=accrual_sum-expense_sum;
+
+// обновление дат подтверждений платежей
+insert into money (id,confirm_dtime)
+	select table_id,dtime_add from invoice_history where action=11
+on duplicate key update confirm_dtime=values(confirm_dtime);
 */

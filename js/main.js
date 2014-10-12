@@ -2993,6 +2993,10 @@ $(document)
 	.on('mouseenter', '.salary .show', function() {
 		$(this).removeClass('show');
 	})
+	.on('click', '.go-report-salary', function() {
+		var v = $(this).attr('val').split(':');
+		location.href = URL + '&p=report&d=salary&id=' + v[0] + '&mon=' + v[1] + '&acc_id=' + v[2];
+	})
 
 	.ready(function() {
 		if($('#pin-enter').length) {
