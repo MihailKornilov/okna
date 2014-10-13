@@ -2984,7 +2984,7 @@ switch(@$_POST['op']) {
 		break;
 
 	case 'pin_enter':
-		xcache_unset(PIN_TIME_KEY);
+		unset($_SESSION[PIN_TIME_KEY]);
 		$key = CACHE_PREFIX.'pin_enter_count'.VIEWER_ID;
 		$count = xcache_get($key);
 		if(empty($count))
@@ -3005,7 +3005,7 @@ switch(@$_POST['op']) {
 		if(!query_value("SELECT COUNT(*) FROM `vk_user` WHERE `pin`='".$pin."' AND `viewer_id`=".VIEWER_ID))
 			jsonError('Неверный пин-код');
 		xcache_unset($key);
-		xcache_set(PIN_TIME_KEY, time(), 10800);
+		$_SESSION[PIN_TIME_KEY] = time() + PIN_TIME_LEN;
 		jsonSuccess();
 		break;
 	case 'setup_my_pinset':
@@ -3014,7 +3014,7 @@ switch(@$_POST['op']) {
 			jsonError();
 		query("UPDATE `vk_user` SET `pin`='".$pin."' WHERE `viewer_id`=".VIEWER_ID);
 		xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
-		xcache_unset(PIN_TIME_KEY);
+		unset($_SESSION[PIN_TIME_KEY]);
 		jsonSuccess();
 		break;
 	case 'setup_my_pinchange':
@@ -3030,7 +3030,7 @@ switch(@$_POST['op']) {
 			jsonError('Неверный старый пин-код');
 		query("UPDATE `vk_user` SET `pin`='".$pin."' WHERE `viewer_id`=".VIEWER_ID);
 		xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
-		xcache_unset(PIN_TIME_KEY);
+		unset($_SESSION[PIN_TIME_KEY]);
 		jsonSuccess();
 		break;
 	case 'setup_my_pindel':
@@ -3043,7 +3043,7 @@ switch(@$_POST['op']) {
 			jsonError('Неверный старый пин-код');
 		query("UPDATE `vk_user` SET `pin`='' WHERE `viewer_id`=".VIEWER_ID);
 		xcache_unset(CACHE_PREFIX.'viewer_'.VIEWER_ID);
-		xcache_unset(PIN_TIME_KEY);
+		unset($_SESSION[PIN_TIME_KEY]);
 		jsonSuccess();
 		break;
 	case 'setup_worker_add':

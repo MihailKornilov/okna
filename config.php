@@ -17,6 +17,8 @@ define('TODAY_UNIXTIME', strtotime(TODAY));
 define('PATH_DOGOVOR', PATH.'files/dogovor/');
 define('LINK_DOGOVOR', SITE.'/files/dogovor/');
 
+session_name('evrookna');
+session_start();
 
 _dbConnect();
 _getSetupGlobal();
@@ -44,9 +46,10 @@ function _getVkUser() {//Получение данных о пользователе
 	define('AUTH', isset($u['worker']));
 	if(AUTH) {
 		define('PIN', !empty($u['pin']));
-		define('PIN_TIME_KEY', CACHE_PREFIX.'pin_time'.VIEWER_ID);
-		define('PIN_TIME', intval(xcache_get(PIN_TIME_KEY)));
-		define('PIN_ENTER', PIN && APP_START || PIN && PIN_TIME + 10800 < time());
+		define('PIN_TIME_KEY', 'pin_time_'.VIEWER_ID);
+		define('PIN_TIME_LEN', 3600); // длительность в секундах действия пинкода
+		define('PIN_TIME', empty($_SESSION[PIN_TIME_KEY]) ? 0 : $_SESSION[PIN_TIME_KEY]);
+		define('PIN_ENTER', PIN && APP_START || PIN && (PIN_TIME - time() < 0));
 		foreach(_viewerRules() as $key => $value)
 			define($key, $value);
 	}

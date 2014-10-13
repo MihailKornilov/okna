@@ -7,10 +7,10 @@ _hashRead();
 if(!AUTH || !RULES_APPENTER)
 	$html .= _noauth();
 elseif(PIN_ENTER) {
-	xcache_unset(PIN_TIME_KEY);
+	unset($_SESSION[PIN_TIME_KEY]);
 	$html .= pin_enter();
 } else {
-	xcache_set(PIN_TIME_KEY, time(), 10800);
+	$_SESSION[PIN_TIME_KEY] = time() + PIN_TIME_LEN;
 	_mainLinks();
 	switch($_GET['p']) {
 		case 'client':

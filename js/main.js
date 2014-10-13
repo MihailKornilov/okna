@@ -30,16 +30,13 @@ var hashLoc,
 	pinEnter = function() {
 		var send = {
 			op:'pin_enter',
-			pin: $.trim($('#pin').val())
+			pin:$.trim($('#pin').val())
 		};
 		if(send.pin && send.pin.length > 2) {
 			$('.vkButton').addClass('busy');
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success)
-					location.href = URL +
-						'&p=' + _cookie('p') +
-						'&d=' + _cookie('d') +
-						'&id=' + _cookie('id');
+					location.reload();
 				else {
 					$('.vkButton').removeClass('busy');
 					$('#pin').val('').focus();

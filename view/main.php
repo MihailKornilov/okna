@@ -98,7 +98,6 @@ function _cacheClear() {
 	xcache_unset(CACHE_PREFIX.'income');
 	xcache_unset(CACHE_PREFIX.'expense');
 	xcache_unset(CACHE_PREFIX.'zayavrashod');
-	xcache_unset(PIN_TIME_KEY);
 	GvaluesCreate();
 }//_cacheClear()
 
@@ -672,13 +671,13 @@ function clientFilter($v) {
 		'product_id' => 0
 	);
 	$filter = array(
-		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? intval($v['page']) : 1,
-		'find' => !empty($v['find']) && preg_match(REGEXP_WORDFIND, win1251($v['find'])) ? win1251(htmlspecialchars(trim($v['find']))) : '',
-		'dolg' => !empty($v['dolg']) && preg_match(REGEXP_BOOL, $v['dolg']) ? intval($v['dolg']) : 0,
-		'worker' => !empty($v['worker']) && preg_match(REGEXP_BOOL, $v['worker']) ? intval($v['worker']) : 0,
-		'note' => !empty($v['note']) && preg_match(REGEXP_BOOL, $v['note']) ? intval($v['note']) : 0,
-		'zayav_cat' => !empty($v['zayav_cat']) && preg_match(REGEXP_NUMERIC, $v['zayav_cat']) ? intval($v['zayav_cat']) : 0,
-		'product_id' => !empty($v['product_id']) && preg_match(REGEXP_NUMERIC, $v['product_id']) ? intval($v['product_id']) : 0,
+		'page' => _isnum(@$v['page']) ? $v['page'] : 1,
+		'find' => trim(@$v['find']),
+		'dolg' => _isbool(@$v['dolg']),
+		'worker' => _isbool(@$v['worker']),
+		'note' => _isbool(@$v['note']),
+		'zayav_cat' => _isnum(@$v['zayav_cat']),
+		'product_id' => _isnum(@$v['product_id']),
 		'clear' => ''
 	);
 	foreach($default as $k => $r)
@@ -699,7 +698,7 @@ function client_data($filter=array()) {
 					 OR `telefon` LIKE '%".$filter['find']."%'
 					 OR `adres` LIKE '%".$filter['find']."%'
 					 ".($engRus ?
-						"OR `fio` LIKE '%".$engRus."%'
+					   "OR `fio` LIKE '%".$engRus."%'
 						OR `telefon` LIKE '%".$engRus."%'
 						OR `adres` LIKE '%".$engRus."%'"
 				: '')."
@@ -730,7 +729,8 @@ function client_data($filter=array()) {
 				case 4: $cnd = "AND !`dogovor_require` AND `set_status`";
 			}
 			if($cnd) {
-				$sql = "SELECT DISTINCT `client_id` FROM `zayav` WHERE !`deleted` ".$cnd;
+				$sql = "SELECT DISTINCT `client_id` FROM `zayav` WHERE !`deleted` ".$cnd.(!empty($cids) ? " AND `client_id` IN (".implode(',', $cids).")" : '');
+				$cids = array();
 				foreach(explode(',', query_ids($sql)) as $id)
 					$cids[$id] = $id;
 			}
@@ -740,7 +740,10 @@ function client_data($filter=array()) {
 		if($filter['note']) {
 			$sql = "SELECT DISTINCT `table_id`
 					FROM `vk_comment`
-					WHERE `status` AND `table_name`='client'";
+					WHERE `status`
+					  AND `table_name`='client'".
+					 (!empty($cids) ? " AND `table_id` IN (".implode(',', $cids).")" : '');
+			$cids = array();
 			foreach(explode(',', query_ids($sql)) as $id)
 				$cids[$id] = $id;
 		}
@@ -858,7 +861,7 @@ function client_list($v) {
 	'</div>'.
 	'<script type="text/javascript">'.
 		'var C={'.
-			'find:"'.unescape($v['find']).'"'.
+			'find:"'.$v['find'].'"'.
 		'};'.
 	'</script>';
 }//client_list()
