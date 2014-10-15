@@ -3279,7 +3279,18 @@ function invoice_spisok() {
 		return 'Счета не определены.';
 
 	$send = '<table class="_spisok">';
-	foreach($invoice as $r)
+	foreach($invoice as $r) {
+		$continue = 1;
+		if($r['visible'])
+			foreach(explode(',', $r['visible']) as $i)
+				if(VIEWER_ID == $i) {
+					$continue = 0;
+					break;
+				}
+
+		if(!VIEWER_ADMIN && $continue)
+			continue;
+
 		$send .= '<tr>'.
 			'<td class="name"><b>'.$r['name'].'</b><pre>'.$r['about'].'</pre>'.
 			'<td class="balans">'.
@@ -3289,6 +3300,7 @@ function invoice_spisok() {
 				).
 			'<td><div val="'.$r['id'].'" class="img_note'._tooltip('Посмотреть историю операций', -95).'</div>'.
 			(VIEWER_ADMIN ? '<td><a class="invoice_set" val="'.$r['id'].'">Установить текущую сумму</a>' : '');
+	}
 	$send .= '</table>';
 	return $send;
 }//invoice_spisok()
@@ -4835,7 +4847,7 @@ function setup_my() {
 			'если другой пользователь получит доступ к вашей странице ВКонтакте.'.
 			'<br />'.
 			'<p>Пин-код нужно будет вводить каждом новом входе в приложение, '.
-			'а также при отсутсвии действий в программе в течение 3-х часов.'.
+			'а также при отсутсвии действий в программе в течение 1-го часа.'.
 			'<br />'.
 			'<p>Если вы забудете пин-код, обратитесь к руководителю, чтобы сбросить его.'.
 		'</div>'.
@@ -5104,12 +5116,17 @@ function setup_invoice_spisok() {
 		return 'Список пуст.';
 
 	$spisok = array();
-	while($r = mysql_fetch_assoc($q))
+	while($r = mysql_fetch_assoc($q)) {
+		$r['worker'] = array();
+		if($r['visible'])
+			foreach(explode(',', $r['visible']) as $i)
+				$r['worker'][] = _viewer($i, 'name');
 		$spisok[$r['id']] = $r;
+	}
 
 	$sql = "SELECT *
 	        FROM `setup_income`
-	        WHERE `invoice_id`>0
+	        WHERE `invoice_id`
 	        ORDER BY `sort`";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q)) {
@@ -5121,6 +5138,7 @@ function setup_invoice_spisok() {
 	'<table class="_spisok">'.
 		'<tr><th class="name">Наименование'.
 			'<th class="type">Виды платежей'.
+			'<th class="visible">Видимость<br />для сотрудников'.
 			'<th class="set">';
 	foreach($spisok as $id => $r)
 		$send .=
@@ -5131,7 +5149,10 @@ function setup_invoice_spisok() {
 			'<td class="type">'.
 				(isset($r['type_name']) ? implode('<br />', $r['type_name']) : '').
 				'<input type="hidden" class="type_id" value="'.(isset($r['type_id']) ? implode(',', $r['type_id']) : 0).'" />'.
-			'<td class="set">'.
+			'<td class="visible">'.
+				implode('<br />', $r['worker']).
+				'<input type="hidden" class="visible_id" value="'.(empty($r['worker']) ? 0 : $r['visible']).'" />'.
+		'<td class="set">'.
 				'<div class="img_edit"></div>';
 				//'<div class="img_del"></div>'
 	$send .= '</table>';

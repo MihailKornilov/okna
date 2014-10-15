@@ -3441,23 +3441,32 @@ switch(@$_POST['op']) {
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		$types = trim($_POST['types']);
+		$visible = trim($_POST['visible']);
 		if(empty($name))
 			jsonError();
 
 		if(!empty($types)) {
 			foreach(explode(',', $types) as $id)
-				if(!preg_match(REGEXP_NUMERIC, $id))
+				if(!_isnum($id))
 					jsonError();
 			$prihod = query_value("SELECT `name` FROM `setup_income` WHERE `id` IN (".$types.") AND `invoice_id`>0 LIMIT 1");
 			if($prihod)
 				jsonError('Вид платежа <u>'.$prihod.'</u> задействован в другом счёте');
 		}
+
+		if(!empty($visible))
+			foreach(explode(',', $visible) as $id)
+				if(!_isnum($id))
+					jsonError();
+
 		$sql = "INSERT INTO `invoice` (
 					`name`,
-					`about`
+					`about`,
+					`visible`
 				) VALUES (
 					'".addslashes($name)."',
-					'".addslashes($about)."'
+					'".addslashes($about)."',
+					'".$visible."'
 				)";
 		query($sql);
 
@@ -3482,12 +3491,13 @@ switch(@$_POST['op']) {
 		$name = win1251(htmlspecialchars(trim($_POST['name'])));
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		$types = trim($_POST['types']);
+		$visible = trim($_POST['visible']);
 		if(empty($name))
 			jsonError();
 
 		if(!empty($types)) {
 			foreach(explode(',', $types) as $id)
-				if(!preg_match(REGEXP_NUMERIC, $id))
+				if(!_isnum($id))
 					jsonError();
 			$prihod = query_value("SELECT `name`
 								   FROM `setup_income`
@@ -3499,13 +3509,22 @@ switch(@$_POST['op']) {
 				jsonError('Вид платежа <u>'.$prihod.'</u> задействован в другом счёте');
 		}
 
+		if(!empty($visible))
+			foreach(explode(',', $visible) as $id)
+				if(!_isnum($id))
+					jsonError();
+
+
 		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
+
+
 		$sql = "UPDATE `invoice`
 				SET `name`='".addslashes($name)."',
-					`about`='".addslashes($about)."'
+					`about`='".addslashes($about)."',
+					`visible`='".$visible."'
 				WHERE `id`=".$invoice_id;
 		query($sql);
 
@@ -3522,6 +3541,22 @@ switch(@$_POST['op']) {
 			$changes .= '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
 		if($r['about'] != $about)
 			$changes .= '<tr><th>Описание:<td>'.str_replace("\n", '<br />', $r['about']).'<td>»<td>'.str_replace("\n", '<br />', $about);
+		if($r['visible'] != $visible) {
+			$old = array();
+			if($r['visible'])
+				foreach(explode(',', $r['visible']) as $i)
+					$old[] = _viewer($i, 'name');
+
+			$new = array();
+			if($visible)
+				foreach(explode(',', $visible) as $i)
+					$new[] = _viewer($i, 'name');
+
+			$changes .= '<tr><th>Видимость<br />для сотрудников:'.
+							'<td>'.implode('<br />', $old).
+							'<td>»'.
+							'<td>'.implode('<br />', $new);
+		}
 		if($changes)
 			_historyInsert(516, array(
 				'value' => $name,

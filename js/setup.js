@@ -528,6 +528,7 @@ $(document)
 				'<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="50" />' +
 				'<tr><td class="label topi">Описание:<td><textarea id="about"></textarea>' +
 				'<tr><td class="label topi">Виды платежей:<td><input type="hidden" id="types" />' +
+				'<tr><td class="label topi">Видимость<br />для сотрудников:<td><input type="hidden" id="visible" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -542,12 +543,18 @@ $(document)
 			multiselect:1,
 			spisok:INCOME_SPISOK
 		});
+		$('#visible')._select({
+			width:218,
+			multiselect:1,
+			spisok:WORKER_SPISOK
+		});
 		function submit() {
 			var send = {
 				op:'setup_invoice_add',
 				name:$('#name').val(),
 				about:$('#about').val(),
-				types:$('#types').val()
+				types:$('#types').val(),
+				visible:$('#visible').val()
 			};
 			if(!send.name) {
 				err('Не указано наименование');
@@ -585,10 +592,12 @@ $(document)
 			name = t.find('.name div').html(),
 			about = t.find('.name pre').html(),
 			types = t.find('.type_id').val(),
+			visible = t.find('.visible_id').val(),
 			html = '<table class="setup-tab">' +
 				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" value="' + name + '" />' +
 				'<tr><td class="label r top">Описание:<td><textarea id="about">' + about + '</textarea>' +
 				'<tr><td class="label topi">Виды платежей:<td><input type="hidden" id="types" value="' + types + '" />' +
+				'<tr><td class="label topi">Видимость<br />для сотрудников:<td><input type="hidden" id="visible" value="' + visible + '" />' +
 				'</table>',
 			dialog = _dialog({
 				top:60,
@@ -604,13 +613,20 @@ $(document)
 			multiselect:1,
 			spisok:INCOME_SPISOK
 		});
+		$('#visible')._select({
+			width:218,
+			multiselect:1,
+			spisok:WORKER_SPISOK
+		});
+
 		function submit() {
 			var send = {
 				op:'setup_invoice_edit',
 				id:id,
 				name:$('#name').val(),
 				about:$('#about').val(),
-				types:$('#types').val()
+				types:$('#types').val(),
+				visible:$('#visible').val()
 			};
 			if(!send.name) {
 				err('Не указано наименование');
