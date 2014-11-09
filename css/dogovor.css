@@ -33,7 +33,9 @@
 
 .org-name{font:12pt times new roman}
 .org-name b{font-size:14pt}
-.cash-rekvisit{font:bold 12pt times new roman}
+.cash-rekvisit,.cash-rekvisit td{font:bold 12pt times new roman}
+.cash-rekvisit table{border-collapse:collapse;width:100%}
+.cash-rekvisit th{text-align:right}
 .head{font:bold 18pt times new roman;text-align:center;margin-top:16pt}
 .shop{font:bold italic 12pt times new roman;text-align:center;text-decoration:underline}
 .shop-about{font:11pt times new roman;text-align:center;margin-bottom:10pt}

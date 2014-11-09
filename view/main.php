@@ -2523,9 +2523,9 @@ function dogovor_print($dog_id) {
 }//dogovor_print()
 function cashmemoParagraph($id) {
 	$g = query_assoc("SELECT * FROM `setup_global`");
-	$money = query_assoc("SELECT * FROM `money` WHERE `deleted`=0 AND `id`=".$id);
-	$zayav = query_assoc("SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$money['zayav_id']);
-	$dog = query_assoc("SELECT * FROM `zayav_dogovor` WHERE `deleted`=0 AND `zayav_id`=".$money['zayav_id']);
+	$money = query_assoc("SELECT * FROM `money` WHERE !`deleted` AND `id`=".$id);
+	$zayav = query_assoc("SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$money['zayav_id']);
+	$dog = query_assoc("SELECT * FROM `zayav_dogovor` WHERE !`deleted` AND `zayav_id`=".$money['zayav_id']);
 
 	return
 	'<div class="org-name">Общество с ограниченной ответственностью <b>«'.$g['org_name'].'»</b></div>'.
@@ -2534,7 +2534,10 @@ function cashmemoParagraph($id) {
 		'ОГРН '.$g['ogrn'].'<br />'.
 		'КПП '.$g['kpp'].'<br />'.
 		str_replace("\n", '<br />', $g['yur_adres']).'<br />'.
-		'Тел.: '.$g['telefon'].
+		'<table><tr>'.
+			'<td>Тел.: '.$g['telefon'].
+			'<th>'.FullData($g['dtime_add']).' г.'.
+		'</table>'.
 	'</div>'.
 	'<div class="head">Товарный чек №'.$money['id'].'</div>'.
 	'<div class="shop">Магазин</div>'.
@@ -3771,8 +3774,8 @@ function income_month($mon) {
 			FROM `money`
 			WHERE `deleted`=0
 			  AND `sum`>0
-			  AND `dtime_add` LIKE '".$mon."%'
-			  ".(!RULES_MONEY ? " AND `viewer_id_add`=".VIEWER_ID : '')."
+			  AND `dtime_add` LIKE '".$mon."%'".
+			  (!RULES_MONEY ? " AND `viewer_id_add`=".VIEWER_ID : '')."
 			GROUP BY DATE_FORMAT(`dtime_add`,'%d')
 			ORDER BY `dtime_add` ASC";
 	$q = query($sql);

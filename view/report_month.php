@@ -527,62 +527,99 @@ function debtors() {
 	$line = 1;
 
 	$sheet->getColumnDimension('A')->setWidth(8);
-	$sheet->getColumnDimension('B')->setWidth(100);
-	$sheet->getColumnDimension('C')->setWidth(20);
-	$sheet->getColumnDimension('D')->setWidth(25);
+	$sheet->getColumnDimension('B')->setWidth(60);
+	$sheet->getColumnDimension('C')->setWidth(60);
+	$sheet->getColumnDimension('D')->setWidth(30);
+	$sheet->getColumnDimension('E')->setWidth(25);
 
 	$sheet->setCellValue('A'.$line, 'Должники на '.utf8(FullData(curTime())).':');
 	$sheet->getStyle('A'.$line)->getFont()->setBold(true);
 	$line += 2;
 
 	$sheet->setCellValue('B'.$line, 'ФИО');
-	$sheet->setCellValue('C'.$line, 'Договор');
-	$sheet->setCellValue('D'.$line, 'Сумма');
-	$sheet->setSharedStyle(styleHead(), 'A'.$line.':D'.$line);
+	$sheet->setCellValue('C'.$line, 'Телефон');
+	$sheet->setCellValue('D'.$line, 'Договор');
+	$sheet->setCellValue('E'.$line, 'Сумма');
+	$sheet->setSharedStyle(styleHead(), 'A'.$line.':E'.$line);
 	$line++;
 
-	$sql = "SELECT * FROM `client` WHERE `deleted`=0 AND `balans`<0 ORDER BY `fio`";
+	$sql = "SELECT *
+			FROM `client`
+			WHERE !`deleted`
+			  AND `balans`<0
+			ORDER BY `fio`";
 	$q = query($sql);
 	$client = array();
-	while($r = mysql_fetch_assoc($q))
+	while($r = mysql_fetch_assoc($q)) {
+		$r['dog'] = array();
 		$client[$r['id']] = $r;
+	}
 
 	if(empty($client))
 		return;
 
-	$dog = query_ass("SELECT `client_id`,`nomer` FROM `zayav_dogovor` WHERE !`deleted` AND `client_id` IN (".implode(',', array_keys($client)).")");
+	// составление списка договоров, по которым есть долги
+	$dog = query_ass("SELECT `id`,`nomer` FROM `zayav_dogovor` WHERE !`deleted` AND `client_id` IN (".implode(',', array_keys($client)).")");
+	$sql = "SELECT *
+			FROM `zayav`
+			WHERE !`deleted`
+			  AND `accrual_sum`-`oplata_sum`>0
+			  AND `dogovor_id`
+			  AND `client_id` IN (".implode(',', array_keys($client)).")";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$client[$r['client_id']]['dog'][] = $dog[$r['dogovor_id']];
+
+	// составление списка ВГ, по которым есть долги
+	$sql = "SELECT *
+			FROM `zayav`
+			WHERE !`deleted`
+			  AND `accrual_sum`-`oplata_sum`>0
+			  AND (`nomer_vg` OR `nomer_g` OR `nomer_d` OR `nomer_t`)
+			  AND `client_id` IN (".implode(',', array_keys($client)).")";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q)) {
+		if(!empty($client[$r['client_id']]['dog']))
+			continue;
+		$nomer = '';
+		if($r['nomer_vg'])
+			$nomer = 'ВГ'.$r['nomer_vg'];
+		elseif($r['nomer_g'])
+			$nomer = 'Ж'.$r['nomer_g'];
+		elseif($r['nomer_d'])
+			$nomer = 'Д'.$r['nomer_d'];
+		elseif($r['nomer_t'])
+			$nomer = 'Т'.$r['nomer_t'];
+		if($nomer)
+			$client[$r['client_id']]['dog'][] = $nomer;
+	}
 
 	$start = $line;
 	$sum = 0;
 	$n = 1;
+
 	foreach($client as $id => $r) {
-		$fio = new PHPExcel_RichText();
-		$fio->createText('');
-		$f = $fio->createTextRun(utf8(htmlspecialchars_decode($r['fio'])));
-		$f->getFont()->setSize(8);
 		$balans = abs($r['balans']);
 		$sum += $balans;
-		if($r['telefon']) {
-			$tel = $fio->createTextRun(utf8(' ('.htmlspecialchars_decode($r['telefon']).')'));
-			$tel->getFont()->setName('tahoma')
-						   ->setSize(8)
-						   ->getColor()->setRGB('777777');
-		}
 		$sheet->getCell('A'.$line)->setValue($n++);
-		$sheet->getCell('B'.$line)->setValue($fio);
-		if(isset($dog[$id]))
-			$sheet->getCell('C'.$line)->setValue($dog[$id]);
-		$sheet->getCell('D'.$line)->setValue($balans);
+		$sheet->getCell('B'.$line)->setValue(utf8(htmlspecialchars_decode($r['fio'])));
+		$sheet->getCell('C'.$line)->setValue(utf8(htmlspecialchars_decode($r['telefon'])));
+//		if(isset($dog[$id]))
+//			$sheet->getCell('D'.$line)->setValue($dog[$id]);
+		//if(isset($r['dog']))
+			$sheet->getCell('D'.$line)->setValue(implode(', ', $r['dog']));
+		$sheet->getCell('E'.$line)->setValue($balans);
 		$line++;
 	}
-	$sheet->setSharedStyle(styleContent(), 'A'.$start.':D'.$line);
-	$sheet->setSharedStyle(styleResult(), 'A'.$line.':D'.$line);
+	$sheet->setSharedStyle(styleContent(), 'A'.$start.':E'.$line);
+	$sheet->setSharedStyle(styleResult(), 'A'.$line.':E'.$line);
 	$sheet->getStyle('B'.$start.':B'.$line)->getAlignment()->setWrapText(true);
-	$sheet->setCellValue('C'.$line, 'Итог:');
-	$sheet->getStyle('C'.$start.':C'.($line - 1))->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
-	$sheet->setCellValue('D'.$line, _sumSpace($sum));
+	$sheet->getStyle('C'.$start.':C'.($line - 1))->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
+	$sheet->setCellValue('D'.$line, 'Итог:');
+	$sheet->getStyle('D'.$start.':D'.($line - 1))->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+	$sheet->setCellValue('E'.$line, _sumSpace($sum));
 
-	$sheet->getStyle('A1:D'.$line)->getFont()->setSize(8);
+	$sheet->getStyle('A1:E'.$line)->getFont()->setSize(8);
 
 	freeLine($line);
 }
@@ -718,7 +755,6 @@ if(CRON) {
 
 require_once dirname(dirname(__FILE__)).'/config.php';
 require_once VKPATH.'excel/PHPExcel.php';
-
 
 define('MON', strftime('%Y-%m', time() - (CRON ? 86400 : 0)));
 $ex = explode('-', MON);

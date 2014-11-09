@@ -137,7 +137,7 @@ switch(@$_POST['op']) {
 		$client_id = intval($_POST['client_id']);
 		$sql = "SELECT *
 				FROM `client`
-				WHERE `deleted`=0".
+				WHERE !`deleted`".
 					(!empty($val) ? " AND (`fio` LIKE '%".$val."%' OR `telefon` LIKE '%".$val."%' OR `adres` LIKE '%".$val."%')" : '').
 					($client_id > 0 ? " AND `id`<=".$client_id : '')."
 				ORDER BY `id` DESC
@@ -210,6 +210,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'client_spisok':
+		$_POST['find'] = win1251($_POST['find']);
 		$data = client_data($_POST);
 		if(empty($_POST['page']))
 			$send['result'] = utf8($data['result']);
@@ -1815,8 +1816,8 @@ switch(@$_POST['op']) {
 
 		if($r['status'] != $status || $status == 1 && $r['day'] != $day) {
 			$sql = "UPDATE `remind`
-			        SET `status`=".$status."
-						".($status == 1 ? ",`day`='".$day."'" : '')."
+			        SET `status`=".$status.
+						($status == 1 ? ",`day`='".$day."'" : '')."
 			        WHERE `id`=".$id;
 			query($sql);
 			remind_history_add(array(
