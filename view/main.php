@@ -622,7 +622,7 @@ function pin_enter() {
 
 // ---===! client !===--- Секция клиентов
 
-function _clientLink($arr, $fio=0) {//Добавление имени и ссылки клиента в массив или возврат по id
+function _clientLink($arr, $fio=0, $tel=0) {//Добавление имени и ссылки клиента в массив или возврат по id
 	$clientArr = array(is_array($arr) ? 0 : $arr);
 	$ass = array();
 	if(is_array($arr)) {
@@ -640,12 +640,12 @@ function _clientLink($arr, $fio=0) {//Добавление имени и ссылки клиента в массив
 		$q = query($sql);
 		if(!is_array($arr)) {
 			if($r = mysql_fetch_assoc($q))
-				return $fio ? $r['fio'] : '<a'.($r['deleted'] ? ' class="deleted"' : '').' href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
+				return $fio ? $r['fio'] : '<a href="'.URL.'&p=client&d=info&id='.$r['id'].'" class="'.($r['deleted'] ? ' deleted' : '').($tel && $r['telefon'] ? _tooltip($r['telefon'], -2, 'l') : '">').$r['fio'].'</a>';
 			return '';
 		}
 		while($r = mysql_fetch_assoc($q))
 			foreach($ass[$r['id']] as $id) {
-				$arr[$id]['client_link'] = '<a'.($r['deleted'] ? ' class="deleted" title="Клиент удалён"' : '').' href="'.URL.'&p=client&d=info&id='.$r['id'].'">'.$r['fio'].'</a>';
+				$arr[$id]['client_link'] = '<a href="'.URL.'&p=client&d=info&id='.$r['id'].'" class="'.($r['deleted'] ? ' deleted' : '').($tel && $r['telefon'] ? _tooltip($r['telefon'], -2, 'l') : '">').$r['fio'].'</a>';
 				$arr[$id]['client_fio'] = $r['fio'];
 				$arr[$id]['client_tel'] = $r['telefon'];
 			}
@@ -1589,7 +1589,7 @@ function zayav_spisok($category, $v=array()) {
 	while($r = mysql_fetch_assoc($q))
 		$zayav[$r['id']] = $r;
 
-	$zayav = _clientLink($zayav);
+	$zayav = _clientLink($zayav, 0, 1);
 	$zayav = _dogNomer($zayav);
 	$zayav = zayav_product_array($zayav);
 
@@ -1670,7 +1670,7 @@ function zayav_findfast($page=1, $find) {
 	while($r = mysql_fetch_assoc($q))
 		$zayav[$r['id']] = $r;
 
-	$zayav = _clientLink($zayav);
+	$zayav = _clientLink($zayav, 0, 1);
 	$zayav = _dogNomer($zayav);
 	$zayav = zayav_product_array($zayav);
 
@@ -1937,6 +1937,9 @@ function zayav_info($zayav_id) {
 	foreach(_invoice() as $id => $r)
 		$invoices_sum[$id] = _invoiceBalans($id == 1 && _viewerRules(VIEWER_ID, 'RULES_SELMONEY') ? VIEWER_ID : $id);
 
+	$avans_owner = query_value("SELECT COUNT(`id`) FROM `money` WHERE !`deleted` AND `zayav_id`=".$zayav_id." AND `owner_id`=".VIEWER_ID);
+	define('MONEY_EXIST', query_value("SELECT COUNT(`id`) FROM `money` WHERE !`deleted` AND `zayav_id`=".$zayav_id));
+
 	return
 	'<script type="text/javascript">'.
 		'var ZAYAV={'.
@@ -1975,6 +1978,7 @@ function zayav_info($zayav_id) {
 			'pasp_data:"'.(empty($dog) ? $client['pasp_data'] : $dog['pasp_data']).'",'.
 			'sum:"'.(empty($dog) ? '' : round($dog['sum'], 2)).'",'.
 			'avans:"'.(empty($dog) || $dog['avans'] == 0 ? '' : round($dog['avans'], 2)).'",'.
+			'avans_owner:'.(!empty($dog) && $dog['avans'] > 0 && $avans_owner ? 1 : 0).','.
 			'cut:"'.(empty($dog) ? '' : $dog['cut']).'"'.
 		'},'.
 		'OPL={'.
@@ -1993,7 +1997,7 @@ function zayav_info($zayav_id) {
 	(ZAKAZ || SET ?
 			'<a class="link acc-add">Начислить</a>'.
 			'<a class="link income-add">Внести платёж</a>'.
-			'<a class="delete">Удалить заявку</a>'
+			(!MONEY_EXIST ? '<a class="delete">Удалить заявку</a>' : '')
 	: '')
 : '').
 			(RULES_HISTORYSHOW ? '<a class="link hist">История</a>' : '').
@@ -2009,7 +2013,7 @@ function zayav_info($zayav_id) {
 						(SET && !$z['deleted'] ? '<a class="set-to-zakaz">Перенести в Заказы</a>' : '').
 					'</div>'.
 					'<table class="tabInfo">'.
-						'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id']).
+						'<tr><td class="label">Клиент:<td>'._clientLink($z['client_id'], 0, 1).
 						'<tr><td class="label top">Изделия:<td>'.zayav_product_spisok($z['id']).$z['zakaz_txt'].
 			   (ZAMER ? '<tr><td class="label">Адрес замера:<td><b>'.$z['adres'].'</b>'.
 						'<tr><td class="label">Дата замера:'.
@@ -2108,6 +2112,7 @@ function zayav_money($zayav_id) {
 			`prim`,
 			0 AS `confirm`,
 			'' AS `confirm_dtime`,
+			0 AS `owner_id`,
 			0 AS `refund`,
 			`dtime_add`,
 			`viewer_id_add`,
@@ -2128,6 +2133,7 @@ function zayav_money($zayav_id) {
 			`prim`,
 			`confirm`,
 			`confirm_dtime`,
+			`owner_id`,
 			`refund`,
 			`dtime_add`,
 			`viewer_id_add`,
@@ -2177,7 +2183,9 @@ function zayav_refund_unit($r) {
 		'<td><span class="type">'._invoice($r['invoice_id']).(empty($r['prim']) ? '' : ':').'</span> '.$r['prim'].
 		'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
 		'<td class="ed" align="right">'.
-			'<div class="img_del refund-del'._tooltip('Удалить возврат', -97, 'r').'</div>';
+			(!$r['dogovor_id'] && TODAY == substr($r['dtime_add'], 0, 10) && VIEWER_ID == $r['owner_id'] ?
+				'<div class="img_del refund-del'._tooltip('Удалить возврат', -97, 'r').'</div>'
+			: '');
 }//zayav_refund_unit()
 function _attach($type, $zayav_id, $name='Обзор...', $num='') {
 	return
@@ -2536,7 +2544,7 @@ function cashmemoParagraph($id) {
 		str_replace("\n", '<br />', $g['yur_adres']).'<br />'.
 		'<table><tr>'.
 			'<td>Тел.: '.$g['telefon'].
-			'<th>'.FullData($g['dtime_add']).' г.'.
+			'<th>'.FullData($money['dtime_add']).' г.'.
 		'</table>'.
 	'</div>'.
 	'<div class="head">Товарный чек №'.$money['id'].'</div>'.
@@ -3137,6 +3145,13 @@ function history_types($v) {
 						'по заявке '.$v['zayav_link'].'.';
 
 		case 58: return 'Заявка '.$v['zayav_link'].' перенесена из <u>Установок</u> в <u>Заказы</u>.';
+
+		case 59: return
+			'Расторжение договора '.$v['dogovor_nomer'].
+			' от '.$v['dogovor_data'].
+			' на сумму <b>'.$v['dogovor_sum'].'</b> руб.'.
+			' для заявки '.$v['zayav_link'].'.'.
+			($v['value'] ? ' <em>(Причина: '.$v['value'].'.)</em>' : '');
 
 		case 501: return 'В настройках: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return 'В настройках: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
@@ -4081,7 +4096,7 @@ function income_spisok($filter=array()) {
 }//income_spisok()
 function income_unit($r, $filter=array()) {
 	$about = '';
-	if($r['dogovor_id'])
+	if($r['dogovor_id'] && !$r['refund'])
 		$about .= 'Авансовый платеж '.
 			(!$filter['zayav_id'] ? 'по заявке '.$r['zayav_link'].' ' : '').
 			'(договор '.$r['dogovor_nomer'].').';
@@ -4109,7 +4124,7 @@ function income_unit($r, $filter=array()) {
 			'<td class="dtime'._tooltip(viewerAdded($r['viewer_id_add']), -40).FullDataTime($r['dtime_add']).
 		(empty($filter['owner_id']) && empty($filter['ids']) && empty($filter['confirm']) ?
 			'<td class="ed"><a href="'.SITE.'/view/cashmemo.php?'.VALUES.'&id='.$r['id'].'" target="_blank" class="img_doc'._tooltip('Распечатать квитанцию', -140, 'r').'</a>'.
-				(!$r['dogovor_id'] && TODAY == substr($r['dtime_add'], 0, 10) || $r['confirm'] ?
+				((!$r['dogovor_id'] && TODAY == substr($r['dtime_add'], 0, 10) || $r['confirm']) && VIEWER_ID == $r['owner_id'] ?
 					'<div class="img_del income-del'._tooltip('Удалить платёж', -95, 'r').'</div>'.
 					'<div class="img_rest income-rest'._tooltip('Восстановить платёж', -125, 'r').'</div>'
 				: '')

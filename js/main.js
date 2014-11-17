@@ -259,7 +259,9 @@ var hashLoc,
 				'<tr><td class="label">Номер договора:<td><input type="text" id="nomer" maxlength="6" value="' + DOG.nomer + '" />' +
 				'<tr><td class="label">Дата заключения:<td><input type="hidden" id="data_create" value="' + (DOG.data_create ? DOG.data_create : '') + '" />' +
 				'<tr><td class="label">Сумма по договору:<td><input type="text" id="sum" class="money" maxlength="11" value="' + (DOG.sum ? DOG.sum : '') + '" /> руб.' +
-				'<tr><td class="label">Авансовый платёж:<td><input type="text" id="avans" class="money" maxlength="11" value="' + (DOG.avans ? DOG.avans : '') + '" /> руб. <span class="prim">(не обязательно)</span>' +
+				'<tr><td class="label">Авансовый платёж:' +
+					'<td><input type="text" id="avans" class="money" maxlength="11" value="' + (DOG.avans ? DOG.avans : '') + '"' + (DOG.avans_owner ? '' : ' disabled') + ' /> руб. ' +
+						'<span class="prim">(не обязательно)</span>' +
 (v == 'reneg' ? '<tr><td class="label">Причина перезаключения:<td><input type="text" id="reason" />' : '') +
 				'<tr><td colspan="2"><a id="cut"></a>' +
 				'<tr><td colspan="2">' +
@@ -443,6 +445,36 @@ var hashLoc,
 					}
 				}, 'json');
 			}
+		}
+	},
+	dogovorDestroy = function() {
+		var html =
+				'<div class="_info">' +
+					'При расторжении договора авансовый платёж возвращается клиенту в виде возврата наличным платежём полной суммой. ' +
+					'Начисление по договору удаляется.' +
+				'</div>' +
+				'Договор <b>№' + DOG.nomer + '</b> будет расторгнут.<br />' +
+				(DOG.avans ? 'Авансовый платёж в сумме <b>' + DOG.avans + '</b> руб. будет возвращён клиенту.' : ''),
+			dialog = _dialog({
+				head:'Расторжение договора',
+				butSubmit:'Применить',
+				content:html,
+				submit:submit
+			});
+		function submit() {
+			var send = {
+				op:'dogovor_terminate',
+				zayav_id:ZAYAV.id
+			};
+			dialog.process();
+			$.post(AJAX_MAIN, send, function(res) {
+				if(res.success) {
+					dialog.close();
+					_msg('Договор был расторгнут.');
+					location.reload();
+				} else
+					dialog.abort();
+			}, 'json');
 		}
 	},
 	zayavInfoMoneyUpdate = function() {
@@ -1592,6 +1624,7 @@ $(document)
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success) {
 					dialog.close();
+					zayavInfoMoneyUpdate();
 					_msg('Удалено.');
 					$('#income_spisok').html(res.html);
 				} else
@@ -3267,15 +3300,15 @@ $(document)
 				headgrey:1,
 				spisok:[
 					{uid:1, title:'Изменение данных договора'},
-					{uid:2, title:'Перезаключение'},
+//					{uid:2, title:'Перезаключение'},
 					{uid:3, title:'Расторжение'}
 				],
 				nosel:1,
 				func:function(v) {
 					if(v == 1)
 						dogovorCreate('edit');
-					//if(v == 2)
-					//	dogovorCreate('reneg');
+					if(v == 3)
+						dogovorDestroy();
 				}
 			});
 			$('.zakaz_edit').click(function() {
@@ -3744,6 +3777,7 @@ $(document)
 							dialog.abort();
 							if(res.success) {
 								dialog.close();
+								zayavInfoMoneyUpdate();
 								_msg('Возврат успешно произведён.');
 								$('#income_spisok').html(res.html);
 							}

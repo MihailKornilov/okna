@@ -1191,17 +1191,19 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'zayav_delete':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']) && !$_POST['zayav_id'])
+		if(!$zayav_id = _isnum($_POST['zayav_id']))
 			jsonError();
-		$zayav_id = intval($_POST['zayav_id']);
-		$sql = "SELECT * FROM `zayav` WHERE `deleted`=0 AND `id`=".$zayav_id." LIMIT 1";
+
+		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id;
 		if(!$zayav = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		if(query_value("SELECT COUNT(`id`) FROM `money` WHERE !`deleted` AND `zayav_id`=".$zayav_id))
 			jsonError();
 
 		query("UPDATE `zayav` SET `deleted`=1 WHERE `id`=".$zayav_id);
 		query("UPDATE `zayav_dogovor` SET `deleted`=1 WHERE `zayav_id`=".$zayav_id);
 		query("UPDATE `accrual` SET `deleted`=1,`viewer_id_del`=".VIEWER_ID.",`dtime_del`=CURRENT_TIMESTAMP WHERE `zayav_id`=".$zayav_id);
-		query("UPDATE `money` SET `deleted`=1,`viewer_id_del`=".VIEWER_ID.",`dtime_del`=CURRENT_TIMESTAMP WHERE `zayav_id`=".$zayav_id);
 
 		clientBalansUpdate($zayav['client_id']);
 
@@ -1377,7 +1379,7 @@ switch(@$_POST['op']) {
 			'id' => mysql_insert_id()
 		));
 
-//		clientBalansUpdate($z['client_id']);
+		clientBalansUpdate($z['client_id']);
 		_zayavBalansUpdate($zayav_id);
 
 		_historyInsert(
@@ -1395,9 +1397,8 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'refund_del':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+		if(!$id = _isnum($_POST['id']))
 			jsonError();
-		$id = intval($_POST['id']);
 
 		$sql = "SELECT *
 				FROM `money`
@@ -1407,6 +1408,9 @@ switch(@$_POST['op']) {
 		if(!$r = mysql_fetch_assoc(query($sql)))
 			jsonError();
 
+		if($r['dogovor_id'] || TODAY != substr($r['dtime_add'], 0, 10) || VIEWER_ID != $r['owner_id'])
+			jsonError();
+
 		$sql = "UPDATE `money` SET
 					`deleted`=1,
 					`viewer_id_del`=".VIEWER_ID.",
@@ -1414,6 +1418,7 @@ switch(@$_POST['op']) {
 				WHERE `id`=".$id;
 		query($sql);
 
+		clientBalansUpdate($r['client_id']);
 		_zayavBalansUpdate($r['zayav_id']);
 
 		invoice_history_insert(array(
@@ -1777,6 +1782,79 @@ switch(@$_POST['op']) {
 			jsonError();
 
 		query("UPDATE `zayav` SET `dogovor_require`=1 WHERE `id`=".$zayav_id);
+		jsonSuccess();
+		break;
+	case 'dogovor_terminate'://расторжение договора
+		if(!$zayav_id = _isnum($_POST['zayav_id']))
+			jsonError();
+
+		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id;
+		if(!$z = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		$sql = "SELECT * FROM `zayav_dogovor` WHERE !`deleted` AND `zayav_id`=".$zayav_id;
+		if(!$dog = mysql_fetch_assoc(query($sql)))
+			jsonError();
+
+		query("UPDATE `zayav_dogovor` SET `deleted`=1 WHERE `id`=".$dog['id']);
+		query("UPDATE `accrual` SET `deleted`=1 WHERE `dogovor_id`=".$dog['id']);
+		query("UPDATE `zayav` SET `dogovor_id`=0 WHERE `id`=".$zayav_id);
+
+		_historyInsert(
+			59,
+			array(
+				'client_id' => $z['client_id'],
+				'zayav_id' => $zayav_id,
+				'dogovor_id' => $dog['id']
+			)
+		);
+
+		$sql = "SELECT * FROM `money` WHERE !`deleted` AND `dogovor_id`=".$dog['id'];
+		if($money = mysql_fetch_assoc(query($sql))) {
+			$prim = '¬озврат авансового платежа при расторжении договора є'.$dog['nomer'].'.';
+			$sql = "INSERT INTO `money` (
+					`zayav_id`,
+					`client_id`,
+					`invoice_id`,
+					`sum`,
+					`prim`,
+					`refund`,
+					`dogovor_id`,
+					`owner_id`,
+					`viewer_id_add`
+				) VALUES (
+					".$zayav_id.",
+					".$z['client_id'].",
+					1,
+					-".$money['sum'].",
+					'".$prim."',
+					1,
+					".$dog['id'].",
+					".VIEWER_ID.",
+					".VIEWER_ID."
+				)";
+			query($sql);
+
+			invoice_history_insert(array(
+				'action' => 13,
+				'table' => 'money',
+				'id' => mysql_insert_id()
+			));
+
+			_historyInsert(
+				56,
+				array(
+					'zayav_id' => $zayav_id,
+					'client_id' => $z['client_id'],
+					'value' => round($money['sum'], 2),
+					'value1' => $prim
+				)
+			);
+		}
+
+		clientBalansUpdate($z['client_id']);
+		_zayavBalansUpdate($zayav_id);
+
 		jsonSuccess();
 		break;
 
