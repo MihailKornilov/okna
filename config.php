@@ -1,21 +1,21 @@
 <?php
 define('DOCUMENT_ROOT', dirname(__FILE__));
 define('NAMES', 'cp1251');
-define('DOMAIN', defined('CRON') && CRON ? 'okna.nyandoma.ru' : $_SERVER['SERVER_NAME']);
-define('LOCAL', DOMAIN == 'okna');
 
 //$SA[166424274] = 1; // Тестовая запись
 
 require_once(DOCUMENT_ROOT.'/syncro.php');
-require_once(VKPATH.'/vk.php');
+require_once(API_PATH.'/vk.php');
 _appAuth();
 require_once(DOCUMENT_ROOT.'/view/main.php');
+require_once(DOCUMENT_ROOT.'/view/setup.php');
+require_once(DOCUMENT_ROOT.'/view/report.php');
 
 define('API_URL', 'http://vk.com/app'.API_ID);
 define('TODAY', strftime('%Y-%m-%d'));
 define('TODAY_UNIXTIME', strtotime(TODAY));
-define('PATH_DOGOVOR', PATH.'files/dogovor/');
-define('LINK_DOGOVOR', SITE.'/files/dogovor/');
+define('PATH_DOGOVOR', APP_PATH.'/files/dogovor/');
+define('LINK_DOGOVOR', APP_HTML.'/files/dogovor/');
 
 session_name('evrookna');
 session_start();

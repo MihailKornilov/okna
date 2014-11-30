@@ -1,6 +1,6 @@
 <?php
 require_once('config.php');
-require_once(VKPATH.'/vk_ajax.php');
+require_once(API_PATH.'/vk_ajax.php');
 
 
 switch(@$_POST['op']) {
@@ -58,13 +58,13 @@ switch(@$_POST['op']) {
 			break;
 			default: setcookie('_attached', 3, time() + 3600, '/'); exit;
 		}
-		$dir = PATH.'files/'.$type.'/'.$type.$zayav_id;
+		$dir = APP_PATH.'/files/'.$type.'/'.$type.$zayav_id;
 		if(!is_dir($dir))
 			mkdir($dir, 0777, true);
 		$fname = time().'_'.translit($f["name"]);
 		if(move_uploaded_file($f['tmp_name'], $dir.'/'.$fname)) {
 			$name = trim($f['name']);
-			$link = SITE.'/files/'.$type.'/'.$type.$zayav_id.'/'.$fname;
+			$link = APP_HTML.'/files/'.$type.'/'.$type.$zayav_id.'/'.$fname;
 			$sql = "INSERT INTO `attach` (
 						`type`,
 						`zayav_id`,

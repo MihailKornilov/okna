@@ -1,4 +1,4 @@
-var AJAX_SA = SITE + '/ajax/sa.php?' + VALUES;
+var AJAX_SA = APP_HTML + '/ajax/sa.php?' + VALUES;
 
 $(document)
 	.on('click', '.client_balans', function() {

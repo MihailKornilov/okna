@@ -2896,7 +2896,7 @@ $(document)
 		var ids = $(this).attr('val');
 		if(!ids)
 			return;
-		location.href = SITE + '/view/salary_list.php?' + VALUES + '&ids=' + ids;
+		location.href = APP_HTML + '/view/salary_list.php?' + VALUES + '&ids=' + ids;
 	})
 	.on('click', '.salary .zp_del', function() {
 		var t = $(this),
@@ -4115,7 +4115,7 @@ $(document)
 						});
 					else
 						document.location.href =
-							SITE + '/view/salary_report.php?' + VALUES +
+							APP_HTML + '/view/salary_report.php?' + VALUES +
 								'&ids=' + ids +
 								'&mon=' + $('#rmon').val() +
 								'&year=' + $('#ryear').val();

@@ -7,7 +7,7 @@ require_once dirname(dirname(__FILE__)).'/config.php';
 
 set_time_limit(1800);
 
-define('PATH_DUMP', PATH.'_sxdump/backup/');
+define('PATH_DUMP', APP_PATH.'/_sxdump/backup/');
 
 $filename = '';
 

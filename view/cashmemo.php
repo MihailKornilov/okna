@@ -15,7 +15,7 @@ if(!$r = mysql_fetch_assoc(query($sql))) {
 	exit;
 }
 
-require_once(VKPATH.'clsMsDocGenerator.php');
+require_once(API_PATH.'/clsMsDocGenerator.php');
 $doc = new clsMsDocGenerator(
 	$pageOrientation = 'PORTRAIT',
 	$pageType = 'A4',

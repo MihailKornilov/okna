@@ -754,7 +754,7 @@ if(CRON) {
 }
 
 require_once dirname(dirname(__FILE__)).'/config.php';
-require_once VKPATH.'excel/PHPExcel.php';
+require_once API_PATH.'/excel/PHPExcel.php';
 
 define('MON', strftime('%Y-%m', time() - (CRON ? 86400 : 0)));
 $ex = explode('-', MON);
@@ -798,10 +798,10 @@ if(!CRON) {
 	header('Content-Disposition:attachment;filename="report.xls"');
 }
 $writer = PHPExcel_IOFactory::createWriter($book, 'Excel5');
-$writer->save(CRON ? PATH.'files/report/report_month_'.MON.'.xls' : 'php://output');
+$writer->save(CRON ? APP_PATH.'/files/report/report_month_'.MON.'.xls' : 'php://output');
 
 if(CRON) {
-	$link = SITE.'/files/report/report_month_'.MON.'.xls';
+	$link = APP_HTML.'/files/report/report_month_'.MON.'.xls';
 	$sql = "INSERT INTO `attach` (
 				`type`,
 				`name`,

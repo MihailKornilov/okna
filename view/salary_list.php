@@ -253,7 +253,7 @@ function zpPrint() {
 }
 
 require_once '../config.php';
-require_once VKPATH.'excel/PHPExcel.php';
+require_once API_PATH.'/excel/PHPExcel.php';
 set_time_limit(10);
 
 if(empty($_GET['ids']))
