@@ -1,3 +1,13 @@
+#go-louvers{
+	font-weight:bold;
+	float:right;
+	cursor:pointer;
+	color:#bbb;
+	margin:15px 5px 0 10px;
+}
+#go-louvers:hover{color:#2B587A;text-decoration:underline}
+
+
 #pin-enter{margin:80px;text-align:center}
 #pin-enter input{width:70px;padding:5px}
 #pin-enter .red{margin-top:10px}
@@ -111,6 +121,7 @@
 #client #find{background-color:#F7F7F7;padding:10px;border-bottom:#dae1e8 solid 1px}
 #client .result.busy{background-position:585px center}
 #client #filter_clear{float:right}
+#client .result.busy #filter_clear{display:none}
 #client .dolg_sum{color:#999;margin-left:10px;font-size:10px}
 #client .dolg_sum b{color:#922;font-size:10px}
 #client #dolg_check{margin-top:20px}

@@ -405,15 +405,17 @@ function zp($sex=2) {
 	$sheet->setSharedStyle(styleHead(), 'A'.$line.':B'.$line);
 	$line++;
 	$start = $line;
+	$summa = 0;
 	foreach($zp as $id => $sum) {
 		$sheet->setCellValueByColumnAndRow(0, $line, utf8(_viewer($id, 'name')));
 		$sheet->setCellValueByColumnAndRow(1, $line, $sum);
+		$summa += $sum;
 		$line++;
 	}
 	$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.$line);
 	$sheet->setSharedStyle(styleResult(), 'A'.$line.':B'.$line);
 	$sheet->getStyle('B'.$start.':B'.$line)->getNumberFormat()->setFormatCode('#,#');
-	$sheet->setCellValue('B'.$line, '=SUM(B'.$start.':B'.($line - 1).')');
+	$sheet->setCellValue('B'.$line, $summa);
 	$sheet->setCellValue('A'.$line, 'Итог:');
 
 	$sheet->getStyle('A1:B'.$line)->getFont()->setSize(8);

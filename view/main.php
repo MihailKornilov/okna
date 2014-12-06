@@ -419,7 +419,9 @@ function _mainLinks() {
 		)
 	);
 
-	$send = '<div id="mainLinks">';
+	$send =
+		(VIEWER_ADMIN ? '<a href="//vk.com/app4659909" target="_blank" id="go-louvers">&raquo; Жалюзи</a>' : '').
+		'<div id="mainLinks">';
 	foreach($links as $l)
 		if($l['show'])
 			$send .= '<a href="'.URL.'&p='.$l['page'].'"'.($l['page'] == $_GET['p'] ? ' class="sel"' : '').'>'.$l['name'].'</a>';
