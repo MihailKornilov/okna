@@ -7,10 +7,14 @@ $mysql = array(
 	'names' => 'cp1251'
 );
 
+
 define('API_ID', 3978722);
-define('PATH', 'c:/www/okna/');
-define('VKPATH', 'c:/www/nyandoma/vk/');
-define('SECRET', '');
 define('CACHE_PREFIX', 'okna_');
+
+define('API_HTML', '/.vkapp/.api');
+define('API_PATH', 'c:/www/nyandoma'.API_HTML);
+
+define('APP_HTML', '/.vkapp/okna');
+define('APP_PATH', 'c:/www/nyandoma'.APP_HTML);
 
 $_GET['viewer_id'] = 982006;

@@ -97,7 +97,7 @@ function _cacheClear() {
 	xcache_unset(CACHE_PREFIX.'invoice');
 	xcache_unset(CACHE_PREFIX.'income');
 	xcache_unset(CACHE_PREFIX.'expense');
-	xcache_unset(CACHE_PREFIX.'zayavrashod');
+	xcache_unset(CACHE_PREFIX.'zayav_expense');
 	GvaluesCreate();
 }//_cacheClear()
 
@@ -302,7 +302,7 @@ function _income($type_id=false, $i='name') {//Список изделий для заявок
 		return constant('INCOME_CONFIRM_'.$type_id);
 	return constant('INCOME_'.$type_id);
 }//_income()
-function _expense($type_id=false, $i='name') {//Список изделий для заявок
+function _expense($type_id=false, $i='name') {// Виды  расходов
 	if(!defined('EXPENSE_LOADED') || $type_id === false) {
 		$key = CACHE_PREFIX.'expense';
 		$arr = xcache_get($key);
@@ -343,9 +343,9 @@ function _zamerDuration($v=false) {
 	);
 	return $v ? $arr[$v] : $arr;
 }//_zamerDuration()
-function _zayavRashod($type_id=false, $i='name') {//Список расходов заявки
-	if(!defined('ZAYAVRASHOD_LOADED') || $type_id === false) {
-		$key = CACHE_PREFIX.'zayavrashod';
+function _zayavExpense($type_id=false, $i='name') {//Категории расходов заявки
+	if(!defined('ZAYAV_EXPENSE_LOADED') || $type_id === false) {
+		$key = CACHE_PREFIX.'zayav_expense';
 		$arr = xcache_get($key);
 		if(empty($arr)) {
 			$sql = "SELECT * FROM `setup_zayavexpense` ORDER BY `sort`";
@@ -358,26 +358,26 @@ function _zayavRashod($type_id=false, $i='name') {//Список расходов заявки
 				);
 			xcache_set($key, $arr, 86400);
 		}
-		if(!defined('ZAYAVRASHOD_LOADED')) {
+		if(!defined('ZAYAV_EXPENSE_LOADED')) {
 			foreach($arr as $id => $r) {
-				define('ZAYAVRASHOD_'.$id, $r['name']);
-				define('ZAYAVRASHOD_TXT_'.$id, $r['txt']);
-				define('ZAYAVRASHOD_WORKER_'.$id, $r['worker']);
+				define('ZAYAV_EXPENSE_'.$id, $r['name']);
+				define('ZAYAV_EXPENSE_TXT_'.$id, $r['txt']);
+				define('ZAYAV_EXPENSE_WORKER_'.$id, $r['worker']);
 			}
-			define('ZAYAVRASHOD_0', '');
-			define('ZAYAVRASHOD_TXT_0', '');
-			define('ZAYAVRASHOD_WORKER_0', 0);
-			define('ZAYAVRASHOD_LOADED', true);
+			define('ZAYAV_EXPENSE_0', '');
+			define('ZAYAV_EXPENSE_TXT_0', '');
+			define('ZAYAV_EXPENSE_WORKER_0', 0);
+			define('ZAYAV_EXPENSE_LOADED', true);
 		}
 	}
 	if($type_id === false)
 		return $arr;
 	if($i == 'txt')
-		return constant('ZAYAVRASHOD_TXT_'.$type_id);
+		return constant('ZAYAV_EXPENSE_TXT_'.$type_id);
 	if($i == 'worker')
-		return constant('ZAYAVRASHOD_WORKER_'.$type_id);
-	return constant('ZAYAVRASHOD_'.$type_id);
-}//_zayavRashod()
+		return constant('ZAYAV_EXPENSE_WORKER_'.$type_id);
+	return constant('ZAYAV_EXPENSE_'.$type_id);
+}//_zayavExpense()
 
 function _mainLinks() {
 	global $html;
@@ -1253,15 +1253,15 @@ function zayav_expense_test($v) {// Проверка корректности данных расходов заявки
 		$ids = explode(':', $r);
 		if(!preg_match(REGEXP_NUMERIC, $ids[0]) || !$ids[0])
 			return false;
-		if(_zayavRashod($ids[0], 'worker') && !preg_match(REGEXP_NUMERIC, $ids[1]))
+		if(_zayavExpense($ids[0], 'worker') && !preg_match(REGEXP_NUMERIC, $ids[1]))
 			return false;
 		if(!preg_match(REGEXP_NUMERIC, $ids[2]) || !$ids[2])
 			return false;
 		if(!preg_match(REGEXP_NUMERIC, $ids[3]))
 			return false;
-		if(_zayavRashod($ids[0], 'txt'))
+		if(_zayavExpense($ids[0], 'txt'))
 			$ids[1] = win1251(htmlspecialchars(trim($ids[1])));
-		if(!_zayavRashod($ids[0], 'txt') && !_zayavRashod($ids[0], 'worker'))
+		if(!_zayavExpense($ids[0], 'txt') && !_zayavExpense($ids[0], 'worker'))
 			$ids[1] = '';
 		$send[] = $ids;
 	}
@@ -1292,9 +1292,9 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 	foreach($arr as $r) {
 		$mon = explode('-', $r['mon']);
 		$send .= '<tr'.($r['category_id'] == 2 && !$r['acc'] ? ' class="noacc"' : '').'>'.
-					'<td class="name">'._zayavRashod($r['category_id']).
-					'<td>'.(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
-						   (_zayavRashod($r['category_id'], 'worker') && $r['worker_id'] ?
+					'<td class="name">'._zayavExpense($r['category_id']).
+					'<td>'.(_zayavExpense($r['category_id'], 'txt') ? $r['txt'] : '').
+						   (_zayavExpense($r['category_id'], 'worker') && $r['worker_id'] ?
 							   (!_viewerRules($r['worker_id'], 'RULES_NOSALARY') ?
 									'<a class="go-report-salary" val="'.$r['worker_id'].':'.substr($r['mon'], 0, 7).':'.$r['id'].'">'.
 										_viewer($r['worker_id'], 'name').
@@ -1305,15 +1305,15 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 					'<td class="sum'.($r['acc'] ? _tooltip(_monthCut($mon[1]).' '.$mon[0], -7) : '">').$r['sum'].' р.';
 		$json[] = '['.
 					$r['category_id'].',"'.
-					(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
-					(_zayavRashod($r['category_id'], 'worker') ? $r['worker_id'] : '').'",'.
+					(_zayavExpense($r['category_id'], 'txt') ? $r['txt'] : '').
+					(_zayavExpense($r['category_id'], 'worker') ? $r['worker_id'] : '').'",'.
 					$r['sum'].','.
 					$r['salary_list_id'].
 				  ']';
 		$array[] = array(
 			intval($r['category_id']),
-			(_zayavRashod($r['category_id'], 'txt') ? $r['txt'] : '').
-			(_zayavRashod($r['category_id'], 'worker') ? intval($r['worker_id']) : ''),
+			(_zayavExpense($r['category_id'], 'txt') ? $r['txt'] : '').
+			(_zayavExpense($r['category_id'], 'worker') ? intval($r['worker_id']) : ''),
 			intval($r['sum']),
 			intval($r['salary_list_id'])
 		);

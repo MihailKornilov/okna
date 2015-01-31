@@ -13,7 +13,7 @@
 #pin-enter .red{margin-top:10px}
 
 
-/* �������� ����� ��� ������ �������� */
+/* ???????? ????? ??? ?????? ???????? */
 ._moneysum{margin-bottom:7px}
 
 ._attach,
@@ -39,20 +39,20 @@
 ._attach .form._busy .attach_a{visibility:hidden}
 
 
-/* �������� ������� �� ����� ��� ���������� �������� */
+/* ???????? ??????? ?? ????? ??? ?????????? ???????? */
 .cut-money{border-spacing:8px}
 .cut-money .label{text-align:right;width:90px}
 .cut-money input{width:50px}
 .cut-money ._calendar{margin-left:5px}
 
-/* ������� ��� �������� ������� */
+/* ??????? ??? ???????? ??????? */
 .income-add-tab{border-spacing:8px}
 .income-add-tab .label{width:150px;text-align:right}
 .income-add-tab .img_edit{position:relative;top:-4px;left:4px}
 .income-add-tab #prim{width:220px}
 
 
-/* ������� ������� */
+/* ??????? ??????? */
 #zamer-table .mon{font-weight:bold;margin:0 10px 0 16px}
 #zamer-table .mon b{display:inline-block;width:90px}
 #zamer-table .mon a{display:inline-block;padding:3px 8px 4px;font-size:12px;margin-right:5px}
@@ -101,7 +101,7 @@
 #zamer-table .ztu:hover{background-color:#6d6}
 #zamer-table .ztu:hover .title{display:block}
 
-/* �������� � �������������� ������� */
+/* ???????? ? ?????????????? ??????? */
 .client-add{border-spacing:10px}
 .client-add .label{width:75px;text-align:right}
 .client-add.e .label{width:120px}
@@ -117,7 +117,7 @@
 .client-add #pasp_nomer{width:104px}
 .client-add #pasp_data{width:180px}
 
-/* ������ �������� */
+/* ?????? ???????? */
 #client #find{background-color:#F7F7F7;padding:10px;border-bottom:#dae1e8 solid 1px}
 #client .result.busy{background-position:585px center}
 #client #filter_clear{float:right}
@@ -139,7 +139,7 @@
 }
 #client ._next{margin:0 10px}
 
-/* ���������� � ������� */
+/* ?????????? ? ??????? */
 #clientInfo .left{padding-bottom:10px}
 #clientInfo ._info{margin:10px;font-weight:bold;text-align:center;background-color:#fee;color:red}
 #clientInfo .fio{color:#31618C;font-size:12px;font-weight:bold;margin:15px 5px 5px 20px}
@@ -161,14 +161,14 @@
 #clientInfo .right{width:145px;height:auto}
 #clientInfo .cdel{color:red}
 
-/* ���� ������� ��� ���������� ������� */
+/* ???? ??????? ??? ?????????? ??????? */
 ._product-list .ptab{padding-bottom:6px}
 ._product-list ._select{margin-right:5px}
 ._product-list .count{width:20px}
 ._product-list .img_del{margin:0 0 -4px 6px}
 ._product-list .add{display:inline-block;text-align:center;padding:4px 0 8px}
 
-/* ��������� ������ �������� � ������ */
+/* ????????? ?????? ???????? ? ?????? */
 ._zayav-rashod .ptab{margin-bottom:6px}
 /*._zayav-rashod .tddop{width:155px}*/
 ._zayav-rashod .zrtxt{width:142px;margin-right:5px}
@@ -185,7 +185,7 @@
 .zayav-rashod-spisok .itog{text-align:right}
 .zayav-rashod-spisok .noacc *{background-color:#f2f2f2;color:#777}
 
-/* �������� ����� ������ */
+/* ???????? ????? ?????? */
 .zayav-add{border-spacing:12px;margin-bottom:30px}
 .zayav-add .label{width:140px;text-align:right}
 .zayav-add .product_edit{margin:0 4px -4px 0}
@@ -207,7 +207,7 @@
 .zayav-zamer-dtime #zamer_hour_select{margin-right:2px}
 .zayav-zamer-dtime #zamer_min_select{margin-left:1px}
 
-/* ����������� ������ �������� � ��������� � ������ */
+/* ??????????? ?????? ???????? ? ????????? ? ?????? */
 .zayav-dog{color:#777}
 
 .zayav_unit{
@@ -235,7 +235,7 @@
 .zayav_unit .label{width:60px}
 .zayav_unit .product td{padding:1px 4px 3px 0}
 
-/* ������ ������ */
+/* ?????? ?????? */
 #zayav ._search{float:right;margin:-3px -5px 0 0}
 #zayav .filter_clear{float:right}
 #zayav #spisok{padding-bottom:10px;background-color:#f7f7f7;vertical-align:top}
@@ -246,7 +246,7 @@
 #zayav #desc_check{margin-top:10px}
 #zayav ._empty{margin-right:6px;}
 
-/* ���������� � ������ */
+/* ?????????? ? ?????? */
 .zayav-info ._info{margin:10px;font-weight:bold;text-align:center;background-color:#fee;color:red}
 .zayav-info .delete{float:right;margin-top:4px;color:#933}
 .zayav-info:not(.h) .histories,.zayav-info.h .content{display:none}
@@ -342,7 +342,7 @@
 .refund-add-tab #isum b{font-size:10px}
 .refund-add-tab #prim{width:220px}
 
-/* ��������� ������� ������ */
+/* ????????? ??????? ?????? */
 .zayav-status{margin:10px}
 .zayav-status .st{
 	padding:10px 15px;
@@ -409,7 +409,7 @@
 .remind-add-tab #txt{width:240px;height:40px}
 
 
-/* ������ */
+/* ?????? */
 #report .right{width:160px;padding-bottom:200px}
 #report .headName{margin:0 0 15px 0}
 ._hist-un .changes .zayav-rashod-spisok{width:auto}
@@ -490,6 +490,7 @@
 .salary .zp-head{margin:17px 0 3px}
 .salary .zp-head span{float:right}
 .salary .list-head{margin:17px 0 3px}
+.salary .list-head em{float:right}
 .salary .ch{text-align:center;width:14px}
 .salary .about span{display:inline-block;padding:2px 5px}
 .salary .about tt{font-size:10px;color:#888;margin-left:7px}

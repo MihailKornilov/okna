@@ -953,7 +953,7 @@ $(document)
 		$('#show_worker')._check({func:checktest});
 		function submit() {
 			var send = {
-				op:'setup_zayavrashod_add',
+				op:'setup_zayav_expense_add',
 				name:$('#name').val(),
 				show_txt:$('#show_txt').val(),
 				show_worker:$('#show_worker').val()
@@ -1015,7 +1015,7 @@ $(document)
 		$('#show_worker')._check({func:checktest});
 		function submit() {
 			var send = {
-				op:'setup_zayavrashod_edit',
+				op:'setup_zayav_expense_edit',
 				id:id,
 				name:$('#name').val(),
 				show_txt:$('#show_txt').val(),
@@ -1066,7 +1066,7 @@ $(document)
 			while(t[0].tagName != 'DD')
 				t = t.parent();
 			var send = {
-				op:'setup_zayavrashod_del',
+				op:'setup_zayav_expense_del',
 				id:t.attr('val')
 			};
 			dialog.process();

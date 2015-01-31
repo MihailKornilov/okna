@@ -1132,7 +1132,7 @@ switch(@$_POST['op']) {
 				if($r[3])
 					continue;
 				$acc = 0;
-				if(_zayavRashod($r[0], 'worker') && $r[1]) {
+				if(_zayavExpense($r[0], 'worker') && $r[1]) {
 					$acc = 1;
 					if(_viewerRules($r[1], 'RULES_ZPZAYAVAUTO') && $dolg)
 						$acc = 0;
@@ -1148,8 +1148,8 @@ switch(@$_POST['op']) {
 						) VALUES (
 							".$zayav_id.",
 							".$r[0].",
-							'".(_zayavRashod($r[0], 'txt') ? addslashes($r[1]) : '')."',
-							".(_zayavRashod($r[0], 'worker') ? intval($r[1]) : 0).",
+							'".(_zayavExpense($r[0], 'txt') ? addslashes($r[1]) : '')."',
+							".(_zayavExpense($r[0], 'worker') ? intval($r[1]) : 0).",
 							".$r[2].",
 							".$acc.",
 							'".($acc ? strftime('%Y-%m-%d') : '0000-00-00')."'
@@ -3864,7 +3864,7 @@ switch(@$_POST['op']) {
 		$send['html'] = utf8(setup_expense_spisok());
 		jsonSuccess($send);
 		break;
-	case 'setup_zayavrashod_add':
+	case 'setup_zayav_expense_add':
 		if(!RULES_ZAYAVRASHOD)
 			jsonError();
 		if(!preg_match(REGEXP_BOOL, $_POST['show_txt']))
@@ -3895,7 +3895,7 @@ switch(@$_POST['op']) {
 				)";
 		query($sql);
 
-		xcache_unset(CACHE_PREFIX.'zayavrashod');
+		xcache_unset(CACHE_PREFIX.'zayav_expense');
 		GvaluesCreate();
 
 		_historyInsert(511, array('value'=>$name));
@@ -3904,7 +3904,7 @@ switch(@$_POST['op']) {
 		$send['html'] = utf8(setup_zayavexpense_spisok());
 		jsonSuccess($send);
 		break;
-	case 'setup_zayavrashod_edit':
+	case 'setup_zayav_expense_edit':
 		if(!RULES_ZAYAVRASHOD)
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
@@ -3936,7 +3936,7 @@ switch(@$_POST['op']) {
 				WHERE `id`=".$id;
 		query($sql);
 
-		xcache_unset(CACHE_PREFIX.'zayavrashod');
+		xcache_unset(CACHE_PREFIX.'zayav_expense');
 		GvaluesCreate();
 
 		$changes = '';
@@ -3955,7 +3955,7 @@ switch(@$_POST['op']) {
 		$send['html'] = utf8(setup_zayavexpense_spisok());
 		jsonSuccess($send);
 		break;
-	case 'setup_zayavrashod_del':
+	case 'setup_zayav_expense_del':
 		if(!RULES_ZAYAVRASHOD)
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
@@ -3971,7 +3971,7 @@ switch(@$_POST['op']) {
 		$sql = "DELETE FROM `setup_zayavexpense` WHERE `id`=".$id;
 		query($sql);
 
-		xcache_unset(CACHE_PREFIX.'zayavrashod');
+		xcache_unset(CACHE_PREFIX.'zayav_expense');
 		GvaluesCreate();
 
 		_historyInsert(513, array('value'=>$r['name']));

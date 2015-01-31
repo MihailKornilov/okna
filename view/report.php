@@ -963,20 +963,24 @@ function income_month($mon) {
 			GROUP BY DATE_FORMAT(`dtime_add`,'%d')
 			ORDER BY `dtime_add` ASC";
 	$q = query($sql);
-	while($r = mysql_fetch_assoc($q))
+	$sum = 0;
+	while($r = mysql_fetch_assoc($q)) {
 		$spisok[intval($r['day'])] =
-			'<tr><td class="r"><a href="'.URL.'&p=report&d=money&d1=income&day='.$mon.'-'.$r['day'].'">'.intval($r['day']).'.'.MON.'.'.YEAR.'</a>'.
-			'<td class="r"><b>'._sumSpace($r['sum']).'</b>';
+			'<tr><td class="r"><a href="'.URL.'&p=report&d=money&d1=income&day='.$mon.'-'.$r['day'].'">'.intval($r['day']).'.'.MON.'.'.YEAR.'</a>' .
+				'<td class="r"><b>'._sumSpace($r['sum']).'</b>';
+		$sum += $r['sum'];
+	}
+	$summ = '<td><b>'._sumSpace($sum).'</b>';//Линия с суммами в таблице
 
 	$th = '';
 	foreach(_income() as $income_id => $i) {
 		$th .= '<th>'.$i['name'];
-		foreach($spisok as $y => $r)
+		foreach ($spisok as $y => $r)
 			$spisok[$y] .= '<td class="r">';
 		$sql = "SELECT DATE_FORMAT(`dtime_add`,'%d') AS `day`,
 					   SUM(`sum`) AS `sum`
 				FROM `money`
-				WHERE `deleted`=0
+				WHERE !`deleted`
 				  AND `sum`>0
 				  AND `dtime_add` LIKE '".$mon."%'
 				  AND `income_id`=".$income_id."
@@ -984,8 +988,12 @@ function income_month($mon) {
 				GROUP BY DATE_FORMAT(`dtime_add`,'%d')
 				ORDER BY `dtime_add` ASC";
 		$q = query($sql);
-		while($r = mysql_fetch_assoc($q))
+		$sum = 0;
+		while ($r = mysql_fetch_assoc($q)) {
 			$spisok[intval($r['day'])] .= _sumSpace($r['sum']);
+			$sum += $r['sum'];
+		}
+		$summ .= '<td class="r">'.($sum ? '<b>'._sumSpace($sum).'</b>' : '');
 	}
 	return
 	'<div class="headName">Суммы платежей по дням за '._monthDef(MON, 1).' '.YEAR.'</div>'.
@@ -995,6 +1003,8 @@ function income_month($mon) {
 			'<th>Всего'.
 			$th.
 			implode('', $spisok).
+		'<tr><td class="r"><b>Сумма:</b>'.
+			$summ.
 	'</table>';
 }//income_month()
 function income_day($day) {
@@ -1761,6 +1771,7 @@ function salary_worker_acc($v) {
 	$sql = "(SELECT
 				'Начисление' AS `type`,
 				`e`.`id`,
+				`e`.`category_id`,
 			    `e`.`sum`,
 				'' AS `about`,
 				`e`.`zayav_id`,
@@ -1780,6 +1791,7 @@ function salary_worker_acc($v) {
 			SELECT
 				'Начисление' AS `type`,
 				`id`,
+				`category_id`,
 			    `sum`,
 				`txt` AS `about`,
 				0 AS `zayav_id`,
@@ -1795,6 +1807,7 @@ function salary_worker_acc($v) {
 			SELECT
 				'Вычет' AS `type`,
 				`id`,
+				0 AS `category_id`,
 			    `sum`,
 				`txt` AS `about`,
 				0 AS `zayav_id`,
@@ -1834,7 +1847,8 @@ function salary_worker_acc($v) {
 
 	foreach($spisok as $r) {
 		$about = $r['zayav_id'] ?
-					'<span style="background-color:#'.$r['zayav_status_color'].'">'.$r['zayav_link'].'</span>'.
+					'<span style="background-color:#'.$r['zayav_status_color'].'">'.$r['zayav_link'].'</span> '.
+					'<u>'._zayavExpense($r['category_id']).'</u>'.
 					'<tt>от '.FullData($r['zayav_add'], 1).'</tt>'.
 					($r['zayav_dolg'] ? '<span class="z-dolg'._tooltip('Долг по заявке', -40).$r['zayav_dolg'].'</span>' : '')
 					:
@@ -1872,11 +1886,13 @@ function salary_worker_noacc($v) {
 	if(!mysql_num_rows($q))
 		return '';
 	$spisok = array();
+	$sum = 0;
 	while($r = mysql_fetch_assoc($q)) {
 		$spisok[$r['id']] = $r;
+		$sum += $r['sum'];
 	}
 	$spisok = _zayavLink($spisok);
-	$send = '<div class="list-head"><b>Не начислено:</b></div>'.
+	$send = '<div class="list-head"><b>Не начислено:</b><em>Сумма: <b>'.$sum.'</b></em></div>'.
 		'<table class="_spisok _money">'.
 		'<tr>'.
 			'<th>Вид'.

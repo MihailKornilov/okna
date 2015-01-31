@@ -11,7 +11,7 @@ function setup() {
 		'invoice' => 'Счета',
 		'income' => 'Виды платежей',
 		'expense' => 'Категории расходов',
-		'zayavrashod' => 'Расходы по заявке'
+		'zayavexpense' => 'Расходы по заявке'
 	);
 
 	if(!RULES_WORKER)
@@ -25,7 +25,7 @@ function setup() {
 		unset($pages['income']);
 	}
 	if(!RULES_ZAYAVRASHOD)
-		unset($pages['zayavrashod']);
+		unset($pages['zayavexpense']);
 
 	$d = empty($_GET['d']) ? 'my' : $_GET['d'];
 
@@ -50,7 +50,7 @@ function setup() {
 		case 'invoice': $left = setup_invoice(); break;
 		case 'income': $left = setup_income(); break;
 		case 'expense': $left = setup_expense(); break;
-		case 'zayavrashod': $left = setup_zayavexpense(); break;
+		case 'zayavexpense': $left = setup_zayavexpense(); break;
 	}
 	$links = '';
 	foreach($pages as $p => $name)

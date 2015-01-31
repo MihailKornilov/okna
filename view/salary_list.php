@@ -101,13 +101,14 @@ function pageSetup($title) {
 		->SetPaperSize(PHPExcel_Worksheet_PageSetup::PAPERSIZE_A4);
 
 	//Поля документа
-	$sheet->getPageMargins()->setTop(0.2)
+	$sheet->getPageMargins()
+		->setTop(0.2)
 		->setRight(0.2)
 		->setLeft(0.2)
 		->setBottom(0.2);
 
 	//Масштаб страницы
-	$sheet->getSheetView()->setZoomScale(100);
+	$sheet->getSheetView()->setZoomScale(90);
 
 	//Название страницы
 	$sheet->setTitle($title);
@@ -193,7 +194,7 @@ function zpPrint() {
 		$sheet->setCellValue('C'.$line, $r['zayav_id'] ? utf8(zayav_product_spisok($zayav[$r['zayav_id']]['product'], 'report')) : '');
 		$sheet->setCellValue('D'.$line, $r['zayav_id'] && $r['status_day'] != '0000-00-00' ? reportData($r['status_day']) : '');
 		$sheet->setCellValue('E'.$line, $r['sum']);
-		$sheet->setCellValue('F'.$line, utf8($r['txt']));
+		$sheet->setCellValue('F'.$line, utf8($r['txt'].' '._zayavExpense($r['category_id'])));
 		$line++;
 	}
 	$line += 3;
