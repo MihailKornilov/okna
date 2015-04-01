@@ -1,14 +1,11 @@
 <?php
-$mysql = array(
-	'host' => '127.0.0.1',
-	'user' => 'root',
-	'pass' => '4909099',
-	'database' => 'okna',
-	'names' => 'cp1251'
-);
+define('MYSQL_HOST',     '127.0.0.1');
+define('MYSQL_USER',     'root');
+define('MYSQL_PASS',     '4909099');
+define('MYSQL_DATABASE', 'okna');
+define('MYSQL_NAMES',    'cp1251');
 
-
-define('API_ID', 3978722);
+define('APP_ID', 3978722);
 define('CACHE_PREFIX', 'okna_');
 
 define('API_HTML', '/.vkapp/.api');

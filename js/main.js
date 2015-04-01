@@ -497,26 +497,6 @@ var hashLoc,
 		}, 'json');
 	},
 
-	remindSpisok = function(day) {
-		var y = $('#remind').hasClass('y'),
-			cal = $('#remind .right ._calendarFilter'),
-			send = {
-				op:'remind_spisok',
-				day:cal.find('.selected').val(),
-				status:$('#status').val(),
-				private:$('#private').val()
-			};
-		if(y)
-			$('#remind').removeClass('y');
-		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success) {
-				$('.remind_spisok').html(res.html);
-				if(y)
-					cal.html(res.cal);
-			}
-		}, 'json');
-	},
-
 	incomeSpisok = function() {
 		var send = {
 			op:'income_spisok',
@@ -1633,153 +1613,6 @@ $(document)
 		}
 	})
 
-	.on('click', '.remind-add', function() {
-		var html =
-				'<table class="remind-add-tab">' +
-					(window.ZAYAV ? '<tr><td class="label">Заявка:<td><b>' + ZAYAV.head + '</b>' : '') +
-					(window.CLIENT ? '<tr><td class="label">Клиент:<td>' + CLIENT.fio : '') +
-					'<tr><td class="label top">Описание:<td><textarea id="txt"></textarea>' +
-					'<tr><td class="label">День выполнения:<TD><INPUT type="hidden" id="day" />' +
-					'<tr><td class="label">Личное:<TD><INPUT type="hidden" id="add-private" />' +
-				'</table>' +
-				'<input type="hidden" id="client_id" value="' + (window.CLIENT ? CLIENT.id : 0) + '">' +
-				'<input type="hidden" id="zayav_id" value="' + (window.ZAYAV ? ZAYAV.id : 0) + '">',
-			dialog = _dialog({
-				top:40,
-				width:420,
-				head:'Внесение нового напоминания',
-				content:html,
-				submit:submit
-			});
-
-		$('#txt').autosize().focus();
-		$('#day')._calendar();
-		$('#add-private')._check();
-		$('#private_check').vkHint({
-			msg:'Напоминание сможете<br />видеть только Вы.',
-			top:-71,
-			left:-11,
-			indent:'left',
-			delayShow:1000
-		});
-
-		function submit() {
-			var send = {
-				op:'remind_add',
-				from:window.ZAYAV ? 'zayav' : (window.CLIENT ? 'client' : ''),
-				client_id:$('#client_id').val(),
-				zayav_id:$('#zayav_id').val(),
-				txt:$.trim($('#txt').val()),
-				day:$('#day').val(),
-				private:$('#add-private').val()
-			};
-			if(!send.txt) {
-				err('Не указано описание');
-				$('#txt').focus();
-			} else {
-				dialog.process();
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success) {
-						dialog.close();
-						_msg('Напоминание внесено');
-						$('.remind_spisok').html(res.html);
-					} else
-						dialog.abort();
-				}, 'json');
-			}
-		}
-		function err(msg) {
-			dialog.bottom.vkHint({
-				msg:'<SPAN class="red">' + msg + '</SPAN>',
-				top:-48,
-				left:126,
-				indent:40,
-				show:1,
-				remove:1
-			});
-		}
-	})
-	.on('click', '.remind_status', function() {
-		var t = $(this),
-			html =
-			'<div class="zayav-status remind-status">' +
-				'<div class="st c1" val="1">' +
-					'Указать другой день' +
-					'<div class="about">Перенести напоминание на другой день.</div>' +
-				'</div>' +
-				'<div class="st c2" val="2">' +
-					'Выполнено' +
-					'<div class="about">Задание выполнено успешно.</div>' +
-				'</div>' +
-				'<div class="st c0" val="0">' +
-					'Отмена' +
-					'<div class="about">Отмена напоминания по какой-либо причине.</div>' +
-				'</div>' +
-				'<table class="zstab">' +
-					'<tr><td class="label">Новый день:<td><input type="hidden" id="remind_day" />' +
-					'<tr><td class="label">Причина:<td><input type="text" id="reason" />' +
-					'<tr><td><td><div class="vkButton"><button>Применить</button></div>' +
-				'</table>' +
-			'</div>',
-			dialog = _dialog({
-				top:30,
-				head:'Изменение статуса напоминания',
-				content:html,
-				butSubmit:'',
-				butCancel:'Закрыть'
-			});
-		$('#remind_day')._calendar();
-		$('.st').click(function() {
-			var	v = $(this).attr('val');
-			if(v == 1) {
-				$('.c2,.c0').hide();
-				$('.zstab').show();
-			} else
-				submit(v);
-		});
-		$('.remind-status .vkButton').click(function() {
-			$(this).addClass('busy');
-			submit(1);
-		});
-		function submit(status) {
-			var send = {
-				op:'remind_status',
-				from:window.ZAYAV ? 'zayav' : (window.CLIENT ? 'client' : ''),
-				id:t.attr('val'),
-				status:status,
-				day:$('#remind_day').val(),
-				reason:$('#reason').val()
-			};
-			$.post(AJAX_MAIN, send, function(res) {
-				if(res.success) {
-					dialog.close();
-					_msg('Данные изменены!');
-					$('.remind_spisok').html(res.html);
-				}
-			}, 'json');
-		}
-	})
-	.on('click', '.remind_history', function() {
-		var t = $(this),
-			send = {
-				op:'remind_history',
-				id:t.attr('val')
-			},
-			hist = $('#ru' + send.id + ' .hist');
-		if(hist.hasClass('_busy'))
-			return;
-		if(hist.html()) {
-			hist.slideToggle(300);
-			return;
-		}
-		hist.html('&nbsp;').addClass('_busy');
-		$.post(AJAX_MAIN, send, function(res) {
-			hist.removeClass('_busy');
-			if(res.success)
-				hist.html(res.html);
-		}, 'json');
-	})
-
 	.on('click', '.invoice_set', function() {
 		if(!window.CASH)
 			window.CASH = [];
@@ -1871,7 +1704,7 @@ $(document)
 			});
 		}
 	})
-	.on('click', '#report.invoice .img_note', function() {
+	.on('click', '#report.invoice .img_note', function() {//просмотр операций со счётом
 		var dialog = _dialog({
 			top:20,
 			width:570,
@@ -1885,10 +1718,102 @@ $(document)
 			invoice_id:$(this).attr('val')
 		};
 		$.post(AJAX_MAIN, send, function(res) {
-			if(res.success)
-				dialog.content.html(res.html);
-			else
+			if(res.success) {
+				dialog.content.html('<div class="invoice-history">' + res.html + '</div>');
+				$('#ih-year')._select({
+					width:50,
+					spisok:[{uid:2014,title:2014},{uid:2015,title:2015}],
+					func:ostatokSpisok
+				});
+				$('#ih-mon')._select({
+					width:80,
+					spisok:MON_SPISOK,
+					func:ostatokSpisok
+				});
+			} else
 				dialog.loadError();
+		}, 'json');
+		function ostatokSpisok(v, id) {
+			var p = $('.invoice-history #dopLinks'),
+				send = {
+					op:'invoice_history_ostatok',
+					invoice_id:$('#invoice_history_id').val(),
+					year:id == 'ih-year' ? v : $('#ih-year').val(),
+					mon:id == 'ih-mon' ? v : $('#ih-mon').val()
+				};
+			if(p.hasClass('_busy'))
+				return;
+			p.addClass('_busy');
+			$.post(AJAX_MAIN, send, function(res) {
+				p.removeClass('_busy');
+				if(res.success)
+					$('#ih-spisok').html(res.html);
+			}, 'json');
+		}
+	})
+	.on('click', '.invoice-history .full,.invoice-history .ostatok', function() {//просмотр операций подробно либо по дням
+		var t = $(this),
+			p = t.parent();
+		if(t.hasClass('sel'))
+			return;
+		p.find('.sel').removeClass('sel');
+		t.addClass('sel');
+		p.addClass('_busy');
+
+		var but = t.hasClass('full') ? 'full' : 'ostatok',
+			send = {
+				op:'invoice_history_' + but,
+				invoice_id:$('#invoice_history_id').val(),
+				year:$('#ih-year').val(),
+				mon:$('#ih-mon').val()
+			};
+		$.post(AJAX_MAIN, send, function(res) {
+			p.removeClass('_busy');
+			if(res.success) {
+				$('#ih-spisok').html(res.html);
+				$('#ih-data')[(but == 'full' ? 'add' : 'remove') + 'Class']('dn');
+			}
+		}, 'json');
+	})
+	.on('click', '.invoice-history .to-day', function() {
+		var p = $('.invoice-history #dopLinks');
+		if(p.hasClass('_busy'))
+			return;
+		p.find('a.sel').removeClass('sel');
+		p.find('a.full').addClass('sel');
+		p.addClass('_busy');
+
+		var t = $(this),
+			send = {
+				op:'invoice_history_full',
+				invoice_id:$('#invoice_history_id').val(),
+				day:t.attr('val')
+			};
+		$.post(AJAX_MAIN, send, function(res) {
+			p.removeClass('_busy');
+			if(res.success) {
+				$('#ih-spisok').html(res.html);
+				$('#ih-data').addClass('dn');
+			}
+		}, 'json');
+	})
+	.on('click', '.invoice-history .ih-clear', function() {
+		var p = $('.invoice-history #dopLinks');
+		if(p.hasClass('_busy'))
+			return;
+		p.addClass('_busy');
+
+		var t = $(this),
+			send = {
+				op:'invoice_history_full',
+				invoice_id:$('#invoice_history_id').val()
+			};
+		$.post(AJAX_MAIN, send, function(res) {
+			p.removeClass('_busy');
+			if(res.success) {
+				$('#ih-spisok').html(res.html);
+				$('#ih-data').addClass('dn');
+			}
 		}, 'json');
 	})
 	.on('click', '.invoice-history ._next', function() {
@@ -2422,8 +2347,8 @@ $(document)
 					'День начисления может быть выбран в промежутке от 1-го до 28 числа.' +
 				'</div>' +
 				'<table class="salary-tab">' +
-					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="11" value="' + (RATE ? RATE : '') + '" /> руб.' +
-					'<tr><td class="label">День начисления:<TD><INPUT type="text" id="day" maxlength="2" value="' + (RATE ? RATE_DAY : '') + '" />' +
+					'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="11" value="' + (RATE ? RATE : '') + '" /> руб.' +
+					'<tr><td class="label">День начисления:<td><input type="text" id="day" maxlength="2" value="' + (RATE ? RATE_DAY : '') + '" />' +
 				'</table>',
 			dialog = _dialog({
 				top:30,
@@ -2669,7 +2594,9 @@ $(document)
 				'<table class="salary-tab">' +
 					'<tr><td class="label">Со счёта:<TD><input type="hidden" id="invoice">' +
 						'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -56) + '</a>' +
-					'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="8"> руб.' +
+					'<tr><td class="label">Сумма:' +
+						'<td><input type="text" id="sum" class="money" maxlength="8"> руб.' +
+							'<span id="isum"></span>' +
 					'<tr><td class="label">Описание:<td><input type="text" id="about" maxlength="100">' +
 					'<tr><td class="label">Месяц:<td><input type="hidden" id="tabmon" value="' + MON + '" /> ' +
 													'<input type="hidden" id="tabyear" value="' + YEAR + '" />' +
@@ -2684,8 +2611,9 @@ $(document)
 		$('#invoice')._select({
 			title0:'Не выбран',
 			spisok:INVOICE_SPISOK,
-			func:function() {
+			func:function(v) {
 				$('#sum').focus();
+				$('#isum').html(ISUM[v] ? 'max: <b>' + ISUM[v] + '</b>' : '');
 			}
 		});
 		$('#sum,#about').keyEnter(submit);
@@ -2703,13 +2631,14 @@ $(document)
 				op:'salary_down',
 				worker:WORKER_ID,
 				invoice:$('#invoice').val() * 1,
-				sum:$('#sum').val(),
+				sum:_cena($('#sum').val()),
 				about:$('#about').val(),
 				mon:$('#tabmon').val(),
 				year:$('#tabyear').val()
 			};
 			if(!send.invoice) err('Укажите с какого счёта производится выдача.');
-			else if(!REGEXP_NUMERIC.test(send.sum)) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+			else if(!send.sum) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+			else if(ISUM[send.invoice] && send.sum > ISUM[send.invoice]) { err('Сумма превышает максимально допустимую'); $('#sum').focus(); }
 			else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
@@ -2792,7 +2721,7 @@ $(document)
 	.on('click', '.salary .start-set', function() {
 		var html =
 				'<table class="salary-tab">' +
-					'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="8"> руб.' +
+					'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="8"> руб.' +
 				'</table>',
 			dialog = _dialog({
 				head:'Установка баланса по зарплате сотрудника',
@@ -3100,7 +3029,7 @@ $(document)
 				$('#zayav_filter').css('display', val == 'zayav' ? 'block' : 'none');
 				$('#zayav_spisok').css('display', val == 'zayav' ? 'block' : 'none');
 				$('#income_spisok').css('display', val == 'money' ? 'block' : 'none');
-				$('.remind_spisok').css('display', val == 'remind' ? 'block' : 'none');
+				$('#remind-spisok').css('display', val == 'remind' ? 'block' : 'none');
 				$('#comments').css('display', val == 'comm' ? 'block' : 'none');
 				$('#histories').css('display', val == 'hist' ? 'block' : 'none');
 			});
@@ -3736,7 +3665,7 @@ $(document)
 			$('.refund-add').click(function() {
 				var html = '<table class="refund-add-tab">' +
 					'<tr><td class="label">Клиент:<td>' + OPL.client_fio +
-					'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice_id">' +
+					'<tr><td class="label">Со счёта:<td><input type="hidden" id="invoice_id">' +
 						'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -56) + '</a>' +
 					'<tr><td class="label">Сумма:' +
 						'<td><input type="text" id="sum" class="money" maxlength="11" /> руб.' +
@@ -3765,11 +3694,11 @@ $(document)
 						op:'refund_add',
 						zayav_id:ZAYAV.id,
 						invoice_id:$('#invoice_id').val() * 1,
-						sum:$('#sum').val(),
+						sum:_cena($('#sum').val()),
 						prim:$.trim($('#prim').val())
 					};
 					if(!send.invoice_id) err('Не указан счёт');
-					else if(!REGEXP_CENA.test(send.sum)) { err('Некорректно указана сумма'); $('#sum').focus(); }
+					else if(!send.sum) { err('Некорректно указана сумма'); $('#sum').focus(); }
 					//else if(send.sum.replace(',', '.') > ZAYAV.isum[send.invoice_id]) { err('Возврат не может превышать сумму на счёте'); $('#sum').focus(); }
 					else {
 						dialog.process();
@@ -3796,15 +3725,6 @@ $(document)
 				}
 
 			});
-		}
-
-		if($('#remind').length) {
-			$('.goyear').click(function() {
-				$('#remind').addClass('y');
-			});
-			window._calendarFilter = remindSpisok;
-			$('#status')._radio(remindSpisok);
-			$('#private')._check(remindSpisok);
 		}
 
 		if($('#report.history').length) {
@@ -3842,16 +3762,18 @@ $(document)
 			$('.add').click(function() {
 				var html =
 						'<table id="expense-add-tab">' +
-							'<tr><td class="label">Категория:<TD><INPUT type="hidden" id="cat">' +
+							'<tr><td class="label">Категория:<td><input type="hidden" id="cat">' +
 								'<a href="' + URL + '&p=setup&d=expense" class="img_edit' + _tooltip('Настройка категорий расходов', -95) + '</a>' +
-							'<tr class="tr-work dn"><td class="label">Сотрудник:<TD><INPUT type="hidden" id="work">' +
+							'<tr class="tr-work dn"><td class="label">Сотрудник:<td><input type="hidden" id="work">' +
 							'<tr class="tr-work dn"><td class="label">Месяц:' +
 													'<td><input type="hidden" id="tabmon" value="' + ((new Date()).getMonth() + 1) + '" /> ' +
 														'<input type="hidden" id="tabyear" value="' + ((new Date()).getFullYear()) + '" />' +
-							'<tr><td class="label">Описание:<TD><INPUT type="text" id="about" maxlength="100">' +
-							'<tr><td class="label">Со счёта:<TD><INPUT type="hidden" id="invoice">' +
+							'<tr><td class="label">Описание:<td><input type="text" id="about" maxlength="100">' +
+							'<tr><td class="label">Со счёта:<td><input type="hidden" id="invoice">' +
 								'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -56) + '</a>' +
-							'<tr><td class="label">Сумма:<TD><INPUT type="text" id="sum" class="money" maxlength="11"> руб.' +
+							'<tr><td class="label">Сумма:' +
+								'<td><input type="text" id="sum" class="money" maxlength="11"> руб.' +
+									'<span id="isum"></span>' +
 						'</table>',
 					dialog = _dialog({
 						width:380,
@@ -3877,8 +3799,9 @@ $(document)
 				$('#invoice')._select({
 					title0:'Не выбран',
 					spisok:INVOICE_SPISOK,
-					func:function() {
+					func:function(v) {
 						$('#sum').focus();
+						$('#isum').html(ISUM[v] ? 'max: <b>' + ISUM[v] + '</b>' : '');
 					}
 				});
 				$('#sum,#about').keyEnter(submit);
@@ -3897,13 +3820,14 @@ $(document)
 						about:$('#about').val(),
 						worker:$('#work').val(),
 						invoice:$('#invoice').val() * 1,
-						sum:$('#sum').val(),
+						sum:_cena($('#sum').val()),
 						mon:$('#tabmon').val(),
 						year:$('#tabyear').val()
 					};
 					if(!send.category && !send.about) { err('Выберите категорию или укажите описание.'); $('#about').focus(); }
 					else if(!send.invoice) err('Укажите с какого счёта производится оплата.');
-					else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+					else if(!send.sum) { err('Некорректно указана сумма.'); $('#sum').focus(); }
+					else if(ISUM[send.invoice] && send.sum > ISUM[send.invoice]) { err('Сумма превышает максимально допустимую'); $('#sum').focus(); }
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function (res) {
@@ -3960,12 +3884,15 @@ $(document)
 			$('.transfer').click(function() {
 				var t = $(this),
 					html = '<table class="invoice-transfer">' +
-						'<tr><td class="label">Со счёта:<td><input type="hidden" id="from" />' +
-						'<tr><td class="label">На счёт:<td><input type="hidden" id="to" />' +
+						'<tr><td class="label">Со счёта:' +
+							'<td><input type="hidden" id="from" /><span id="sum-from"></span>' +
+						'<tr><td class="label">На счёт:' +
+							'<td><input type="hidden" id="to" /><span id="sum-to"></span>' +
 						'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" /> руб. ' +
 							'<a class="income-choice">Выбрать платежи</a>' +
 							'<input type="hidden" id="ids" />' +
 						'</table>',
+					sum_from = 0,
 					dialog = _dialog({
 						width:380,
 						head:'Перевод между счетами',
@@ -3981,19 +3908,24 @@ $(document)
 					window.CSMOVE = 1;
 				}
 				$('#from')._select({
-					width:250,
+					width:200,
 					title0:'Не выбран',
 					spisok:INVOICE_SPISOK,
 					func:function(v) {
 						$('.income-choice').html('Выбрать платежи');
 						$('#ids').val('');
 						$('#sum').val('').attr('readonly', SELMONEY[v] ? true : false);
+						$('#sum-from').html(CASH_SUM[v] ? 'max: ' + CASH_SUM[v] : '');
+						sum_from = CASH_SUM[v] ? CASH_SUM[v] : 0;
 					}
 				});
 				$('#to')._select({
-					width:250,
+					width:200,
 					title0:'Не выбран',
-					spisok:INVOICE_SPISOK
+					spisok:INVOICE_SPISOK,
+					func:function(v) {
+						$('#sum-to').html(CASH_SUM[v] ? CASH_SUM[v] : '');
+					}
 				});
 				$('#sum').keyEnter(submit);
 				$('#sum').keyup(function() {
@@ -4042,13 +3974,14 @@ $(document)
 						op:'invoice_transfer',
 						from:$('#from').val() * 1,
 						to:$('#to').val() * 1,
-						sum:$('#sum').val(),
+						sum:_cena($('#sum').val()),
 						ids:$('#ids').val()
 					};
 					if(!send.from) err('Выберите счёт-отправитель');
 					else if(!send.to) err('Выберите счёт-получатель');
 					else if(send.from == send.to) err('Выберите другой счёт');
-					else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) { err('Некорректно введена сумма'); $('#sum').focus(); }
+					else if(!send.sum) { err('Некорректно введена сумма'); $('#sum').focus(); }
+					else if(CASH_SUM[send.from] && sum_from - send.sum < 0) { err('Введённая сумма больше, чем на счёте-отправителе'); $('#sum').focus(); }
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function(res) {

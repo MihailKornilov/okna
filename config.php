@@ -11,16 +11,12 @@ require_once(DOCUMENT_ROOT.'/view/main.php');
 require_once(DOCUMENT_ROOT.'/view/setup.php');
 require_once(DOCUMENT_ROOT.'/view/report.php');
 
-define('API_URL', 'http://vk.com/app'.API_ID);
-define('TODAY', strftime('%Y-%m-%d'));
-define('TODAY_UNIXTIME', strtotime(TODAY));
 define('PATH_DOGOVOR', APP_PATH.'/files/dogovor/');
 define('LINK_DOGOVOR', APP_HTML.'/files/dogovor/');
 
 session_name('evrookna');
 session_start();
 
-_dbConnect();
 _getSetupGlobal();
 _getVkUser();
 

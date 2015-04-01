@@ -369,8 +369,11 @@ function history_right() {
 }//history_right()
 
 function _invoiceBalans($invoice_id, $start=false) {// Получение текущего баланса счёта
-	if($start === false)
-		$start = $invoice_id > 100 ? _viewer($invoice_id, 'cash') : _invoice($invoice_id, 'start');
+	if($start === false) {
+		$start = round($invoice_id > 100 ? _viewer($invoice_id, 'cash') : _invoice($invoice_id, 'start'), 2);
+		if($start== -1)
+			return false;
+	}
 	$income = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `money` WHERE !`deleted` AND !`confirm` AND `invoice_id`=".($invoice_id > 100 ? "1 AND `viewer_id_add`=" : '').$invoice_id);
 	$from = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE !`deleted` AND `invoice_from`=".($invoice_id > 100 ? "1 AND `worker_from`=" : '').$invoice_id);
 	$to = query_value("SELECT IFNULL(SUM(`sum`),0) FROM `invoice_transfer` WHERE !`deleted` AND `invoice_to`=".($invoice_id > 100 ? "1 AND `worker_to`=" : '').$invoice_id);
@@ -389,8 +392,10 @@ function invoice() {
 	return
 		'<script type="text/javascript">'.
 			'var CASH=['.implode(',', $data['cash']).'],'.
+				'CASH_SUM={'.implode(',', $data['cash_sum']).'},'.
 				'CASH_SPISOK=['.implode(',', $data['cash_spisok']).'],'.
 				'INVOICE_NAME="'._invoice(1).'",'.
+				'MON_SPISOK='._selJson(_monthDef(0, 1)).','.
 				'SELMONEY='.$selmoney.';'.
 		'</script>'.
 		'<div class="headName">'.
@@ -424,6 +429,7 @@ function cash_spisok() {
 	$send = array(
 		'cash' => array(),
 		'cash_spisok' => array(),
+		'cash_sum' => array(),  //список счётов с суммами
 		'spisok' => ''
 	);
 	$sql = "SELECT
@@ -452,12 +458,31 @@ function cash_spisok() {
 				'name:"'.addslashes(_viewer($r['viewer_id'], 'name')).'",'.
 				'sum:"'.$sum.'"'.
 			'}';
+		$send['cash_sum'][] = $r['viewer_id'].':'.$sum;
 		$send['cash_spisok'][] = '{'.
 				'uid:'.$r['viewer_id'].','.
 				'title:"Наличные: '.addslashes(_viewer($r['viewer_id'], 'name')).'"'.
 			'}';
 	}
 	$send['spisok'] .= '</table>';
+
+	// добавление в список счетов с суммами счетов, которые видны пользователю
+	$sql = "SELECT * FROM `invoice` WHERE `id`!=1 ";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q)) {
+		if(!VIEWER_ADMIN) {
+			$show = false;
+			foreach (explode(',', $r['visible']) as $uid)
+				if ($uid == VIEWER_ID) {
+					$show = true;
+					break;
+				}
+			if (!$show)
+				continue;
+		}
+		$send['cash_sum'][] = $r['id'].':'._invoiceBalans($r['id']);
+	}
+
 	return $send;
 }//cash_spisok()
 function invoice_spisok() {
@@ -628,22 +653,38 @@ function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории сче
 	);
 	return $action[$id][$i];
 }//invoiceHistoryAction()
-function invoice_history($v) {
+function invoice_history($invoice_id) {
+	$invoice = $invoice_id > 100 ? 'Наличные ' . _viewer($invoice_id, 'name') : _invoice($invoice_id);
+	return
+		'<input type="hidden" id="invoice_history_id" value="'.$invoice_id.'" />'.
+		'<div id="dopLinks">' .
+			'Счёт <u>'.$invoice.'</u> ' .
+			'<a class="link sel full">Подробно</a>' .
+			'<a class="link ostatok">По дням</a>' .
+		'</div>'.
+		'<div id="ih-data" class="dn">'.
+			'<input type="hidden" id="ih-year" value="'.strftime('%Y').'" />'.
+			'<input type="hidden" id="ih-mon" value="'.intval(strftime('%m')).'" />'.
+		'</div>'.
+		'<div id="ih-spisok">'.invoice_history_full(array('invoice_id'=>$invoice_id)).'</div>';
+}//invoice_history()
+function invoice_history_full($v) {
 	$v = array(
 		'page' => !empty($v['page']) && preg_match(REGEXP_NUMERIC, $v['page']) ? $v['page'] : 1,
 		'limit' => !empty($v['limit']) && preg_match(REGEXP_NUMERIC, $v['limit']) ? $v['limit'] : 15,
-		'invoice_id' => intval($v['invoice_id'])
+		'invoice_id' => intval($v['invoice_id']),
+		'day' => !empty($v['day']) && preg_match(REGEXP_DATE, $v['day']) ? $v['day'] : TODAY
 	);
-	$invoice = $v['invoice_id'] > 100 ? 'Наличные '._viewer($v['invoice_id'], 'name') : _invoice($v['invoice_id']);
-	$send = '';
-	if($v['page'] == 1)
-		$send = '<div>Счёт <u>'.$invoice.'</u>:</div>'.
-				'<input type="hidden" id="invoice_history_id" value="'.$v['invoice_id'].'" />';
 
-	$all = query_value("SELECT COUNT(*) FROM `invoice_history` WHERE `invoice_id`=".$v['invoice_id']);
+	$cond = "`h`.`invoice_id`=".$v['invoice_id'];
+	if($v['day'] != TODAY)
+		$cond .= " AND `h`.`dtime_add` LIKE '".$v['day']."%'";
+
+	$all = query_value("SELECT COUNT(*) FROM `invoice_history` `h` WHERE ".$cond);
 	if(!$all)
-		return $send.'<br />Истории нет.';
+		return 'Истории нет.';
 
+	$send = '';
 	$start = ($v['page'] - 1) * $v['limit'];
 	$sql = "SELECT `h`.*,
 				   IFNULL(`m`.`zayav_id`,0) AS `zayav_id`,
@@ -663,7 +704,7 @@ function invoice_history($v) {
 				ON `h`.`table`='money' AND `h`.`table_id`=`m`.`id`
 				LEFT JOIN `invoice_transfer` `i`
 				ON `h`.`table`='invoice_transfer' AND `h`.`table_id`=`i`.`id`
-			WHERE `h`.`invoice_id`=".$v['invoice_id']."
+			WHERE ".$cond."
 			ORDER BY `h`.`id` DESC
 			LIMIT ".$start.",".$v['limit'];
 	$q = query($sql);
@@ -675,12 +716,19 @@ function invoice_history($v) {
 	$history = _dogNomer($history);
 
 	if($v['page'] == 1)
-		$send .= '<table class="_spisok _money invoice-history">'.
-					'<tr><th>Действие'.
-						'<th>Сумма'.
-						'<th>Баланс'.
-						'<th>Описание'.
-						'<th>Дата';
+		$send .=
+			($v['day'] != TODAY ?
+				'<div>'.
+					'История за <b>'.FullData($v['day'], 1).'</b>:'.
+					'<a class="ih-clear">Очистить</a>'.
+				'</div>'
+			: '').
+			'<table class="_spisok _money">'.
+				'<tr><th>Действие'.
+					'<th>Сумма'.
+					'<th>Баланс'.
+					'<th>Описание'.
+					'<th>Дата';
 	foreach($history as $r) {
 		$about = '';
 		if($r['zayav_id'])
@@ -744,7 +792,100 @@ function invoice_history($v) {
 	if($v['page'] == 1)
 		$send .= '</table>';
 	return $send;
-}//invoice_history()
+}//invoice_history_full()
+function invoice_history_ostatok($v) {
+	$v = array(
+		'invoice_id' => intval($v['invoice_id']),
+		'year' => !_isnum(@$v['year']) ? strftime('%Y') : $v['year'],
+		'mon' => !_isnum(@$v['mon']) ? strftime('%m') : ($v['mon'] < 10 ? 0 : '').$v['mon']
+	);
+	$month = $v['year'].'-'.$v['mon'];
+	$send = '<table class="_spisok">'.
+		'<tr><th>Дата'.
+			'<th>Начало дня'.
+			'<th>Приход'.
+			'<th>Расход'.
+			'<th>Остаток';
+
+	$ass = array();
+
+	// остаток на конец дня
+	$sql = "SELECT
+				DATE_FORMAT(`dtime_add`,'%d') AS `day`,
+				`balans`
+			FROM `invoice_history`
+			WHERE `id` IN (
+				SELECT
+					MAX(`id`)
+				FROM `invoice_history`
+				WHERE `invoice_id`=".$v['invoice_id']."
+				  AND `dtime_add` LIKE '".$month."%'
+				GROUP BY DATE_FORMAT(`dtime_add`,'%d')
+				ORDER BY `id`
+			)";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$ass[intval($r['day'])]['balans'] = round($r['balans'], 2);
+
+	// суммы приходов
+	$sql = "SELECT
+				DATE_FORMAT(`dtime_add`,'%d') AS `day`,
+				SUM(`sum`) AS `sum`
+			FROM `invoice_history`
+			WHERE `invoice_id`=".$v['invoice_id']."
+			  AND `sum`>0
+			  AND `dtime_add` LIKE '".$month."%'
+			GROUP BY DATE_FORMAT(`dtime_add`,'%d')
+			ORDER BY `id`";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$ass[intval($r['day'])]['inc'] = round($r['sum'], 2);
+
+	// суммы расходов
+	$sql = "SELECT
+				DATE_FORMAT(`dtime_add`,'%d') AS `day`,
+				SUM(`sum`) AS `sum`
+			FROM `invoice_history`
+			WHERE `invoice_id`=".$v['invoice_id']."
+			  AND `sum`<0
+			  AND `dtime_add` LIKE '".$month."%'
+			GROUP BY DATE_FORMAT(`dtime_add`,'%d')
+			ORDER BY `id`";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q))
+		$ass[intval($r['day'])]['dec'] = round($r['sum'], 2);
+
+	$unix = strtotime($month.'-01');
+	$prev_month = strftime('%Y-%m', $unix - 86400);
+
+	// баланс за последний день
+	$sql = "SELECT `balans`
+			FROM `invoice_history`
+			WHERE `invoice_id`=".$v['invoice_id']."
+			  AND `dtime_add` LIKE '".$prev_month."%'
+			ORDER BY `id` DESC
+			LIMIT 1";
+	$balans = query_value($sql);
+
+	$balans = $balans ? $balans : 0;
+	for($d = 1; $d <= date('t', $unix); $d++) {
+		if(strtotime($month.'-'.$d) > TODAY_UNIXTIME)
+			break;
+		$day = FullData($month.'-'.$d, 1, 1, 1);
+		$balans = isset($ass[$d]) ? $ass[$d]['balans'] : $balans;
+		$inc = isset($ass[$d]['inc']) ? $ass[$d]['inc'] : 0;
+		$dec = isset($ass[$d]['dec']) ? $ass[$d]['dec'] : 0;
+		$start = $balans - $inc - $dec;
+		$send .= '<tr'.(isset($ass[$d]) ? '' : ' class="emp"').'>'.
+			'<td class="ost-data">'.(isset($ass[$d]) ? '<a class="to-day" val="'.$month.'-'.($d < 10 ? 0 : '').$d.'">'.$day.'</a>' : $day).
+			'<td class="r">'._sumSpace($start).
+			'<td class="ost-inc">'.($inc ? _sumSpace($inc) : '').
+			'<td class="ost-dec">'.($dec ? _sumSpace($dec) : '').
+			'<td class="ost-balans">'._sumSpace($balans);
+	}
+	$send .= '</table>';
+	return $send;
+}//invoice_history_ostatok()
 function invoice_history_insert($v) {
 	$v = array(
 		'action' => $v['action'],
@@ -830,7 +971,7 @@ function invoice_history_insert_sql($invoice_id, $v) {
 				".VIEWER_ID."
 			)";
 	query($sql);
-}
+}//invoice_history_insert_sql()
 
 function income_path($data) {
 	$ex = explode(':', $data);
@@ -1387,10 +1528,16 @@ function expense() {
 	$year = array();
 	for($n = 2014; $n <= strftime('%Y'); $n++)
 		$year[$n] = $n;
+
+	$invoices_sum = array();
+	foreach(_invoice() as $id => $r)
+		$invoices_sum[$id] = _invoiceBalans($id == 1 && _viewerRules(VIEWER_ID, 'RULES_SELMONEY') ? VIEWER_ID : $id);
+
 	return
 	'<script type="text/javascript">'.
 		'var MON_SPISOK='._selJson(_monthDef(0, 1)).','.
-			'YEAR_SPISOK='._selJson($year).';'.
+			'YEAR_SPISOK='._selJson($year). ','.
+			'ISUM='._assJson($invoices_sum).';'.
 	'</script>'.
 	'<div class="headName">Список расходов организации<a class="add">Новый расход</a></div>'.
 	'<div id="spisok">'.$data['spisok'].'</div>';
@@ -1696,6 +1843,10 @@ function salary_worker($v) {
 	for($n = 2014; $n <= $filter['y']; $n++)
 		$year[$n] = $n;
 
+	$invoices_sum = array();
+	foreach(_invoice() as $id => $r)
+		$invoices_sum[$id] = _invoiceBalans($id == 1 && _viewerRules(VIEWER_ID, 'RULES_SELMONEY') ? VIEWER_ID : $id);
+
 	return
 		'<script type="text/javascript">'.
 			'var WORKER_ID='.$filter['worker_id'].','.
@@ -1704,7 +1855,8 @@ function salary_worker($v) {
 				'YEAR='.$filter['y'].','.
 				'YEAR_SPISOK='._selJson($year).','.
 				'RATE='.round(_viewer($filter['worker_id'], 'rate'), 2).','.
-				'RATE_DAY='._viewer($filter['worker_id'], 'rate_day').';'.
+				'RATE_DAY='._viewer($filter['worker_id'], 'rate_day'). ','.
+				'ISUM='._assJson($invoices_sum).';'.
 		'</script>'.
 		'<div class="headName">'._viewer($filter['worker_id'], 'name').': история з/п за <em>'.$filter['month'].'</em>.</div>'.
 		'<div id="spisok">'.salary_worker_spisok($filter).'</div>';

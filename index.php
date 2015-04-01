@@ -64,7 +64,10 @@ elseif(PIN_ENTER) {
 				default: $html .= zayav();
 			}
 			break;
-		case 'remind': $html .= remind(); break;
+		case 'remind':
+			$remind = _remind();
+			$html .= $remind['list'];
+			break;
 		case 'report': $html .= report(); break;
 		case 'setup': $html .= setup(); break;
 		case 'sa':

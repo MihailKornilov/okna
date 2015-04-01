@@ -1,6 +1,6 @@
 <?php
 require_once('config.php');
-require_once(API_PATH.'/vk_ajax.php');
+require_once(API_PATH.'/ajax/vk.php');
 
 
 switch(@$_POST['op']) {
@@ -1451,7 +1451,7 @@ switch(@$_POST['op']) {
 		if(!is_array($v))
 			jsonError($v);
 
-		if(query_value("SELECT COUNT(`id`) FROM `zayav_dogovor` WHERE `deleted`=0 AND `zayav_id`=".$v['zayav_id']))
+		if(query_value("SELECT COUNT(`id`) FROM `zayav_dogovor` WHERE !`deleted` AND `zayav_id`=".$v['zayav_id']))
 			jsonError('Ошибка: на эту заявку уже заключён договор.');
 
 		foreach($v as $k => $r)
@@ -1576,26 +1576,10 @@ switch(@$_POST['op']) {
 		if($v['cut'])
 			foreach(explode(',', $v['cut']) as $r) {
 				$ex = explode(':', $r);
-				$sql = "INSERT INTO `remind` (
-							`cut`,
-							`client_id`,
-							`zayav_id`,
-							`txt`,
-							`day`,
-							`viewer_id_add`
-						) VALUES (
-							1,
-							".$v['client_id'].",
-							".$v['zayav_id'].",
-							'".round(str_replace(',', '.', $ex[0]), 2)."',
-							'".$ex[1]."',
-							".VIEWER_ID."
-						)";
-				query($sql);
-				remind_history_add(array(
-					'remind_id' => mysql_insert_id(),
-					'day' => $ex[1]
-				));
+				$v['txt'] = _cena($ex[0]);
+				$v['day'] = $ex[1];
+				$v['money_cut'] = 1;
+				_remind_add($v);
 			}
 
 		dogovor_print($dog_id);
@@ -1858,124 +1842,6 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 
-	case 'remind_spisok':
-		if(!empty($_POST['day']) && !_calendarDataCheck($_POST['day']))
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['status']))
-			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['private']))
-			jsonError();
-		$send['html'] = utf8(remind_spisok($_POST));
-		$send['cal'] = utf8(_calendarFilter(array(
-			'month' => $_POST['day'],
-			'days' => remind_days(),
-			'noweek' => 1,
-			'func' => 'remind_days'
-		)));
-		jsonSuccess($send);
-		break;
-	case 'remind_status':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']) && !$_POST['id'])
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['status']))
-			jsonError();
-		if(!preg_match(REGEXP_DATE, $_POST['day']) && !$_POST['day'])
-			jsonError();
-		$id = intval($_POST['id']);
-		$day = $_POST['day'];
-		$status = intval($_POST['status']);
-
-		if(!$r = query_assoc("SELECT * FROM `remind` WHERE `id`=".$id))
-			jsonError();
-
-		//Изменять можно только активные напоминания
-		if($r['status'] != 1)
-			jsonError();
-
-		if($r['status'] != $status || $status == 1 && $r['day'] != $day) {
-			$sql = "UPDATE `remind`
-			        SET `status`=".$status.
-						($status == 1 ? ",`day`='".$day."'" : '')."
-			        WHERE `id`=".$id;
-			query($sql);
-			remind_history_add(array(
-				'remind_id' => $r['id'],
-				'status' => $status,
-				'day' => ($status == 1 ? $day : ''),
-				'txt' => $_POST['reason']
-			));
-		}
-
-		$v = array();
-		if($_POST['from'] == 'client')
-			$v['client_id'] = $r['client_id'];
-		if($_POST['from'] == 'zayav')
-			$v['zayav_id'] = $r['zayav_id'];
-		$send['html'] = utf8(remind_spisok($v));
-
-		jsonSuccess($send);
-		break;
-	case 'remind_add':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['client_id']))
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
-			jsonError();
-		if(!preg_match(REGEXP_DATE, $_POST['day']))
-			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['private']))
-			jsonError();
-
-		$client_id = intval($_POST['client_id']);
-		$zayav_id = intval($_POST['zayav_id']);
-		$txt = win1251(htmlspecialchars(trim($_POST['txt'])));
-		$day = $_POST['day'];
-		$private = intval($_POST['private']);
-
-		if($zayav_id && !$client_id)
-			$client_id = query_value("SELECT `client_id` FROM `zayav` WHERE `id`=".$zayav_id);
-
-		$sql = "INSERT INTO `remind` (
-					`client_id`,
-					`zayav_id`,
-					`txt`,
-					`day`,
-					`private`,
-					`viewer_id_add`
-				) VALUES (
-					".$client_id.",
-					".$zayav_id.",
-					'".addslashes($txt)."',
-					'".$day."',
-					".$private.",
-					".VIEWER_ID."
-				)";
-		query($sql);
-		remind_history_add(array(
-			'remind_id' => mysql_insert_id(),
-			'day' => $day
-		));
-
-		$v = array();
-		if($_POST['from'] == 'client')
-			$v['client_id'] = $client_id;
-		if($_POST['from'] == 'zayav')
-			$v['zayav_id'] = $zayav_id;
-		$send['html'] = utf8(remind_spisok($v));
-
-		jsonSuccess($send);
-		break;
-	case 'remind_history':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']) && !$_POST['id'])
-			jsonError();
-		$id = intval($_POST['id']);
-
-		if(!$r = query_assoc("SELECT * FROM `remind` WHERE `id`=".$id))
-			jsonError();
-
-		$send['html'] = utf8(remind_history($id));
-		jsonSuccess($send);
-		break;
-
 	case 'invoice_set':
 		if(!VIEWER_ADMIN)
 			jsonError();
@@ -2063,11 +1929,11 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'invoice_transfer':
-		if(empty($_POST['from']) || !preg_match(REGEXP_NUMERIC, $_POST['from']))
+		if(!$from = _isnum($_POST['from']))
 			jsonError();
-		if(empty($_POST['to']) || !preg_match(REGEXP_NUMERIC, $_POST['to']))
+		if(!$to = _isnum($_POST['to']))
 			jsonError();
-		if(!preg_match(REGEXP_CENA, $_POST['sum']) || $_POST['sum'] == 0)
+		if(!$sum = _cena($_POST['sum']))
 			jsonError();
 		$income_count = 0;
 		if(!empty($_POST['ids'])) {
@@ -2078,12 +1944,12 @@ switch(@$_POST['op']) {
 					jsonError();
 		}
 
-		$from = intval($_POST['from']);
-		$to = intval($_POST['to']);
-		$sum = str_replace(',', '.', $_POST['sum']);
 		$income_ids = $_POST['ids'];
 
-		if($from == $to)
+		if($from == $to) // если счета одинаковые
+			jsonError();
+		$balans = _invoiceBalans($from);
+		if($balans !== false && $sum > $balans) // если сумма перевода больше, чем сумма на исходном счёте
 			jsonError();
 
 		$invoice_from = $from > 100 ? (_viewerRules($from, 'RULES_CASH') ? 1 : 0) : $from;
@@ -2277,9 +2143,24 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'invoice_history':
-		if(empty($_POST['invoice_id']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
+		if(!$invoice_id = _isnum($_POST['invoice_id']))
 			jsonError();
-		$send['html'] = utf8(invoice_history($_POST));
+		$page = 1;
+		if(!empty($_POST['page']) && $_POST['page'] > 1)
+			$page = $_POST['page'];
+		$send['html'] = utf8($page == 1 ? invoice_history($invoice_id) : invoice_history_full($_POST));
+		jsonSuccess($send);
+		break;
+	case 'invoice_history_full':
+		if(!$invoice_id = _isnum($_POST['invoice_id']))
+			jsonError();
+		$send['html'] = utf8(invoice_history_full($_POST));
+		jsonSuccess($send);
+		break;
+	case 'invoice_history_ostatok':
+		if(!$invoice_id = _isnum($_POST['invoice_id']))
+			jsonError();
+		$send['html'] = utf8(invoice_history_ostatok($_POST));
 		jsonSuccess($send);
 		break;
 
@@ -2411,25 +2292,27 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'expense_add':
-		if(!preg_match(REGEXP_NUMERIC, $_POST['category']))
+		if(!$category = _isnum($_POST['category']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
 			jsonError();
-		if(empty($_POST['sum']) && !preg_match(REGEXP_CENA, $_POST['sum']))
+		if(!$sum = _cena($_POST['sum']))
 			jsonError();
-		if(empty($_POST['invoice']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice']))
+		if(!$invoice = _isnum($_POST['invoice']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
 			jsonError();
-		$category = intval($_POST['category']);
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		if(!$category && empty($about))
 			jsonError();
+
+		$balans = _invoiceBalans($invoice);
+		if($balans !== false && $sum > $balans) // если сумма больше, чем сумма на счёте
+			jsonError();
+
 		$worker = intval($_POST['worker']);
-		$invoice = intval($_POST['invoice']);
-		$sum = str_replace(',', '.', $_POST['sum']);
 		$mon = $category == 1 ? $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']).'-'.strftime('%d') : '0000-00-00';
 		$about = ($category == 1 ? _monthDef($_POST['mon']).' '.$_POST['year'].($about ? ', ' : '') : '').$about;
 		$sql = "INSERT INTO `money` (
@@ -2761,18 +2644,21 @@ switch(@$_POST['op']) {
 	case 'salary_down':
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
 			jsonError();
-		if(empty($_POST['sum']) && !preg_match(REGEXP_NUMERIC, $_POST['sum']))
+		if(!$sum = _cena($_POST['sum']))
 			jsonError();
-		if(empty($_POST['invoice']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice']))
+		if(!$invoice = _isnum($_POST['invoice']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['year']))
 			jsonError();
+
+		$balans = _invoiceBalans($invoice);
+		if($balans !== false && $sum > $balans) // если сумма больше, чем сумма на счёте
+			jsonError();
+
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 		$worker = intval($_POST['worker']);
-		$invoice = intval($_POST['invoice']);
-		$sum = intval($_POST['sum']) * -1;
 		$mon = $_POST['year'].'-'.($_POST['mon'] < 10 ? 0 : '').intval($_POST['mon']);
 		$about = _monthDef($_POST['mon']).' '.$_POST['year'].($about ? ', ' : '').$about;
 		$sql = "INSERT INTO `money` (
@@ -2784,7 +2670,7 @@ switch(@$_POST['op']) {
 					`mon`,
 					`viewer_id_add`
 				) VALUES (
-					".$sum.",
+					-".$sum.",
 					'".addslashes($about)."',
 					".$invoice.",
 					1,
@@ -2803,7 +2689,7 @@ switch(@$_POST['op']) {
 		_historyInsert(
 			37,
 			array(
-				'value' => abs($sum),
+				'value' => $sum,
 				'value1' => $about,
 				'value2' => $worker
 			)

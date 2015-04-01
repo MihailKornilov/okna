@@ -137,6 +137,7 @@
 #client .unit.i{
 	background:url("data:image/gif;base64,R0lGODlhDgAOAKIAAAAAAP///9Pd6GuNsf///wAAAAAAAAAAACH5BAEAAAQALAAAAAAOAA4AAAMiSLoi+681CKWjyk68d+0eA17iSBJWJpVairraC7d0K9dOAgA7") no-repeat 428px 21px;
 }
+#client ._empty{margin:10px}
 #client ._next{margin:0 10px}
 
 /* ?????????? ? ??????? */
@@ -156,7 +157,7 @@
 #clientInfo ._next{margin:5px 10px 0 10px}
 #clientInfo #income_spisok,#clientInfo #histories{margin:10px;display:none}
 #clientInfo #income_spisok ._empty{margin:0;padding:60px 10px}
-#clientInfo .remind_spisok{margin:10px 8px;display:none}
+#clientInfo #remind-spisok{margin:10px 8px;display:none}
 #clientInfo #comments{margin:0 10px;display:none}
 #clientInfo .right{width:145px;height:auto}
 #clientInfo .cdel{color:red}
@@ -244,7 +245,7 @@
 #zayav .condLost.hide{display:none}
 #zayav ._next{margin:6px 5px 0 8px}
 #zayav #desc_check{margin-top:10px}
-#zayav ._empty{margin-right:6px;}
+#zayav ._empty{margin:8px 2px 0 8px}
 
 /* ?????????? ? ?????? */
 .zayav-info ._info{margin:10px;font-weight:bold;text-align:center;background-color:#fee;color:red}
@@ -283,7 +284,16 @@
 .zayav-info .img_word{margin:0 15px -4px -2px}
 .zayav-info .mainright{vertical-align:top;width:230px;border-left:#E9EDF1 solid 1px}
 .zayav-info .mainright .headBlue{margin:0}
-.zayav-info .remind_spisok{margin-top:5px}
+.zayav-info ._remind-add{
+	float:right;
+	background-color:#fff;
+	width:15px;
+	height:15px;
+	margin:-2px -5px 0 0;
+	border:#ddd solid 1px;
+	background-position:2px 2px;
+}
+.zayav-info #remind-spisok{margin:8px 0}
 .zayav-info .acc-sum{margin:7px}
 .zayav-info .mon{margin-top:15px}
 .zayav-info .mon em{float:right;margin:0 5px}
@@ -364,49 +374,7 @@
 .zayav-status .zstab{border-spacing:8px;display:none}
 .zayav-status .zamer_table{position:relative;top:-4px;left:10px}
 
-.remind-status .c0{background-color:#ddd}
-.remind-status #reason{width:220px}
 
-
-
-
-
-
-#remind #buttonCreate{margin-bottom:10px}
-#remind:not(.y) .full{display:none}
-#remind.y .tabLR{display:none}
-#remind .left{padding:10px}
-#remind .right{width:155px}
-#remind .goyear{display:inline-block;margin-top:15px}
-#remind .full{margin-left:40px}
-#remind .fhead{margin-top:15px;text-align:center;color:#357;font:bold 13px Vedrana}
-#remind .fcur .fmon{font-weight:bold}
-#remind .ftab{border-spacing:10px}
-#remind .ftd{vertical-align:top;padding:0 5px}
-#remind .fcur.ftd{border:#cec solid 1px;background-color:#e8ffe8}
-#remind #private_check{margin-top:20px}
-.remind_unit{margin-bottom:10px;border-bottom:#f1f1f1 solid 1px}
-.remind_unit .head{padding:5px 8px;font-size:12px;color:#444}
-.remind_unit .head *{font-size:12px}
-.remind_unit .private{color:#933;font-weight:bold;text-shadow: 0 0 3px #a66}
-.remind_unit .to{border-spacing:2px;margin:4px 6px}
-.remind_unit .label{width:45px}
-.remind_unit .dur{margin-left:10px;color:#777}
-.remind_unit .day_left{margin:4px 8px;color:#884}
-.remind_unit .oday{color:#999;margin-left:10px}
-.remind_unit .action{float:right;color:#c22}
-.remind_unit .remind_history{float:right;color:gray}
-.remind_unit tt{float:right;margin:0 4px}
-.remind_unit:not(:hover) tt,
-.remind_unit:not(:hover) .action,
-.remind_unit:not(:hover) .remind_history{display:none}
-.remind_unit .hist{margin:3px 7px;text-align:center}
-.remind_unit .hist *{font-size:10px;color:#707070}
-.remind_unit .hist table{width:100%;border-collapse:collapse}
-.remind_unit .hist td{padding:2px 4px;border:#ddd solid 1px;text-align:left}
-.remind-add-tab{border-spacing:10px}
-.remind-add-tab .label{width:100px;text-align:right}
-.remind-add-tab #txt{width:240px;height:40px}
 
 
 /* ?????? */
@@ -431,10 +399,26 @@
 .transfer-about{margin-top:10px}
 .transfer-about input{width:350px}
 .invoice-transfer{border-spacing:10px}
+.invoice-transfer #sum-from,.invoice-transfer #sum-to{
+	position:absolute;
+	margin:5px 0 0 6px;
+	color:#777;
+	font-size:10px;
+}
 .invoice-transfer .income-choice{margin-left:10px}
 .invoice-transfer #sum[readonly="readonly"]{background-color:#f8f8f8}
 .income_choice_sum{margin-top:10px}
-.invoice-history{margin-top:10px}
+.invoice-history #dopLinks{margin-bottom:10px}
+.invoice-history #dopLinks u{margin-right:40px}
+.invoice-history ._busy{background-position:500px center}
+.invoice-history #ih-year_select{margin-right:6px}
+.invoice-history ._spisok{margin-top:10px}
+.invoice-history .ih-clear{float:right}
+.invoice-history .emp *{color:#ccc}
+.invoice-history .ost-data{text-align:right}
+.invoice-history .ost-balans{text-align:right;font-weight:bold}
+.invoice-history .ost-inc{text-align:right;color:#292}
+.invoice-history .ost-dec{text-align:right;color:#a33}
 .invoice-history .action{width:80px}
 .invoice-history .balans{width:70px;text-align:right}
 .invoice-history .sum-change{font-size:10px;color:#555}
@@ -461,6 +445,7 @@
 #expense-add-tab .label{width:80px;text-align:right}
 #expense-add-tab #about{width:230px}
 #expense-add-tab .img_edit{position:relative;top:-4px;left:4px}
+#expense-add-tab #isum{color:#888;font-size:10px;margin-left:10px}
 .salary#report .headName{margin:10px}
 .salary#report .headName em{font-size:12px;font-weight:bold}
 .salary#report .headName._busy{background-position:right center}
@@ -507,6 +492,7 @@
 .salary-tab .img_edit{position:relative;top:-4px;left:4px}
 .salary-tab #days-sel{display:inline-block;position:relative;top:-5px;left:10px}
 .salary-tab #days-sel._busy{color:transparent}
+.salary-tab #isum{color:#888;font-size:10px;margin-left:10px}
 .salary-list-tab ._info b{display:block;margin-bottom:3px;text-align:center}
 .salary-list-tab table{border-spacing:8px;margin:0 0 15px 30px}
 .salary-list-tab h1{text-align:center}

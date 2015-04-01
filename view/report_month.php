@@ -269,8 +269,8 @@ function contentShow() {
 		else $bg = 'FFFFFF';
 
 		$sheet->getStyle('A'.$line.':A'.$line)->getFill()->getStartColor()->setRGB($bg);
-		$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : API_URL.'#zayav_').$r['id']);     //Вставка ссылки для даты на заявку
-		$sheet->getCellByColumnAndRow(3, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=client&d=info&&id=' : API_URL.'#client_').$r['client_id']);//Вставка ссылки для клиента
+		$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : APP_URL.'#zayav_').$r['id']);     //Вставка ссылки для даты на заявку
+		$sheet->getCellByColumnAndRow(3, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=client&d=info&&id=' : APP_URL.'#client_').$r['client_id']);//Вставка ссылки для клиента
 
 		$line++;
 	}
@@ -386,7 +386,7 @@ function zp($sex=2) {
 			$product = $z ? zayav_product_spisok($z['product'], 'report') : '';
 			$sheet->setCellValueByColumnAndRow(0, $line, utf8($head).$exec.($z ? ': ' : '').utf8($adres.$product));
 			if($z)
-				$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : API_URL.'#zayav_').$z['id']);
+				$sheet->getCellByColumnAndRow(0, $line)->getHyperlink()->setUrl((LOCAL ? URL.'&p=zayav&d=info&&id=' : APP_URL.'#zayav_').$z['id']);
 			$sheet->setCellValueByColumnAndRow(1, $line, $r['sum']);
 			$line++;
 		}
