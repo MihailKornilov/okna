@@ -41,7 +41,7 @@ switch(@$_POST['op']) {
 
 		//ѕроверка наличи€ за€вки
 		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id;
-		if(!$zayav = mysql_fetch_assoc(query($sql))) {
+		if(!$zayav = query_assoc($sql)) {
 			setcookie('_attached', 5, time() + 3600, '/');
 			exit;
 		}
@@ -55,15 +55,15 @@ switch(@$_POST['op']) {
 			case 'application/vnd.ms-excel':    //xls
 			case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':       //xlsx
 			case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': //docx
-			break;
+				break;
 			default: setcookie('_attached', 3, time() + 3600, '/'); exit;
 		}
 		$dir = APP_PATH.'/files/'.$type.'/'.$type.$zayav_id;
 		if(!is_dir($dir))
 			mkdir($dir, 0777, true);
-		$fname = time().'_'.translit($f["name"]);
+		$fname = time().'_'.translit(trim($f['name'])); //им€ файла, сохран€емое на диск
 		if(move_uploaded_file($f['tmp_name'], $dir.'/'.$fname)) {
-			$name = trim($f['name']);
+			$name = trim($f['name']); //оригинальное им€ полученного файла
 			$link = APP_HTML.'/files/'.$type.'/'.$type.$zayav_id.'/'.$fname;
 			$sql = "INSERT INTO `attach` (
 						`type`,
@@ -1642,7 +1642,7 @@ switch(@$_POST['op']) {
 		query($sql);
 
 		// ¬несение авансового платежа, если есть
-		$avans = query_assoc("SELECT * FROM `money` WHERE `deleted`=0 AND `dogovor_id`=".$dog['id']);
+		$avans = query_assoc("SELECT * FROM `money` WHERE !`deleted` AND `dogovor_id`=".$dog['id']);
 		if($v['avans'] > 0) {
 			if(empty($avans))
 				income_insert(array(
@@ -1661,7 +1661,7 @@ switch(@$_POST['op']) {
 				));
 			}
 		} elseif(!empty($avans)) {
-			query("UPDATE `money` SET `deleted`=1 WHERE `deleted`=0 AND `id`=".$avans['id']);
+			query("UPDATE `money` SET `deleted`=1 WHERE !`deleted` AND `id`=".$avans['id']);
 			invoice_history_insert(array(
 				'action' => 2,
 				'table' => 'money',
@@ -1676,25 +1676,17 @@ switch(@$_POST['op']) {
 
 		unlink(PATH_DOGOVOR.$dog['link'].'.doc');
 
-
+		//обновление напоминаний по платежам
+		$sql = "DELETE FROM `remind` WHERE `app_id`=".APP_ID." AND `zayav_id`=".$v['zayav_id'];
+		query($sql, GLOBAL_MYSQL_CONNECT);
 		if($v['cut'])
 			foreach(explode(',', $v['cut']) as $r) {
 				$ex = explode(':', $r);
-				$sql = "INSERT INTO `remind` (
-							`client_id`,
-							`zayav_id`,
-							`txt`,
-							`day`
-						) VALUES (
-							".$v['client_id'].",
-							".$v['zayav_id'].",
-							'".round(str_replace(',', '.', $ex[0]), 2)."',
-							'".$ex[1]."'
-						)";
-				query($sql);
+				$v['txt'] = _cena($ex[0]);
+				$v['day'] = $ex[1];
+				$v['money_cut'] = 1;
+				_remind_add($v);
 			}
-		else
-			query("DELETE FROM `remind` WHERE `zayav_id`=".$v['zayav_id']);
 
 		$changes = '';
 		if($dog['fio'] != $v['fio'])
