@@ -2052,6 +2052,15 @@ $(document)
 				'<tr class="tr_confirm dn"><td class="label">Подтверждение:<td><input type="hidden" id="confirm">' +
 				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="11"> руб.' +
 				'<tr><td class="label">Комментарий:<td><input type="text" id="prim" maxlength="100">' +
+			(window.ZAYAV && REMIND.active ?
+				'<tr><td><td>' +
+					'<div class="_info">' +
+						'<b>Есть ' + REMIND.active + ' активн' + _end(REMIND.active, ['ое', 'ых']) + ' напоминани' + _end(REMIND.active, ['е', 'я', 'й']) + '!</b>' +
+						'<br />' +
+						'<br />' +
+						'<input type="hidden" id="remind_active" value="0" />' +
+					'</div>'
+			: '') +
 			'</table>';
 		var dialog = _dialog({
 			width:440,
@@ -2084,6 +2093,11 @@ $(document)
 			top:-96,
 			left:-100
 		});
+		if(window.ZAYAV && REMIND.active) {
+			$('#remind_active')._check({
+				name:'отметить выполненным' + _end(REMIND.active, ['', 'и'])
+			});
+		}
 		function submit() {
 			var send = {
 				op:'income_add',
@@ -2093,7 +2107,8 @@ $(document)
 				sum:$('#sum').val(),
 				zayav_id:$('#zayav_id').val() || 0,
 				client_id:OPL.client_id || 0,
-				prim:$.trim($('#prim').val())
+				prim:$.trim($('#prim').val()),
+				remind_active:window.REMIND ? _num($('#remind_active').val()) : 0
 			};
 			if(send.type == 0) err('Не указан вид платежа');
 			else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) {
@@ -2119,6 +2134,8 @@ $(document)
 							case 'zayav':
 								zayavInfoMoneyUpdate();
 								$('#income_spisok').html(res.html);
+								if(res.remind)
+									$('#remind-spisok').html(res.remind);
 								break;
 							case 'income':
 								incomeSpisok();

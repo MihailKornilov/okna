@@ -2185,6 +2185,7 @@ switch(@$_POST['op']) {
 
 		$v['confirm'] = _income($v['type'], 'confirm') ? intval($_POST['confirm']) : 0;
 		$v['sum'] = str_replace(',', '.', $_POST['sum']);
+		$remind_active = _bool($_POST['remind_active']);
 
 		$send['html'] = utf8(income_insert($v));
 		if(empty($send))
@@ -2193,6 +2194,12 @@ switch(@$_POST['op']) {
 			$sql = "SELECT * FROM `client` WHERE `id`=".$v['client_id'];
 			$r = mysql_fetch_assoc(query($sql));
 			$send['balans'] = utf8(clientInfoGet($r));
+		}
+		if($v['from'] == 'zayav') {
+			if($remind_active) {
+				_remind_active_to_ready_in_zayav($v['zayav_id']);
+				$send['remind'] = utf8(_remind_spisok(array('zayav_id'=>$v['zayav_id']), 'spisok'));
+			}
 		}
 		jsonSuccess($send);
 		break;

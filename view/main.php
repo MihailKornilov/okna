@@ -2100,15 +2100,7 @@ function zayav_info($zayav_id) {
 				FullDataTime($z['dtime_add']).
 			'</div>'.
 
-			'<div class="headBlue rm">'.
-				'<a href="'.URL.'&p=remind"><b>Напоминания</b></a>'.
-				'<div class="img_add _remind-add'._tooltip('Новое напоминание', -109, 'r').'</div>'.
-			'</div>'.
-			'<div id="remind-spisok">'._remind_spisok(array('zayav_id'=>$z['id']), 'spisok').'</div>'.
-
-
-//'<div class="headBlue">Напоминания<a class="add remind-add">Новое напоминание</a></div>'.
-//			'<div class="remind_spisok">'.remind_spisok(array('zayav_id'=>$zayav_id)).'</div>'.
+			_remind_zayav($zayav_id).
 
 	(!DOG ?	'<div class="headBlue mon">Начисления и платежи'.
 		(!$z['deleted'] ? '<a class="add refund-add'._tooltip('Произвести возврат денежных средств', -215, 'r').'Возврат</a>'.

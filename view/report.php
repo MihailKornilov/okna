@@ -1210,7 +1210,7 @@ function income_insert($v) {//Внесение платежа
 	if($v['zayav_id']) {
 		$sql = "SELECT *
 				FROM `zayav`
-				WHERE `deleted`=0
+				WHERE !`deleted`
 				  AND `id`=".$v['zayav_id'];
 		if(!$z = mysql_fetch_assoc(query($sql)))
 			return false;
