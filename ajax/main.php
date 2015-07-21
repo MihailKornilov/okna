@@ -4,21 +4,6 @@ require_once(API_PATH.'/ajax/vk.php');
 
 
 switch(@$_POST['op']) {
-	case 'cache_clear':
-		if(!SA)
-			jsonError();
-		$sql = "SELECT `viewer_id` FROM `vk_user` WHERE `worker`=1";
-		$q = query($sql);
-		while($r = mysql_fetch_assoc($q)) {
-			xcache_unset(CACHE_PREFIX.'viewer_'.$r['viewer_id']);
-			xcache_unset(CACHE_PREFIX.'viewer_rules_'.$r['viewer_id']);
-			xcache_unset(CACHE_PREFIX.'pin_enter_count'.$r['viewer_id']);
-		}
-		query("UPDATE `setup_global` SET `version`=`version`+1");
-		_cacheClear();
-		jsonSuccess();
-		break;
-
 	case 'attach_upload':
 		/*
 			Прикрепление файлов
@@ -650,7 +635,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'zayav_info_money_update':
-		if(!$zayav_id = _isnum($_POST['zayav_id']))
+		if(!$zayav_id = _num($_POST['zayav_id']))
 			jsonError();
 
 		$sql = "SELECT *
@@ -1083,7 +1068,7 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'set_to_zakaz':
-		if(!$zayav_id = _isnum($_POST['zayav_id']))
+		if(!$zayav_id = _num($_POST['zayav_id']))
 			jsonError();
 
 		$sql = "SELECT *
@@ -1111,7 +1096,7 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'zayav_expense_edit':
-		if(!$zayav_id = _isnum($_POST['zayav_id']))
+		if(!$zayav_id = _num($_POST['zayav_id']))
 			jsonError();
 
 		$expenseNew = zayav_expense_test($_POST['rashod']);
@@ -1191,7 +1176,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'zayav_delete':
-		if(!$zayav_id = _isnum($_POST['zayav_id']))
+		if(!$zayav_id = _num($_POST['zayav_id']))
 			jsonError();
 
 		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id;
@@ -1334,9 +1319,9 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'refund_add':
-		if(!$zayav_id = _isnum($_POST['zayav_id']))
+		if(!$zayav_id = _num($_POST['zayav_id']))
 			jsonError();
-		if(!$invoice_id = _isnum($_POST['invoice_id']))
+		if(!$invoice_id = _num($_POST['invoice_id']))
 			jsonError();
 		if(!preg_match(REGEXP_CENA, $_POST['sum']) || $_POST['sum'] == 0)
 			jsonError();
@@ -1344,7 +1329,7 @@ switch(@$_POST['op']) {
 		$sum = str_replace(',', '.', $_POST['sum']);
 		$prim = win1251(htmlspecialchars(trim($_POST['prim'])));
 
-		$iBalans = _invoiceBalans($invoice_id == 1 && _viewerRules(VIEWER_ID, 'RULES_SELMONEY') ? VIEWER_ID : $invoice_id);
+		$iBalans = _invoiceBalans($invoice_id);
 		if($sum > $iBalans)
 			jsonError();
 
@@ -1397,7 +1382,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'refund_del':
-		if(!$id = _isnum($_POST['id']))
+		if(!$id = _num($_POST['id']))
 			jsonError();
 
 		$sql = "SELECT *
@@ -1566,7 +1551,7 @@ switch(@$_POST['op']) {
 				'zayav_id' => $v['zayav_id'],
 				'dogovor_id' => $dog_id,
 				'sum' => $v['avans'],
-				'type' => 1
+				'invoice_id' => 1
 			));
 		else {
 			clientBalansUpdate($v['client_id']);
@@ -1649,7 +1634,7 @@ switch(@$_POST['op']) {
 					'zayav_id' => $v['zayav_id'],
 					'dogovor_id' => $dog['id'],
 					'sum' => $v['avans'],
-					'type' => 1
+					'invoice_id' => 1
 				));
 			elseif($v['avans'] != $avans['sum']) {
 				query("UPDATE `money` SET `sum`=".$v['avans']." WHERE `id`=".$avans['id']);
@@ -1761,7 +1746,7 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'dogovor_terminate'://расторжение договора
-		if(!$zayav_id = _isnum($_POST['zayav_id']))
+		if(!$zayav_id = _num($_POST['zayav_id']))
 			jsonError();
 
 		$sql = "SELECT * FROM `zayav` WHERE !`deleted` AND `id`=".$zayav_id;
@@ -1837,54 +1822,16 @@ switch(@$_POST['op']) {
 	case 'invoice_set':
 		if(!VIEWER_ADMIN)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['invoice_id']))
+		if(!$invoice_id = _num($_POST['invoice_id']))
 			jsonError();
 		if(!preg_match(REGEXP_CENA, $_POST['sum']))
 			jsonError();
 
-		$invoice_id = intval($_POST['invoice_id']);
+		$sum = _cena($_POST['sum']);
 
 		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
+		if(!$r = query_assoc($sql))
 			jsonError();
-
-		$cash = array();
-		if($invoice_id != 1 || empty($_POST['cash']))
-			$sum = str_replace(',', '.', $_POST['sum']);
-		else {
-			$sum = 0;
-			$ex = explode(':', $_POST['cash']);
-			foreach($ex as $x) {
-				$r = explode('=', $x);
-				if(!preg_match(REGEXP_NUMERIC, $r[0]))
-					jsonError();
-				if(!preg_match(REGEXP_CENA, $r[1]))
-					jsonError();
-				$id = intval($r[0]);
-				$sql = "SELECT COUNT(`viewer_id`)
-				        FROM `vk_user_rules`
-				        WHERE `viewer_id`=".$id."
-						  AND `key`='RULES_CASH'
-						  AND `value`=1";
-				if(!query_value($sql))
-					jsonError();
-				$s = str_replace(',', '.', $r[1]);
-				$sum += $s;
-				$cash[$id] = $s;
-			}
-		}
-
-		$cashHistory = '';
-		if(!empty($cash))
-			foreach($cash as $id => $s) {
-				query("UPDATE `vk_user` SET `cash`="._invoiceBalans($id, $s)." WHERE `viewer_id`=".$id);
-				xcache_unset(CACHE_PREFIX.'viewer_'.$id);
-				invoice_history_insert(array(
-					'action' => 5,
-					'worker_id' => $id
-				));
-				$cashHistory .= '<tr><td>'._viewer($id, 'name').':<td>'.round($s, 2).' руб.';
-			}
 
 		query("UPDATE `invoice` SET `start`="._invoiceBalans($invoice_id, $sum)." WHERE `id`=".$invoice_id);
 		xcache_unset(CACHE_PREFIX.'invoice');
@@ -1897,13 +1844,10 @@ switch(@$_POST['op']) {
 			38,
 			array(
 				'value' => $sum,
-				'value1' => $invoice_id,
-				'value2' => $cashHistory ? '<table>'.$cashHistory.'</table>' : ''
+				'value1' => $invoice_id
 			)
 		);
 
-		$cash = cash_spisok();
-		$send['c'] = utf8($cash['spisok']);
 		$send['i'] = utf8(invoice_spisok());
 		jsonSuccess($send);
 		break;
@@ -1921,48 +1865,30 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'invoice_transfer':
-		if(!$from = _isnum($_POST['from']))
+		if(!$invoice_from = _num($_POST['from']))
 			jsonError();
-		if(!$to = _isnum($_POST['to']))
+		if(!$invoice_to = _num($_POST['to']))
 			jsonError();
 		if(!$sum = _cena($_POST['sum']))
 			jsonError();
-		$income_count = 0;
-		if(!empty($_POST['ids'])) {
-			$ex = explode(',', $_POST['ids']);
-			$income_count = count($ex);
-			foreach($ex as $id)
-				if(empty($id) || !preg_match(REGEXP_NUMERIC, $id))
-					jsonError();
-		}
 
-		$income_ids = $_POST['ids'];
-
-		if($from == $to) // если счета одинаковые
+		if($invoice_from == $invoice_to) // если счета одинаковые
 			jsonError();
-		$balans = _invoiceBalans($from);
+		$balans = _invoiceBalans($invoice_from);
 		if($balans !== false && $sum > $balans) // если сумма перевода больше, чем сумма на исходном счёте
 			jsonError();
 
-		$invoice_from = $from > 100 ? (_viewerRules($from, 'RULES_CASH') ? 1 : 0) : $from;
-		$invoice_to = $to > 100 ? (_viewerRules($to, 'RULES_CASH') ? 1 : 0) : $to;
 		$sql = "INSERT INTO `invoice_transfer` (
 					`invoice_from`,
 					`invoice_to`,
-					`worker_from`,
-					`worker_to`,
 					`sum`,
-					`income_count`,
-					`income_ids`,
+					`confirm`,
 					`viewer_id_add`
 				) VALUES (
 					".$invoice_from.",
 					".$invoice_to.",
-					".($from > 100 ? $from : 0).",
-					".($to > 100  ? $to : 0).",
 					".$sum.",
-					".$income_count.",
-					'".$income_ids."',
+					".(_invoice($invoice_from, 'confirm_transfer') || _invoice($invoice_to, 'confirm_transfer') ? 1 : 0).",
 					".VIEWER_ID."
 				)";
 		query($sql);
@@ -1973,20 +1899,15 @@ switch(@$_POST['op']) {
 			'id' => mysql_insert_id()
 		));
 
-		if($income_ids)
-			query("UPDATE `money` SET `owner_id`=".($to > 100 ? $to : 0)." WHERE `id` IN (".$income_ids.")");
-
 		_historyInsert(
 			39,
 			array(
 				'value' => $sum,
-				'value1' => $from,
-				'value2' => $to
+				'value1' => $invoice_from,
+				'value2' => $invoice_to
 			)
 		);
 
-		$cash = cash_spisok();
-		$send['c'] = utf8($cash['spisok']);
 		$send['i'] = utf8(invoice_spisok());
 		$send['t'] = utf8(transfer_spisok());
 		jsonSuccess($send);
@@ -2044,8 +1965,6 @@ switch(@$_POST['op']) {
 		);
 
 		$send['confirm'] = utf8(income_confirm_info());
-		$cash = cash_spisok();
-		$send['c'] = utf8($cash['spisok']);
 		$send['i'] = utf8(invoice_spisok());
 		jsonSuccess($send);
 		break;
@@ -2071,7 +1990,7 @@ switch(@$_POST['op']) {
 
 		$about = win1251(htmlspecialchars(trim($_POST['about'])));
 
-		$sql = "SELECT `id` FROM `invoice_transfer` WHERE !`deleted` AND !`invoice_to` AND `worker_to` AND !`confirm` AND `id` IN (".$ids.")";
+		$sql = "SELECT `id` FROM `invoice_transfer` WHERE !`deleted` AND `confirm`=1 AND `id` IN (".$ids.")";
 		$q = query($sql);
 		if(count($ex) != mysql_num_rows($q))
 			jsonError();
@@ -2079,7 +1998,7 @@ switch(@$_POST['op']) {
 			if(!$ass[$r['id']])
 				jsonError();
 		foreach($ex as $id)
-			query("UPDATE `invoice_transfer` SET `confirm`=1,`about`='".addslashes($about)."' WHERE `id`=".$id);
+			query("UPDATE `invoice_transfer` SET `confirm`=2,`about`='".addslashes($about)."' WHERE `id`=".$id);
 
 		_historyInsert(
 			52,
@@ -2124,8 +2043,6 @@ switch(@$_POST['op']) {
 
 		_historyInsert(53, array('value'=>round($r['sum'], 2)));
 
-		$cash = cash_spisok();
-		$send['c'] = utf8($cash['spisok']);
 		$send['i'] = utf8(invoice_spisok());
 		$send['t'] = utf8(transfer_spisok());
 		jsonSuccess($send);
@@ -2135,7 +2052,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'invoice_history':
-		if(!$invoice_id = _isnum($_POST['invoice_id']))
+		if(!$invoice_id = _num($_POST['invoice_id']))
 			jsonError();
 		$page = 1;
 		if(!empty($_POST['page']) && $_POST['page'] > 1)
@@ -2144,13 +2061,13 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'invoice_history_full':
-		if(!$invoice_id = _isnum($_POST['invoice_id']))
+		if(!$invoice_id = _num($_POST['invoice_id']))
 			jsonError();
 		$send['html'] = utf8(invoice_history_full($_POST));
 		jsonSuccess($send);
 		break;
 	case 'invoice_history_ostatok':
-		if(!$invoice_id = _isnum($_POST['invoice_id']))
+		if(!$invoice_id = _num($_POST['invoice_id']))
 			jsonError();
 		$send['html'] = utf8(invoice_history_ostatok($_POST));
 		jsonSuccess($send);
@@ -2170,21 +2087,16 @@ switch(@$_POST['op']) {
 	case 'income_add':
 		$v = array(
 			'from' => trim($_POST['from']),
-			'prim' => win1251(htmlspecialchars(trim($_POST['prim'])))
+			'prim' => _txt($_POST['prim']),
+			'zayav_id' => _num(@$_POST['zayav_id']),
+			'client_id' => _num(@$_POST['client_id']),
+			'confirm' => _bool(@$_POST['confirm'])
 		);
-		if(!$v['type'] = _isnum($_POST['type']))
+		if(!$v['invoice_id'] = _num($_POST['invoice_id']))
 			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['confirm']))
+		if(!$v['sum'] = _cena($_POST['sum']))
 			jsonError();
-		if(!preg_match(REGEXP_CENA, $_POST['sum']) || $_POST['sum'] == 0)
-			jsonError();
-		if(preg_match(REGEXP_NUMERIC, $_POST['zayav_id']))
-			$v['zayav_id'] = intval($_POST['zayav_id']);
-		if(preg_match(REGEXP_NUMERIC, $_POST['client_id']))
-			$v['client_id'] = intval($_POST['client_id']);
 
-		$v['confirm'] = _income($v['type'], 'confirm') ? intval($_POST['confirm']) : 0;
-		$v['sum'] = str_replace(',', '.', $_POST['sum']);
 		$remind_active = _bool($_POST['remind_active']);
 
 		$send['html'] = utf8(income_insert($v));
@@ -2192,7 +2104,7 @@ switch(@$_POST['op']) {
 			jsonError();
 		if($v['from'] == 'client') {
 			$sql = "SELECT * FROM `client` WHERE `id`=".$v['client_id'];
-			$r = mysql_fetch_assoc(query($sql));
+			$r = query_assoc($sql);
 			$send['balans'] = utf8(clientInfoGet($r));
 		}
 		if($v['from'] == 'zayav') {
@@ -2204,7 +2116,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'income_del':
-		if(!$id = _isnum($_POST['id']))
+		if(!$id = _num($_POST['id']))
 			jsonError();
 
 		$sql = "SELECT *
@@ -2216,8 +2128,8 @@ switch(@$_POST['op']) {
 		if(!$r['confirm'] && ($r['dogovor_id'] || TODAY != substr($r['dtime_add'], 0, 10)))
 			jsonError();
 
-		$sql = "UPDATE `money` SET
-					`deleted`=1,
+		$sql = "UPDATE `money`
+				SET `deleted`=1,
 					`viewer_id_del`=".VIEWER_ID.",
 					`dtime_del`=CURRENT_TIMESTAMP
 				WHERE `id`=".$id;
@@ -2238,7 +2150,7 @@ switch(@$_POST['op']) {
 				'client_id' => $r['client_id'],
 				'value' => $r['sum'],
 				'value1' => $r['prim'],
-				'value2' => $r['income_id']
+				'value2' => $r['invoice_id']
 			)
 		);
 
@@ -2277,7 +2189,7 @@ switch(@$_POST['op']) {
 				'client_id' => $r['client_id'],
 				'value' => $r['sum'],
 				'value1' => $r['prim'],
-				'value2' => $r['income_id']
+				'value2' => $r['invoice_id']
 			)
 		);
 
@@ -2291,13 +2203,13 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'expense_add':
-		if(!$category = _isnum($_POST['category']))
+		if(!$category = _num($_POST['category']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['worker']))
 			jsonError();
 		if(!$sum = _cena($_POST['sum']))
 			jsonError();
-		if(!$invoice = _isnum($_POST['invoice']))
+		if(!$invoice = _num($_POST['invoice']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
 			jsonError();
@@ -2449,7 +2361,7 @@ switch(@$_POST['op']) {
 		break;
 	case 'expense_edit':
 		jsonError();//todo
-		if(empty($_POST['id']) && !preg_match(REGEXP_NUMERIC, $_POST['id']))
+		if(!$id = _num($_POST['id']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['category']))
 			jsonError();
@@ -2460,7 +2372,6 @@ switch(@$_POST['op']) {
 		if(empty($_POST['invoice']) || !preg_match(REGEXP_NUMERIC, $_POST['invoice']))
 			jsonError();
 
-		$id = intval($_POST['id']);
 		$sql = "SELECT *
 				FROM `money`
 				WHERE !`deleted`
@@ -2492,23 +2403,6 @@ switch(@$_POST['op']) {
 					WHERE `id`=".$id;
 			query($sql);
 
-/*
-  Остался нерешённым вопрос когда изменяется счёт, внутренний счёт сотрудника тоже изменяется.
-			if($r['sum'] != $sum)
-				invoice_history_insert(array(
-					'action' => 9,
-					'table' => 'money',
-					'id' => $id
-				));
-
-			if($r['invoice_id'] != $invoice)
-				invoice_history_insert(array(
-					'action' => 9,
-					'invoice_id' => $invoice,
-					'table' => 'money',
-					'id' => $id
-				));
-*/
 			_historyInsert(
 				35,
 				array(
@@ -2570,9 +2464,9 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'salary_up':
-		if(!$worker_id = _isnum($_POST['worker_id']))
+		if(!$worker_id = _num($_POST['worker_id']))
 			jsonError();
-		if(!$sum = _isnum($_POST['sum']))
+		if(!$sum = _num($_POST['sum']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
 			jsonError();
@@ -2645,7 +2539,7 @@ switch(@$_POST['op']) {
 			jsonError();
 		if(!$sum = _cena($_POST['sum']))
 			jsonError();
-		if(!$invoice = _isnum($_POST['invoice']))
+		if(!$invoice = _num($_POST['invoice']))
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['mon']))
 			jsonError();
@@ -2792,7 +2686,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'salary_del':
-		if(!$id = _isnum($_POST['id']))
+		if(!$id = _num($_POST['id']))
 			jsonError();
 
 		$sql = "SELECT *
@@ -2904,7 +2798,7 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'salary_days': // вывод начислений зп по дням по expense_id
-		if(!$id = _isnum($_POST['id']))
+		if(!$id = _num($_POST['id']))
 			jsonError();
 
 		$sql = "SELECT * FROM `zayav_expense` WHERE `id`=".$id;
@@ -2929,11 +2823,11 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'salary_days_get': // вывод начислений зп по дням за определённый месяц
-		if(!$worker_id = _isnum($_POST['worker_id']))
+		if(!$worker_id = _num($_POST['worker_id']))
 			jsonError();
-		if(!$mon = _isnum($_POST['mon']))
+		if(!$mon = _num($_POST['mon']))
 			jsonError();
-		if(!$year = _isnum($_POST['year']))
+		if(!$year = _num($_POST['year']))
 			jsonError();
 
 		$send['days'] = array();
@@ -3065,19 +2959,22 @@ switch(@$_POST['op']) {
 	case 'setup_worker_del':
 		if(!RULES_WORKER)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['viewer_id']))
+		if(!$viewer_id = _num($_POST['viewer_id']))
 			jsonError();
-		$viewer_id = intval($_POST['viewer_id']);
+
 		$sql = "SELECT * FROM `vk_user` WHERE `viewer_id`=".$viewer_id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
+		if(!$r = query_assoc($sql))
 			jsonError();
+
 		if($r['admin'])
 			jsonError();
 		if(!$r['worker'])
 			jsonError();
 
-		query("UPDATE `vk_user` SET `worker`=0,`rules`='' WHERE `viewer_id`=".$viewer_id);
+		query("UPDATE `vk_user` SET `worker`=0 WHERE `viewer_id`=".$viewer_id);
+		query("DELETE FROM `vk_user_rules` WHERE `viewer_id`=".$viewer_id);
 		xcache_unset(CACHE_PREFIX.'viewer_'.$viewer_id);
+		xcache_unset(CACHE_PREFIX.'viewer_rules_'.$viewer_id);
 		GvaluesCreate();
 
 		_historyInsert(14, array('value'=>$viewer_id));
@@ -3155,7 +3052,7 @@ switch(@$_POST['op']) {
 	case 'setup_worker_dop_save':
 		if(!RULES_WORKER)
 			jsonError();
-		if(!$viewer_id = _isnum($_POST['viewer_id']))
+		if(!$viewer_id = _num($_POST['viewer_id']))
 			jsonError();
 
 		$u = _viewer($viewer_id);
@@ -3399,43 +3296,37 @@ switch(@$_POST['op']) {
 
 		jsonSuccess();
 		break;
+
 	case 'setup_invoice_add':
-		if(!RULES_INCOME)
+		if(!RULES_INVOICE)
 			jsonError();
-		$name = win1251(htmlspecialchars(trim($_POST['name'])));
-		$about = win1251(htmlspecialchars(trim($_POST['about'])));
-		$types = trim($_POST['types']);
+		$name = _txt($_POST['name']);
+		$about = _txt($_POST['about']);
+		$income = _bool($_POST['income']);
+		$transfer = _bool($_POST['transfer']);
 		$visible = trim($_POST['visible']);
 		if(empty($name))
 			jsonError();
 
-		if(!empty($types)) {
-			foreach(explode(',', $types) as $id)
-				if(!_isnum($id))
-					jsonError();
-			$prihod = query_value("SELECT `name` FROM `setup_income` WHERE `id` IN (".$types.") AND `invoice_id`>0 LIMIT 1");
-			if($prihod)
-				jsonError('Вид платежа <u>'.$prihod.'</u> задействован в другом счёте');
-		}
-
 		if(!empty($visible))
 			foreach(explode(',', $visible) as $id)
-				if(!_isnum($id))
+				if(!_num($id))
 					jsonError();
 
 		$sql = "INSERT INTO `invoice` (
 					`name`,
 					`about`,
+					`confirm_income`,
+					`confirm_transfer`,
 					`visible`
 				) VALUES (
 					'".addslashes($name)."',
 					'".addslashes($about)."',
+					".$income.",
+					".$transfer.",
 					'".$visible."'
 				)";
 		query($sql);
-
-		if(!empty($types))
-			query("UPDATE `setup_income` SET `invoice_id`=".mysql_insert_id()." WHERE `id` IN (".$types.")");
 
 		xcache_unset(CACHE_PREFIX.'invoice');
 		GvaluesCreate();
@@ -3447,40 +3338,26 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'setup_invoice_edit':
-		if(!RULES_INCOME)
+		if(!RULES_INVOICE)
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
+		if(!$invoice_id = _num($_POST['id']))
 			jsonError();
-		$invoice_id = intval($_POST['id']);
-		$name = win1251(htmlspecialchars(trim($_POST['name'])));
-		$about = win1251(htmlspecialchars(trim($_POST['about'])));
-		$types = trim($_POST['types']);
+		$name = _txt($_POST['name']);
+		$about = _txt($_POST['about']);
+		$income = _bool($_POST['income']);
+		$transfer = _bool($_POST['transfer']);
 		$visible = trim($_POST['visible']);
 		if(empty($name))
 			jsonError();
 
-		if(!empty($types)) {
-			foreach(explode(',', $types) as $id)
-				if(!_isnum($id))
-					jsonError();
-			$prihod = query_value("SELECT `name`
-								   FROM `setup_income`
-								   WHERE `id` IN (".$types.")
-								     AND `invoice_id`>0
-								     AND `invoice_id`!=".$invoice_id."
-								   LIMIT 1");
-			if($prihod)
-				jsonError('Вид платежа <u>'.$prihod.'</u> задействован в другом счёте');
-		}
-
 		if(!empty($visible))
 			foreach(explode(',', $visible) as $id)
-				if(!_isnum($id))
+				if(!_num($id))
 					jsonError();
 
 
 		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
+		if(!$r = query_assoc($sql))
 			jsonError();
 
 
@@ -3488,14 +3365,11 @@ switch(@$_POST['op']) {
 		$sql = "UPDATE `invoice`
 				SET `name`='".addslashes($name)."',
 					`about`='".addslashes($about)."',
+					`confirm_income`=".$income.",
+					`confirm_transfer`=".$transfer.",
 					`visible`='".$visible."'
 				WHERE `id`=".$invoice_id;
 		query($sql);
-
-		query("UPDATE `setup_income` SET `invoice_id`=0 WHERE `invoice_id`=".$invoice_id);
-		if(!empty($types))
-			query("UPDATE `setup_income` SET `invoice_id`=".$invoice_id." WHERE `id` IN (".$types.")");
-
 
 		xcache_unset(CACHE_PREFIX.'invoice');
 		GvaluesCreate();
@@ -3505,6 +3379,10 @@ switch(@$_POST['op']) {
 			$changes .= '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
 		if($r['about'] != $about)
 			$changes .= '<tr><th>Описание:<td>'.str_replace("\n", '<br />', $r['about']).'<td>»<td>'.str_replace("\n", '<br />', $about);
+		if($r['confirm_income'] != $income)
+			$changes .= '<tr><th>Подтверждение поступления на счёт:<td>'.($r['confirm_income'] ? 'да' : 'нет').'<td>»<td>'.($income ? 'да' : 'нет');
+		if($r['confirm_transfer'] != $transfer)
+			$changes .= '<tr><th>Подтверждение перевода:<td>'.($r['confirm_transfer'] ? 'да' : 'нет').'<td>»<td>'.($transfer ? 'да' : 'нет');
 		if($r['visible'] != $visible) {
 			$old = array();
 			if($r['visible'])
@@ -3531,7 +3409,7 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'setup_invoice_del':
-		if(!RULES_INCOME)
+		if(!RULES_INVOICE)
 			jsonError();
 		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
 			jsonError();
@@ -3552,106 +3430,7 @@ switch(@$_POST['op']) {
 		$send['html'] = utf8(setup_invoice_spisok());
 		jsonSuccess($send);
 		break;
-	case 'setup_income_add':
-		if(!RULES_INCOME)
-			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['confirm']))
-			jsonError();
-		$confirm = intval($_POST['confirm']);
 
-		$name = win1251(htmlspecialchars(trim($_POST['name'])));
-		if(empty($name))
-			jsonError();
-		$sql = "INSERT INTO `setup_income` (
-					`name`,
-					`confirm`,
-					`sort`
-				) VALUES (
-					'".addslashes($name)."',
-					".$confirm.",
-					"._maxSql('setup_income', 'sort')."
-				)";
-		query($sql);
-
-		xcache_unset(CACHE_PREFIX.'income');
-		GvaluesCreate();
-
-		_historyInsert(507, array('value'=>$name));
-
-
-		$send['html'] = utf8(setup_income_spisok());
-		jsonSuccess($send);
-		break;
-	case 'setup_income_edit':
-		if(!RULES_INCOME)
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
-			jsonError();
-		if(!preg_match(REGEXP_BOOL, $_POST['confirm']))
-			jsonError();
-
-		$id = intval($_POST['id']);
-		$name = win1251(htmlspecialchars(trim($_POST['name'])));
-		$confirm = intval($_POST['confirm']);
-
-		if(empty($name))
-			jsonError();
-
-		$sql = "SELECT * FROM `setup_income` WHERE `id`=".$id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		$sql = "UPDATE `setup_income`
-				SET `name`='".addslashes($name)."',
-					`confirm`=".$confirm."
-				WHERE `id`=".$id;
-		query($sql);
-
-		xcache_unset(CACHE_PREFIX.'income');
-		GvaluesCreate();
-
-		$changes = '';
-		if($r['name'] != $name)
-			$changes .= '<tr><th>Наименование:<td>'.$r['name'].'<td>»<td>'.$name;
-		if($r['confirm'] != $confirm)
-			$changes .= '<tr><th>Подтверждение поступления на счёт:<td>'.($r['confirm'] ? 'да' : 'нет').'<td>»<td>'.($confirm ? 'да' : 'нет');
-		if($changes)
-			_historyInsert(508, array(
-				'value' => $name,
-				'value1' => '<table>'.$changes.'</table>'
-			));
-
-		$send['html'] = utf8(setup_income_spisok());
-		jsonSuccess($send);
-		break;
-	case 'setup_income_del':
-		if(!RULES_INCOME)
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
-			jsonError();
-		$id = intval($_POST['id']);
-
-		// Нельзя удалить наличный платёж
-		if($id == 1)
-			jsonError();
-
-		$sql = "SELECT * FROM `setup_income` WHERE `id`=".$id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		if(query_value("SELECT COUNT(`id`) FROM `money` WHERE `income_id`=".$id))
-			jsonError();
-		$sql = "DELETE FROM `setup_income` WHERE `id`=".$id;
-		query($sql);
-
-		xcache_unset(CACHE_PREFIX.'income');
-		GvaluesCreate();
-
-		_historyInsert(509, array('value'=>$r['name']));
-
-		$send['html'] = utf8(setup_income_spisok());
-		jsonSuccess($send);
-		break;
 	case 'setup_expense_add':
 //		if(!RULES_ZAYAVRASHOD)
 //			jsonError();

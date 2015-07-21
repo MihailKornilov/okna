@@ -444,14 +444,14 @@ function incomes() {
 	$sheet->setCellValue('A'.$line, 'Дата');
 	$sheet->setCellValue('B'.$line, 'Клиент');
 	$sheet->setCellValue('C'.$line, 'Сумма');
-	$sheet->setCellValue('D'.$line, 'Вид');
+	$sheet->setCellValue('D'.$line, 'Счёт');
 	$sheet->setCellValue('E'.$line, 'Описание');
 	$sheet->setSharedStyle(styleHead(), 'A'.$line.':E'.$line);
 	$line++;
 
 	$sql = "SELECT *
 	        FROM `money`
-	        WHERE `deleted`=0
+	        WHERE !`deleted`
 	          AND `sum`>0
 			  AND `dtime_add` LIKE '".MON."%'
 	        ORDER BY `id`";
@@ -471,7 +471,7 @@ function incomes() {
 		if($r['client_id'])
 			$sheet->getCell('B'.$line)->setValue(utf8(htmlspecialchars_decode($r['client_fio'])));
 		$sheet->getCell('C'.$line)->setValue(_sumSpace($r['sum']));
-		$sheet->getCell('D'.$line)->setValue(utf8(_income($r['income_id'])));
+		$sheet->getCell('D'.$line)->setValue(utf8(_invoice($r['invoice_id'])));
 		$head = isset($r['zayav_head']) ? utf8($r['zayav_head']).'. ': '';
 		$avans = $r['dogovor_id'] ? 'Авансовый платеж (договор '.utf8($r['dogovor_nomer']).'). ' : '';
 		$sheet->getCell('E'.$line)->setValue($head.$avans.utf8(htmlspecialchars_decode($r['prim'])).' ');
@@ -485,6 +485,7 @@ function incomes() {
 	$sheet->getStyle('C'.$start.':C'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$sheet->setCellValue('C'.$line, _sumSpace($sum));
 	$sheet->getStyle('C'.$line)->getFont()->setBold(true);
+	$sheet->getStyle('D'.$start.':D'.$line)->getAlignment()->setWrapText(true);
 	$sheet->getStyle('E'.$start.':E'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
 	$sheet->getStyle('E'.$start.':E'.$line)->getAlignment()->setWrapText(true);
 	$sheet->setCellValue('B'.$line, 'Итог:');
@@ -492,14 +493,14 @@ function incomes() {
 	$line++;
 	$sql = "SELECT `i`.*,
 					IFNULL(SUM(`m`.`sum`),0) AS `sum`
-			FROM `setup_income` AS `i`
+			FROM `invoice` AS `i`
 				LEFT JOIN `money` AS `m`
-				ON `i`.`id`=`m`.`income_id`
-				 AND `m`.`deleted`=0
+				ON `i`.`id`=`m`.`invoice_id`
+				 AND !`m`.`deleted`
 				 AND `m`.`sum`>0
 				 AND `m`.`dtime_add` LIKE '".MON."%'
 			GROUP BY `i`.`id`
-			ORDER BY `i`.`sort`";
+			ORDER BY `i`.`id`";
 	$q = query($sql);
 	$start = $line;
 	while($r = mysql_fetch_assoc($q)) {
@@ -565,22 +566,23 @@ function debtors() {
 	$sql = "SELECT *
 			FROM `zayav`
 			WHERE !`deleted`
-			  AND `accrual_sum`-`oplata_sum`>0
 			  AND `dogovor_id`
 			  AND `client_id` IN (".implode(',', array_keys($client)).")";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
-		$client[$r['client_id']]['dog'][] = $dog[$r['dogovor_id']];
+		if($r['accrual_sum'] - $r['oplata_sum'] > 0)
+			$client[$r['client_id']]['dog'][] = $dog[$r['dogovor_id']];
 
 	// составление списка ВГ, по которым есть долги
 	$sql = "SELECT *
 			FROM `zayav`
 			WHERE !`deleted`
-			  AND `accrual_sum`-`oplata_sum`>0
 			  AND (`nomer_vg` OR `nomer_g` OR `nomer_d` OR `nomer_t`)
 			  AND `client_id` IN (".implode(',', array_keys($client)).")";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q)) {
+		if($r['accrual_sum'] - $r['oplata_sum'] <= 0)
+			continue;
 		if(!empty($client[$r['client_id']]['dog']))
 			continue;
 		$nomer = '';

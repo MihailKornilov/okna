@@ -91,11 +91,19 @@ function _hashCookieSet() {
 	$html .= '<script type="text/javascript">hashSet({'.implode(',', $gValues).'})</script>';
 }//_hashCookieSet()
 function _cacheClear() {
+	$sql = "SELECT `viewer_id` FROM `vk_user` WHERE `worker`=1";
+	$q = query($sql);
+	while($r = mysql_fetch_assoc($q)) {
+		xcache_unset(CACHE_PREFIX.'viewer_'.$r['viewer_id']);
+		xcache_unset(CACHE_PREFIX.'viewer_rules_'.$r['viewer_id']);
+		xcache_unset(CACHE_PREFIX.'pin_enter_count'.$r['viewer_id']);
+	}
+	query("UPDATE `setup_global` SET `version`=`version`+1");
+
 	xcache_unset(CACHE_PREFIX.'setup_global');
 	xcache_unset(CACHE_PREFIX.'product');
 	xcache_unset(CACHE_PREFIX.'product_sub');
 	xcache_unset(CACHE_PREFIX.'invoice');
-	xcache_unset(CACHE_PREFIX.'income');
 	xcache_unset(CACHE_PREFIX.'expense');
 	xcache_unset(CACHE_PREFIX.'zayav_expense');
 	GvaluesCreate();
@@ -145,8 +153,9 @@ function GvaluesCreate() {//Составление файла G_values.js
 		"\n".'PRODUCT_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_product` ORDER BY `name`").','.
 		"\n".'PRODUCT_ASS=_toAss(PRODUCT_SPISOK),'.
 		"\n".'INVOICE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `invoice` ORDER BY `id`").','.
-		"\n".'INCOME_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_income` ORDER BY `sort`").','.
-		"\n".'INCOME_CONFIRM='.query_ptpJson("SELECT `id`,`confirm` FROM `setup_income` WHERE `confirm`").','.
+		"\n".'INVOICE_ASS=_toAss(INVOICE_SPISOK),'.
+		"\n".'INVOICE_CONFIRM_INCOME='.query_ptpJson("SELECT `id`,1 FROM `invoice` WHERE `confirm_income`").','.
+		"\n".'INVOICE_CONFIRM_TRANSFER='.query_ptpJson("SELECT `id`,1 FROM `invoice` WHERE `confirm_transfer`").','.
 		"\n".'EXPENSE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_expense` ORDER BY `sort`").','.
 		"\n".'EXPENSE_WORKER='.query_ptpJson("SELECT `id`,`show_worker` FROM `setup_expense` WHERE `show_worker`").','.
 		"\n".'ZAYAVEXPENSE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_zayavexpense` ORDER BY `sort`").','.
@@ -173,23 +182,9 @@ function GvaluesCreate() {//Составление файла G_values.js
 				'{uid:40,title:40},'.
 				'{uid:50,title:50}],'.
 		"\n".'ZAMER_DURATION='._selJson(_zamerDuration()).','.
-		"\n".'HISTORY_GROUP='._selJson(history_group_name()).',';
+		"\n".'HISTORY_GROUP='._selJson(history_group_name()).','.
+		"\n".'PRODUCT_SUB_SPISOK='.Gvalues_obj('setup_product_sub', '`product_id`,`name`', 'product_id');
 
-	$sql = "SELECT * FROM `setup_product_sub` ORDER BY `product_id`,`name`";
-	$q = query($sql);
-	$sub = array();
-	while($r = mysql_fetch_assoc($q)) {
-		if(!isset($sub[$r['product_id']]))
-			$sub[$r['product_id']] = array();
-		$sub[$r['product_id']][] = '{uid:'.$r['id'].',title:"'.$r['name'].'"}';
-	}
-	$v = array();
-	foreach($sub as $n => $sp)
-		$v[] = $n.':['.implode(',', $sp).']';
-	$save .= "\n".'PRODUCT_SUB_SPISOK={'.implode(',', $v).'}';
-		//'PRODUCT_ASS=[],'.
-		//'PRODUCT_ASS[0]="";'.
-		//'for(var k in G.vendor_spisok){for(var n=0;n<G.vendor_spisok[k].length;n++){var sp=G.vendor_spisok[k][n];G.vendor_ass[sp.uid]=sp.title;}}';
 	$fp = fopen(APP_PATH.'/js/G_values.js','w+');
 	fwrite($fp, $save.';');
 	fclose($fp);
@@ -237,7 +232,7 @@ function _productSub($product_id=false) {//Список изделий для заявок
 		}
 	}
 	return $product_id !== false ? constant('PRODUCT_SUB_'.$product_id) : $arr;
-}//_product()
+}//_productSub()
 function _invoice($type_id=false, $i='name') {//Список изделий для заявок
 	if(!defined('INVOICE_LOADED') || $type_id === false) {
 		$key = CACHE_PREFIX.'invoice';
@@ -254,10 +249,14 @@ function _invoice($type_id=false, $i='name') {//Список изделий для заявок
 		if(!defined('INVOICE_LOADED')) {
 			foreach($arr as $id => $r) {
 				define('INVOICE_'.$id, $r['name']);
+				define('INVOICE_INCOME_'.$id, $r['confirm_income']);
+				define('INVOICE_TRANSFER_'.$id, $r['confirm_transfer']);
 				define('INVOICE_START_'.$id, $r['start']);
 			}
 			define('INVOICE_0', '');
 			define('INVOICE_START_0', 0);
+			define('INVOICE_INCOME_0', 0);
+			define('INVOICE_TRANSFER_0', 0);
 			define('INVOICE_LOADED', true);
 		}
 	}
@@ -265,43 +264,12 @@ function _invoice($type_id=false, $i='name') {//Список изделий для заявок
 		return $arr;
 	if($i == 'start')
 		return constant('INVOICE_START_'.$type_id);
+	if($i == 'confirm_income')
+		return constant('INVOICE_INCOME_'.$type_id);
+	if($i == 'confirm_transfer')
+		return constant('INVOICE_TRANSFER_'.$type_id);
 	return constant('INVOICE_'.$type_id);
 }//_invoice()
-function _income($type_id=false, $i='name') {//Список изделий для заявок
-	if(!defined('INCOME_LOADED') || $type_id === false) {
-		$key = CACHE_PREFIX.'income';
-		$arr = xcache_get($key);
-		if(empty($arr)) {
-			$sql = "SELECT * FROM `setup_income` ORDER BY `sort`";
-			$q = query($sql);
-			while($r = mysql_fetch_assoc($q))
-				$arr[$r['id']] = array(
-					'name' => $r['name'],
-					'invoice_id' => $r['invoice_id'],
-					'confirm' => $r['confirm']
-				);
-			xcache_set($key, $arr, 86400);
-		}
-		if(!defined('INCOME_LOADED')) {
-			foreach($arr as $id => $r) {
-				define('INCOME_'.$id, $r['name']);
-				define('INCOME_INVOICE_'.$id, $r['invoice_id']);
-				define('INCOME_CONFIRM_'.$id, $r['confirm']);
-			}
-			define('INCOME_0', '');
-			define('INCOME_INVOICE_0', 0);
-			define('INCOME_CONFIRM_0', 0);
-			define('INCOME_LOADED', true);
-		}
-	}
-	if($type_id === false)
-		return $arr;
-	if($i == 'invoice')
-		return constant('INCOME_INVOICE_'.$type_id);
-	if($i == 'confirm')
-		return constant('INCOME_CONFIRM_'.$type_id);
-	return constant('INCOME_'.$type_id);
-}//_income()
 function _expense($type_id=false, $i='name') {// Виды  расходов
 	if(!defined('EXPENSE_LOADED') || $type_id === false) {
 		$key = CACHE_PREFIX.'expense';
@@ -384,7 +352,7 @@ function _mainLinks() {
 
 	_remindActiveSet();
 
-	if(VIEWER_ADMIN && $count = query_value("SELECT COUNT(`id`) FROM `invoice_transfer` WHERE !`deleted` AND !`invoice_to` AND `worker_to` AND !`confirm`"))
+	if(VIEWER_ADMIN && $count = query_value("SELECT COUNT(`id`) FROM `invoice_transfer` WHERE !`deleted` AND `confirm`=1"))
 		define('TRANSFER_CONFIRM', $count);
 	else
 		define('TRANSFER_CONFIRM', 0);
@@ -430,15 +398,6 @@ function _mainLinks() {
 
 function _setupRules($rls, $admin=0) {
 	$rules = array(
-		'RULES_CASH' => array(	    // Внутренний наличный счёт
-			'def' => 0
-		),
-		'RULES_SELMONEY' => array(	// Перевод денег строго через выбор платежей (галочками)
-			'def' => 0
-		),
-		'RULES_GETMONEY' => array(	// Может принимать и передавать деньги
-			'def' => 0
-		),
 		'RULES_NOSALARY' => array(	// Не отображать в начислениях з/п
 			'def' => 0
 		),
@@ -465,7 +424,7 @@ function _setupRules($rls, $admin=0) {
 					'def' => 0,
 					'admin' => 1
 				),
-				'RULES_INCOME' => array(	// Реквизиты организации
+				'RULES_INVOICE' => array(	// Счета
 					'def' => 0,
 					'admin' => 1
 				),
@@ -687,13 +646,13 @@ function clientFilter($v) {
 		'product_id' => 0
 	);
 	$filter = array(
-		'page' => _isnum(@$v['page']) ? $v['page'] : 1,
+		'page' => _num(@$v['page']) ? $v['page'] : 1,
 		'find' => trim(@$v['find']),
 		'dolg' => _isbool(@$v['dolg']),
 		'worker' => _isbool(@$v['worker']),
 		'note' => _isbool(@$v['note']),
-		'zayav_cat' => _isnum(@$v['zayav_cat']),
-		'product_id' => _isnum(@$v['product_id']),
+		'zayav_cat' => _num(@$v['zayav_cat']),
+		'product_id' => _num(@$v['product_id']),
 		'clear' => ''
 	);
 	foreach($default as $k => $r)
@@ -1519,8 +1478,8 @@ function zayavFilter($v) {
 		'client' => !empty($v['client']) && preg_match(REGEXP_NUMERIC, $v['client']) ? intval($v['client']) : 0,
 		'product' => !empty($v['product']) && preg_match(REGEXP_NUMERIC, $v['product']) ? intval($v['product']) : 0,
 		'status' => !empty($v['status']) && preg_match(REGEXP_NUMERIC, $v['status']) ? intval($v['status']) : 0,
-		'zpe' => _isnum(@$v['zpe']),
-		'zpe_worker' => _isnum(@$v['zpe_worker']),
+		'zpe' => _num(@$v['zpe']),
+		'zpe_worker' => _num(@$v['zpe_worker']),
 		'account' => _isbool(@$v['account'])
 	);
 }//zayavFilter()
@@ -1966,7 +1925,7 @@ function zayav_info($zayav_id) {
 
 	$invoices_sum = array();
 	foreach(_invoice() as $id => $r)
-		$invoices_sum[$id] = _invoiceBalans($id == 1 && _viewerRules(VIEWER_ID, 'RULES_SELMONEY') ? VIEWER_ID : $id);
+		$invoices_sum[$id] = _invoiceBalans($id);
 
 	$avans_owner = query_value("SELECT COUNT(`id`) FROM `money` WHERE !`deleted` AND `zayav_id`=".$zayav_id." AND `owner_id`=".VIEWER_ID);
 	define('MONEY_EXIST', query_value("SELECT COUNT(`id`) FROM `money` WHERE !`deleted` AND `zayav_id`=".$zayav_id));
@@ -2133,7 +2092,6 @@ function zayav_money($zayav_id) {
 			'acc' AS `type`,
 			`id`,
 			0 AS `invoice_id`,
-			0 AS `income_id`,
 			`sum`,
 			`client_id`,
 			`zayav_id`,
@@ -2154,7 +2112,6 @@ function zayav_money($zayav_id) {
 			'opl' AS `type`,
 			`id`,
 			`invoice_id`,
-			`income_id`,
 			`sum`,
 			`client_id`,
 			`zayav_id`,
@@ -2599,7 +2556,7 @@ function cashmemoParagraph($id) {
 	'<div class="shop-about">(сумма прописью)</div>'.
 	'<table class="cash-podpis">'.
 		'<tr><td>Продавец ______________________<div class="prod-bot">(подпись)</div>'.
-			'<td><u>/'._viewer(VIEWER_ID, 'name_init').'/</u><div class="r-bot">(расшифровка подписи)</div>'.
+			'<td><u>/'._viewer($money['viewer_id_add'], 'name_init').'/</u><div class="r-bot">(расшифровка подписи)</div>'.
 	'</table>';
 }//cashmemoParagraph()
 
@@ -2695,7 +2652,7 @@ function histChangeHref() { // правка ссылок в истории (href)
 		$worker = explode('&id=', $ex1[0]);
 		$mon = 0;
 		$acc = 0;
-		if(!_isnum($worker[1])) {
+		if(!_num($worker[1])) {
 			$mon = explode('&mon=', $worker[1]);
 			$acc = explode('&acc_id=', $mon[1]);
 			$worker = $mon[0];

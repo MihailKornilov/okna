@@ -501,7 +501,7 @@ var hashLoc,
 		var send = {
 			op:'income_spisok',
 			day:$('.selected').val(),
-			income_id:$('#income_id').val(),
+			invoice_id:$('#filter_invoice_id').val(),
 			worker_id:window.WORKERS ? $('#worker_id').val() : 0,
 			deleted:$('#deleted').val()
 		};
@@ -1614,94 +1614,43 @@ $(document)
 	})
 
 	.on('click', '.invoice_set', function() {
-		if(!window.CASH)
-			window.CASH = [];
 		var t = $(this),
 			invoice_id = t.attr('val'),
-			html = '<table class="_dialog-tab">',
-			len = CASH.length,
-			nal = invoice_id == '1' && !!len;
-
-		if(nal) {
-			for(n = 0; n < len; n++)
-				html +=
-					'<tr><td class="label">' + CASH[n].name + ':' +
-						'<td><INPUT type="text" class="money" maxlength="11" value="' + CASH[n].sum + '"> руб.';
-			html += '<tr><td class="label">Счёт <b>' + INVOICE_NAME + '</b>:<td><b id="summa">0</b> руб.';
-		} else
-			html += '<tr><td class="label">Сумма:<td><INPUT type="text" class="money" id="sum" maxlength="11"> руб.';
-
-		html += '</table>';
-		var dialog = _dialog({
+			html =
+				'<table class="_dialog-tab">' +
+					'<tr><td class="label">Счёт:<td><b>' + INVOICE_ASS[invoice_id] + '</b>' +
+					'<tr><td class="label">Сумма:<td><input type="text" class="money" id="sum" maxlength="11" /> руб.' +
+				'</table>',
+			dialog = _dialog({
 				width:320,
 				head:'Установка текущей суммы счёта',
 				content:html,
 				butSubmit:'Установить',
 				submit:submit
-			}),
-			inp = dialog.content.find('input');
-
-		inp.eq(0).focus();
-		inp.keyEnter(submit);
-		if(nal) {
-			inp.keyup(function() {
-				var summa = 0;
-				for(n = 0; n < len; n++) {
-					var sum = inp.eq(n).val();
-					if(REGEXP_CENA.test(sum))
-						summa += sum.replace(',', '.') * 1;
-					else {
-						summa = 0;
-						break;
-					}
-				}
-				$('#summa').html(summa);
 			});
-		}
+
+		$('#sum').focus().keyEnter(submit);
+
 		function submit() {
-			var cash = [];
-			if(nal)
-				for(n = 0; n < len; n++) {
-					var sum = inp.eq(n).val();
-					if(REGEXP_CENA.test(sum))
-						cash.push(CASH[n].id + '=' + sum.replace(',', '.') * 1);
-					else {
-						err('Некорректно указана сумма');
-						inp.eq(n).focus();
-						return;
-					}
-				}
 			var send = {
 				op:'invoice_set',
 				invoice_id:invoice_id,
-				sum:nal ? 0 : $('#sum').val(),
-				cash:cash.join(':')
+				sum:$('#sum').val()
 			};
-			if(!nal && !REGEXP_CENA.test(send.sum)) {
-				err('Некорректно указана сумма');
+			if(!REGEXP_CENA.test(send.sum)) {
+				dialog.err('Некорректно указана сумма');
 				$('#sum').focus();
 			} else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
-						$('#cash-spisok').html(res.c);
 						$('#invoice-spisok').html(res.i);
 						dialog.close();
-						_msg('Баланс установлен.');
+						_msg('Текущая сумма счёта установлена');
 					} else
 						dialog.abort();
 				}, 'json');
 			}
-		}
-		function err(msg) {
-			dialog.bottom.vkHint({
-				msg:'<SPAN class="red">' + msg + '</SPAN>',
-				remove:1,
-				indent:40,
-				show:1,
-				top:-48,
-				left:72
-			});
 		}
 	})
 	.on('click', '#report.invoice .img_note', function() {//просмотр операций со счётом
@@ -1880,7 +1829,6 @@ $(document)
 			dialog.process();
 			$.post(AJAX_MAIN, send, function(res) {
 				if(res.success) {
-					$('#cash-spisok').html(res.c);
 					$('#invoice-spisok').html(res.i);
 					$('.transfer-spisok').html(res.t);
 					dialog.close();
@@ -1936,12 +1884,10 @@ $(document)
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
 						$('#confirm-info').html(res.confirm);
-						$('#cash-spisok').html(res.c);
 						$('#invoice-spisok').html(res.i);
 						dialog.close();
 						_msg('Платежи подтверждены.');
-					}
-					else
+					} else
 						dialog.abort();
 				}, 'json');
 			}
@@ -2047,8 +1993,8 @@ $(document)
 					'<td><input type="hidden" id="zayav_id" value="' + (OPL.zayav_id ? OPL.zayav_id : 0) + '">' +
 						(OPL.zayav_id ? '<b>' + OPL.zayav_head + '</b>' : '')
   : '') +
-				'<tr><td class="label">Вид платежа:<td><input type="hidden" id="income_opl">' +
-					'<a href="' + URL + '&p=setup&d=income" class="img_edit' + _tooltip('Настройка видов платежей', -85) + '</a>' +
+				'<tr><td class="label">На счёт:<td><input type="hidden" id="invoice_id" />' +
+					'<a href="' + URL + '&p=setup&d=invoice" class="img_edit' + _tooltip('Настройка счетов', -58) + '</a>' +
 				'<tr class="tr_confirm dn"><td class="label">Подтверждение:<td><input type="hidden" id="confirm">' +
 				'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" maxlength="11"> руб.' +
 				'<tr><td class="label">Комментарий:<td><input type="text" id="prim" maxlength="100">' +
@@ -2076,13 +2022,13 @@ $(document)
 				title0:'Не указана',
 				spisok:OPL.zayav_spisok
 			});
-		$('#income_opl')._select({
+		$('#invoice_id')._select({
 			width:180,
 			title0:'Не указан',
-			spisok:INCOME_SPISOK,
+			spisok:INVOICE_SPISOK,
 			func:function(uid) {
 				$('#sum').focus();
-				$('.tr_confirm')[(INCOME_CONFIRM[uid] ? 'remove' : 'add') + 'Class']('dn');
+				$('.tr_confirm')[(INVOICE_CONFIRM_INCOME[uid] ? 'remove' : 'add') + 'Class']('dn');
 				$('#confirm')._check(0);
 			}
 		});
@@ -2102,7 +2048,7 @@ $(document)
 			var send = {
 				op:'income_add',
 				from:OPL.from,
-				type:$('#income_opl').val(),
+				invoice_id:_num($('#invoice_id').val()),
 				confirm:$('#confirm').val(),
 				sum:$('#sum').val(),
 				zayav_id:$('#zayav_id').val() || 0,
@@ -2110,22 +2056,23 @@ $(document)
 				prim:$.trim($('#prim').val()),
 				remind_active:window.REMIND ? _num($('#remind_active').val()) : 0
 			};
-			if(send.type == 0) err('Не указан вид платежа');
-			else if(!REGEXP_CENA.test(send.sum) || send.sum == 0) {
-				err('Некорректно указана сумма.');
+			if(!send.invoice_id)
+				dialog.err('Не указан счёт');
+			else if(!_cena(send.sum)) {
+				dialog.err('Некорректно указана сумма.');
 				$('#sum').focus();
 			} else if($('#zayav_id').length && send.zayav_id == 0 && !send.prim) {
-				err('Если не выбрана заявка, необходимо указать комментарий');
+				dialog.err('Если не выбрана заявка, необходимо указать комментарий');
 				$('#prim').focus();
 			} else if(!$('#zayav_id').length && !send.prim) {
-				err('Необходимо указать комментарий');
+				dialog.err('Необходимо указать комментарий');
 				$('#prim').focus();
 			} else {
 				dialog.process();
 				$.post(AJAX_MAIN, send, function(res) {
 					if(res.success) {
 						dialog.close();
-						_msg('Платёж успешно внесён!');
+						_msg('Платёж успешно внесён');
 						switch(OPL.from) {
 							case 'client':
 								$('#income_spisok').html(res.html);
@@ -2146,16 +2093,6 @@ $(document)
 						dialog.abort();
 				}, 'json');
 			}
-		}
-		function err(msg) {
-			dialog.bottom.vkHint({
-				msg:'<SPAN class="red">' + msg + '</SPAN>',
-				remove:1,
-				indent:40,
-				show:1,
-				top:-48,
-				left:135
-			});
 		}
 	})
 	.on('click', '.income-del', function() {
@@ -2203,7 +2140,7 @@ $(document)
 				client_id:$('#money_client_id').val(),
 				zayav_id:$('#money_zayav_id').val(),
 				deleted:$('#money_deleted').val(),
-				income_id:$('#money_income_id').val(),
+				invoice_id:$('#money_invoice_id').val(),
 				owner_id:$('#money_owner_id').val(),
 				worker_id:$('#money_worker_id').val(),
 				day:$('.selected').val() || ''
@@ -3698,6 +3635,7 @@ $(document)
 				$('#sum').focus();
 				$('#sum,#prim').keyEnter(submit);
 				$('#invoice_id')._select({
+					width:200,
 					title0:'Не выбран',
 					spisok:INVOICE_SPISOK,
 					func:function(v) {
@@ -3760,10 +3698,10 @@ $(document)
 		}
 		if($('#report.income').length) {
 			window._calendarFilter = incomeSpisok;
-			$('#income_id')._select({
+			$('#filter_invoice_id')._select({
 				width:160,
-				title0:'Любые платежи',
-				spisok:INCOME_SPISOK,
+				title0:'Все счета',
+				spisok:INVOICE_SPISOK,
 				func:incomeSpisok
 			});
 			if(window.WORKERS)
@@ -3900,128 +3838,64 @@ $(document)
 		if($('#report.invoice').length) {
 			$('.transfer').click(function() {
 				var t = $(this),
-					html = '<table class="invoice-transfer">' +
-						'<tr><td class="label">Со счёта:' +
-							'<td><input type="hidden" id="from" /><span id="sum-from"></span>' +
-						'<tr><td class="label">На счёт:' +
-							'<td><input type="hidden" id="to" /><span id="sum-to"></span>' +
-						'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" /> руб. ' +
-							'<a class="income-choice">Выбрать платежи</a>' +
-							'<input type="hidden" id="ids" />' +
+					sum_from = false,
+					html =
+						'<table id="invoice-transfer-tab">' +
+							'<tr><td class="label">Со счёта:' +
+								'<td><input type="hidden" id="from" /><span id="sum-from"></span>' +
+							'<tr><td class="label">На счёт:' +
+								'<td><input type="hidden" id="to" />' +
+							'<tr><td class="label">Сумма:<td><input type="text" id="sum" class="money" /> руб. ' +
 						'</table>',
-					sum_from = 0,
 					dialog = _dialog({
-						width:380,
+						width:400,
 						head:'Перевод между счетами',
 						content:html,
 						butSubmit:'Применить',
 						submit:submit
 					});
-				if(window.CASH_SPISOK && !window.CSMOVE) {//Проверка открывалось ли это окно прежде
-					for(n = 0; n < INVOICE_SPISOK.length; n++)
-						if(INVOICE_SPISOK[n].uid != 1)
-							CASH_SPISOK.push(INVOICE_SPISOK[n]);
-					INVOICE_SPISOK = CASH_SPISOK;
-					window.CSMOVE = 1;
-				}
 				$('#from')._select({
 					width:200,
 					title0:'Не выбран',
 					spisok:INVOICE_SPISOK,
 					func:function(v) {
-						$('.income-choice').html('Выбрать платежи');
-						$('#ids').val('');
-						$('#sum').val('').attr('readonly', SELMONEY[v] ? true : false);
-						$('#sum-from').html(CASH_SUM[v] ? 'max: ' + CASH_SUM[v] : '');
-						sum_from = CASH_SUM[v] ? CASH_SUM[v] : 0;
+						sum_from = typeof CASH_SUM[v] == 'number';
+						$('#sum-from').html(sum_from ? 'max: <b>' + CASH_SUM[v] + '</b>' : '');
+						if(sum_from)
+							sum_from = CASH_SUM[v];
+
 					}
 				});
 				$('#to')._select({
 					width:200,
 					title0:'Не выбран',
-					spisok:INVOICE_SPISOK,
-					func:function(v) {
-						$('#sum-to').html(CASH_SUM[v] ? CASH_SUM[v] : '');
-					}
+					spisok:INVOICE_SPISOK
 				});
 				$('#sum').keyEnter(submit);
-				$('#sum').keyup(function() {
-					if($('#ids').val()) {
-						$('.income-choice').html('Выбрать платежи');
-						$('#ids').val('');
-						$('#sum').val('');
-					}
-				});
-				$('.income-choice').click(function() {
-					if($('#from').val() == 0) {
-						err('Не выбран счёт-отправитель', 1);
-						return;
-					}
-					var choice = _dialog({
-						top:20,
-						width:480,
-						head:'Выбор платежей для перевода',
-						load:1,
-						butSubmit:'Готово',
-						submit:chioceSubmit
-					});
-					var send = {
-						op:'income_choice',
-						owner_id:$('#from').val(),
-						ids:$('#ids').val()
-					};
-					$.post(AJAX_MAIN, send, function(res) {
-						if(res.success) {
-							choice.content.html(res.html + '<div class="income_choice_sum"></div>');
-							incomeChoiceSum();
-						}
-						else
-							choice.loadError();
-					}, 'json');
-					function chioceSubmit() {
-						var res = incomeChoiceSum();
-						$('#ids').val(res.ids);
-						$('.income-choice').html(res.count + ' платеж' + _end(res.count, ['', 'а', 'ей']));
-						$('#sum').val(res.sum);
-						choice.close();
-					}
-				});
 				function submit() {
 					var send = {
 						op:'invoice_transfer',
-						from:$('#from').val() * 1,
-						to:$('#to').val() * 1,
-						sum:_cena($('#sum').val()),
-						ids:$('#ids').val()
+						from:_num($('#from').val()),
+						to:_num($('#to').val()),
+						sum:_cena($('#sum').val())
 					};
-					if(!send.from) err('Выберите счёт-отправитель');
-					else if(!send.to) err('Выберите счёт-получатель');
-					else if(send.from == send.to) err('Выберите другой счёт');
-					else if(!send.sum) { err('Некорректно введена сумма'); $('#sum').focus(); }
-					else if(CASH_SUM[send.from] && sum_from - send.sum < 0) { err('Введённая сумма больше, чем на счёте-отправителе'); $('#sum').focus(); }
+					if(!send.from) dialog.err('Выберите счёт-отправитель');
+					else if(!send.to) dialog.err('Выберите счёт-получатель');
+					else if(send.from == send.to) dialog.err('Выберите другой счёт');
+					else if(!send.sum) { dialog.err('Некорректно введена сумма'); $('#sum').focus(); }
+					else if(sum_from !== false && sum_from - send.sum < 0) { dialog.err('Введённая сумма больше, чем на счёте-отправителе'); $('#sum').focus(); }
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function(res) {
 							if(res.success) {
-								$('#cash-spisok').html(res.c);
 								$('#invoice-spisok').html(res.i);
 								$('.transfer-spisok').html(res.t);
 								dialog.close();
-								_msg('Перевод произведён.');
+								_msg('Перевод произведён');
 							} else
 								dialog.abort();
 						}, 'json');
 					}
-				}
-				function err(msg, ch) {
-					dialog.bottom.vkHint({
-						msg:'<span class="red">' + msg + '</span>',
-						top:ch ? -95 : -47,
-						left:ch ? 197 : 92,
-						indent:50,
-						show:1,
-						remove:1
-					});
 				}
 			});
 		}

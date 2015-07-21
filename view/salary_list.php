@@ -239,7 +239,7 @@ function zpPrint() {
 	$line++;
 	$sheet->getRowDimension($line)->setRowHeight(21);
 	$sheet->setCellValue('A'.$line, 'Выдал:');
-	$sheet->setCellValue('F'.$line, 'Богарева Н.А.');
+	$sheet->setCellValue('F'.$line, 'Губинская В.В.');
 	$sheet->getStyle('F'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
 	$line++;
 	$sheet->getRowDimension($line)->setRowHeight(21);

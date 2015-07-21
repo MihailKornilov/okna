@@ -525,24 +525,30 @@ $(document)
 	.on('click', '#setup_invoice .add', function() {
 		var t = $(this),
 			html = '<table class="setup-tab">' +
-				'<tr><td class="label">Наименование:<td><input id="name" type="text" maxlength="50" />' +
+				'<tr><td class="label">Наименование:<td><input id="name" type="text" />' +
 				'<tr><td class="label topi">Описание:<td><textarea id="about"></textarea>' +
-				'<tr><td class="label topi">Виды платежей:<td><input type="hidden" id="types" />' +
-				'<tr><td class="label topi">Видимость<br />для сотрудников:<td><input type="hidden" id="visible" />' +
+				'<tr><td class="label">Подтверждение поступления:<td><input type="hidden" id="income" />' +
+				'<tr><td class="label">Подтверждение перевода:<td><input type="hidden" id="transfer" />' +
+				'<tr><td class="label topi">Видимость для сотрудников:<td><input type="hidden" id="visible" />' +
 				'</table>',
 			dialog = _dialog({
-				top:60,
-				width:400,
+				top:40,
+				width:430,
 				head:'Добавление нового счёта',
 				content:html,
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
-		$('#types')._select({
-			width:218,
-			multiselect:1,
-			spisok:INCOME_SPISOK
+		$('#about').autosize();
+		$('#income')._check();
+		$('#income_check').vkHint({
+			msg:'Возможность требовать подтверждение поступления средств на счёт',
+			width:180,
+			top:-84,
+			left:-85,
+			delayShow:500
 		});
+		$('#transfer')._check();
 		$('#visible')._select({
 			width:218,
 			multiselect:1,
@@ -553,11 +559,12 @@ $(document)
 				op:'setup_invoice_add',
 				name:$('#name').val(),
 				about:$('#about').val(),
-				types:$('#types').val(),
+				income:$('#income').val(),
+				transfer:$('#transfer').val(),
 				visible:$('#visible').val()
 			};
 			if(!send.name) {
-				err('Не указано наименование');
+				dialog.err('Не указано наименование');
 				$('#name').focus();
 			} else {
 				dialog.process();
@@ -568,20 +575,10 @@ $(document)
 						_msg('Внесено!');
 					} else {
 						dialog.abort();
-						err(res.text);
+						dialog.err(res.text);
 					}
 				}, 'json');
 			}
-		}
-		function err(msg) {
-			dialog.bottom.vkHint({
-				msg:'<SPAN class=red>' + msg + '</SPAN>',
-				top:-47,
-				left:100,
-				indent:50,
-				show:1,
-				remove:1
-			});
 		}
 	})
 	.on('click', '#setup_invoice .img_edit', function() {
@@ -591,28 +588,34 @@ $(document)
 		var id = t.attr('val'),
 			name = t.find('.name div').html(),
 			about = t.find('.name pre').html(),
-			types = t.find('.type_id').val(),
+			income = t.find('.confirm_income').val(),
+			transfer = t.find('.confirm_transfer').val(),
 			visible = t.find('.visible_id').val(),
 			html = '<table class="setup-tab">' +
-				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" value="' + name + '" />' +
-				'<tr><td class="label r top">Описание:<td><textarea id="about">' + about + '</textarea>' +
-				'<tr><td class="label topi">Виды платежей:<td><input type="hidden" id="types" value="' + types + '" />' +
+				'<tr><td class="label">Наименование:<td><input id="name" type="text" value="' + name + '" />' +
+				'<tr><td class="label topi">Описание:<td><textarea id="about">' + about + '</textarea>' +
+				'<tr><td class="label">Подтверждение поступления:<td><input type="hidden" id="income" value="' + income + '" />' +
+				'<tr><td class="label">Подтверждение перевода:<td><input type="hidden" id="transfer" value="' + transfer + '" />' +
 				'<tr><td class="label topi">Видимость<br />для сотрудников:<td><input type="hidden" id="visible" value="' + visible + '" />' +
 				'</table>',
 			dialog = _dialog({
-				top:60,
-				width:400,
+				width:480,
 				head:'Редактирование данных счёта',
 				content:html,
 				butSubmit:'Сохранить',
 				submit:submit
 			});
 		$('#name').focus().keyEnter(submit);
-		$('#types')._select({
-			width:218,
-			multiselect:1,
-			spisok:INCOME_SPISOK
+		$('#about').autosize();
+		$('#income')._check();
+		$('#income_check').vkHint({
+			msg:'Возможность требовать подтверждение поступления средств на счёт',
+			width:180,
+			top:-84,
+			left:-85,
+			delayShow:500
 		});
+		$('#transfer')._check();
 		$('#visible')._select({
 			width:218,
 			multiselect:1,
@@ -625,11 +628,12 @@ $(document)
 				id:id,
 				name:$('#name').val(),
 				about:$('#about').val(),
-				types:$('#types').val(),
+				income:$('#income').val(),
+				transfer:$('#transfer').val(),
 				visible:$('#visible').val()
 			};
 			if(!send.name) {
-				err('Не указано наименование');
+				dialog.err('Не указано наименование');
 				$('#name').focus();
 			} else {
 				dialog.process();
@@ -640,20 +644,10 @@ $(document)
 						_msg('Сохранено!');
 					} else {
 						dialog.abort();
-						err(res.text);
+						dialog.err(res.text);
 					}
 				}, 'json');
 			}
-		}
-		function err(msg) {
-			dialog.bottom.vkHint({
-				msg:'<SPAN class=red>' + msg + '</SPAN>',
-				top:-47,
-				left:100,
-				indent:50,
-				show:1,
-				remove:1
-			});
 		}
 	})
 	.on('click', '#setup_invoice .img_del', function() {
@@ -679,131 +673,6 @@ $(document)
 					$('.spisok').html(res.html);
 					dialog.close();
 					_msg('Удалено!');
-				} else
-					dialog.abort();
-			}, 'json');
-		}
-	})
-
-	.on('click', '#setup_income .add', function() {
-		var t = $(this),
-			html = '<table class="setup-tab">' +
-				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" />' +
-				'<tr><td class="label r">Подтверждение<br />поступления<br />на счёт:<td><input id="confirm" type="hidden" />' +
-				'</table>',
-			dialog = _dialog({
-				head:'Добавление нового вида платежа',
-				content:html,
-				submit:submit
-			});
-		$('#name').focus().keyEnter(submit);
-		$('#confirm')._check();
-		function submit() {
-			var send = {
-				op:'setup_income_add',
-				name:$('#name').val(),
-				confirm:$('#confirm').val()
-			};
-			if(!send.name) {
-				dialog.bottom.vkHint({
-					msg:'<SPAN class=red>Не указано наименование</SPAN>',
-					top:-47,
-					left:131,
-					indent:50,
-					show:1,
-					remove:1
-				});
-				$('#name').focus();
-			} else {
-				dialog.process();
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success) {
-						$('.spisok').html(res.html);
-						dialog.close();
-						_msg('Внесено!');
-						sortable();
-					} else
-						dialog.abort();
-				}, 'json');
-			}
-		}
-	})
-	.on('click', '#setup_income .img_edit', function() {
-		var t = $(this);
-		while(t[0].tagName != 'DD')
-			t = t.parent();
-		var id = t.attr('val'),
-			name = t.find('.name').html(),
-			confirm = t.find('.confirm').html() ? 1 : 0,
-			html = '<table class="setup-tab">' +
-				'<tr><td class="label r">Наименование:<td><input id="name" type="text" maxlength="100" value="' + name + '" />' +
-				'<tr><td class="label r">Подтверждение<br />поступления<br />на счёт:<td><input id="confirm" type="hidden" value="' + confirm + '" />' +
-				'</table>',
-			dialog = _dialog({
-				top:60,
-				width:440,
-				head:'Редактирование вида платежа',
-				content:html,
-				butSubmit:'Сохранить',
-				submit:submit
-			});
-		$('#name').focus().keyEnter(submit);
-		$('#confirm')._check();
-		function submit() {
-			var send = {
-				op:'setup_income_edit',
-				id:id,
-				name:$('#name').val(),
-				confirm:$('#confirm').val()
-			};
-			if(!send.name) {
-				dialog.bottom.vkHint({
-					msg:'<SPAN class=red>Не указано наименование</SPAN>',
-					top:-47,
-					left:131,
-					indent:50,
-					show:1,
-					remove:1
-				});
-				$('#name').focus();
-			} else {
-				dialog.process();
-				$.post(AJAX_MAIN, send, function(res) {
-					if(res.success) {
-						$('.spisok').html(res.html);
-						dialog.close();
-						_msg('Сохранено!');
-						sortable();
-					} else
-						dialog.abort();
-				}, 'json');
-			}
-		}
-	})
-	.on('click', '#setup_income .img_del', function() {
-		var t = $(this),
-			dialog = _dialog({
-				top:90,
-				width:300,
-				head:'Удаление вида платежа',
-				content:'<center><b>Подтвердите удаление вида платежа.</b></center>',
-				butSubmit:'Удалить',
-				submit:submit
-			});
-		function submit() {
-			while(t[0].tagName != 'DD')
-				t = t.parent();
-			var send = {
-				op:'setup_income_del',
-				id:t.attr('val')
-			};
-			dialog.process();
-			$.post(AJAX_MAIN, send, function(res) {
-				if(res.success) {
-					$('.spisok').html(res.html);
-					dialog.close();
-					_msg('Удалено!');
-					sortable();
 				} else
 					dialog.abort();
 			}, 'json');
@@ -1130,17 +999,13 @@ $(document)
 						_msg('Пин-код сброшен.');
 				}, 'json');
 			});
-			$('#rules_cash')._check(function(v) {
-				$('.tr_selmoney')[(v ? 'remove' : 'add') + 'Class']('dn');
-				$('#rules_selmoney')._check(0);
-			});
 			$('#rules_appenter')._check(function(v) {
 				$('.app-div')[(v == 0 ? 'add' : 'remove') + 'Class']('dn');
 				$('#rules_worker')._check(0);
 				$('#rules_rules')._check(0);
 				$('#rules_rekvisit')._check(0);
 				$('#rules_product')._check(0);
-				$('#rules_income')._check(0);
+				$('#rules_invoice')._check(0);
 				$('#rules_zayavrashod')._check(0);
 				$('#rules_historyshow')._check(0);
 				$('#rules_money')._dropdown(0);
@@ -1160,7 +1025,7 @@ $(document)
 						rules_rules:$('#rules_rules').val(),
 						rules_rekvisit:$('#rules_rekvisit').val(),
 						rules_product:$('#rules_product').val(),
-						rules_income:$('#rules_income').val(),
+						rules_invoice:$('#rules_invoice').val(),
 						rules_zayavrashod:$('#rules_zayavrashod').val(),
 						rules_historyshow:$('#rules_historyshow').val(),
 						rules_money:$('#rules_money').val()
@@ -1179,9 +1044,6 @@ $(document)
 					var send = {
 							op:'setup_worker_dop_save',
 							viewer_id:RULES_VIEWER_ID,
-							rules_cash:$('#rules_cash').val(),
-							rules_selmoney:$('#rules_selmoney').val(),
-							rules_getmoney:$('#rules_getmoney').val(),
 							rules_nosalary:$('#rules_nosalary').val(),
 							rules_zpzayavauto:$('#rules_zpzayavauto').val()
 						},

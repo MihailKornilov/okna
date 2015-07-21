@@ -9,7 +9,6 @@ function setup() {
 		'rekvisit' => 'Реквизиты организации',
 		'product' => 'Виды изделий',
 		'invoice' => 'Счета',
-		'income' => 'Виды платежей',
 		'expense' => 'Категории расходов',
 		'zayavexpense' => 'Расходы по заявке'
 	);
@@ -20,10 +19,8 @@ function setup() {
 		unset($pages['rekvisit']);
 	if(!RULES_PRODUCT)
 		unset($pages['product']);
-	if(!RULES_INCOME) {
+	if(!RULES_INVOICE)
 		unset($pages['invoice']);
-		unset($pages['income']);
-	}
 	if(!RULES_ZAYAVRASHOD)
 		unset($pages['zayavexpense']);
 
@@ -48,7 +45,6 @@ function setup() {
 			$left = setup_product();
 			break;
 		case 'invoice': $left = setup_invoice(); break;
-		case 'income': $left = setup_income(); break;
 		case 'expense': $left = setup_expense(); break;
 		case 'zayavexpense': $left = setup_zayavexpense(); break;
 	}
@@ -123,6 +119,7 @@ function setup_worker_rules($viewer_id) {
 	if(!isset($u['worker']))
 		return 'Сотрудника не существует.';
 	$rule = _viewerRules($viewer_id);
+	$client_id = query_value("SELECT `id` FROM `client` WHERE `worker_id`=".$viewer_id);
 	return
 	'<script type="text/javascript">var RULES_VIEWER_ID='.$viewer_id.';</script>'.
 	'<div id="setup_rules">'.
@@ -132,12 +129,13 @@ function setup_worker_rules($viewer_id) {
 				'<td><div class="name">'.$u['name'].'</div>'.
 					 ($viewer_id < VIEWER_MAX ? '<a href="http://vk.com/id'.$viewer_id.'" class="vklink" target="_blank">Страница VK</a>' : '').
 					 '<a href="'.URL.'&p=report&d=salary&id='.$viewer_id.'" class="vklink">Страница з/п</a>'.
+	   ($client_id ? '<a href="'.URL.'&p=client&d=info&id='.$client_id.'" class="vklink">Клиентская страница</a>' : '').
 		'</table>'.
 
 		'<div class="headName">Общее</div>'.
 		'<table class="rtab">'.
-			'<tr><td class="lab">Имя:<td><input type="text" id="first_name" value="'.$u['first_name'].'" />'.
 			'<tr><td class="lab">Фамилия:<td><input type="text" id="last_name" value="'.$u['last_name'].'" />'.
+			'<tr><td class="lab">Имя:<td><input type="text" id="first_name" value="'.$u['first_name'].'" />'.
 			'<tr><td class="lab">Отчество:<td><input type="text" id="middle_name" value="'.$u['middle_name'].'" />'.
 			'<tr><td class="lab">Должность:<td><input type="text" id="post" value="'.$u['post'].'" />'.
 			'<tr><td><td><div class="vkButton g-save"><button>Сохранить</button></div>'.
@@ -150,12 +148,8 @@ function setup_worker_rules($viewer_id) {
 
 	'<div class="headName">Дополнительно</div>'.
 	'<table class="rtab">'.
-		'<tr><td class="lab">Внутренний наличный счёт:<td>'._check('rules_cash', '', $rule['RULES_CASH']).
-		'<tr  class="tr_selmoney'.($rule['RULES_CASH'] ? '' : ' dn').'">'.
-			'<td class="lab">Перевод денег строго<br />через выбор платежей<br />(галочками):<td>'._check('rules_selmoney', '', $rule['RULES_SELMONEY']).
-		'<tr><td class="lab">Может принимать<br />и передавать деньги:<td>'._check('rules_getmoney', '', $rule['RULES_GETMONEY']).
 		'<tr><td class="lab">Не отображать<br />в начислениях з/п:<td>'._check('rules_nosalary', '', $rule['RULES_NOSALARY']).
-		'<tr><td class="lab">Начислять бонус по заявке<br />при отсутствии долга:<td>'._check('rules_zpzayavauto', '', $rule['RULES_ZPZAYAVAUTO']).
+		'<tr><td class="lab">Начислять бонус при<br />отсутствии долга по заявке:<td>'._check('rules_zpzayavauto', '', $rule['RULES_ZPZAYAVAUTO']).
 		'<tr><td><td><div class="vkButton dop-save"><button>Сохранить</button></div>'.
 	'</table>'.
 
@@ -172,7 +166,7 @@ function setup_worker_rules($viewer_id) {
 						_check('rules_rules', 'Настройка прав сотрудников', $rule['RULES_RULES']).
 						_check('rules_rekvisit', 'Реквизиты организации', $rule['RULES_REKVISIT']).
 						_check('rules_product', 'Виды изделий', $rule['RULES_PRODUCT']).
-						_check('rules_income', 'Счета и виды платежей', $rule['RULES_INCOME']).
+						_check('rules_invoice', 'Счета', $rule['RULES_INVOICE']).
 						_check('rules_zayavrashod', 'Расходы по заявке', $rule['RULES_ZAYAVRASHOD']).
 				'<tr><td class="lab">Видит историю действий:<td>'._check('rules_historyshow', '', $rule['RULES_HISTORYSHOW']).
 				'<tr><td class="lab">Может видеть платежи:<td><input type="hidden" id="rules_money" value="'.$rule['RULES_MONEY'].'" />'.
@@ -327,7 +321,7 @@ function setup_product_sub_spisok($product_id) {
 }//setup_product_sub_spisok()
 
 function setup_invoice() {
-	if(!RULES_INCOME)
+	if(!RULES_INVOICE)
 		return _norules('Настройки счетов или видов платежей');
 	return
 	'<div id="setup_invoice">'.
@@ -350,32 +344,24 @@ function setup_invoice_spisok() {
 		$spisok[$r['id']] = $r;
 	}
 
-	$sql = "SELECT *
-	        FROM `setup_income`
-	        WHERE `invoice_id`
-	        ORDER BY `sort`";
-	$q = query($sql);
-	while($r = mysql_fetch_assoc($q)) {
-		$spisok[$r['invoice_id']]['type_name'][] = $r['name'];
-		$spisok[$r['invoice_id']]['type_id'][] = $r['id'];
-	}
-
 	$send =
 	'<table class="_spisok">'.
-		'<tr><th class="name">Наименование'.
-			'<th class="type">Виды платежей'.
-			'<th class="visible">Видимость<br />для сотрудников'.
-			'<th class="set">';
+		'<tr><th>Наименование'.
+			'<th>Подтверждение'.
+			'<th>Видимость<br />для сотрудников'.
+			'<th>';
 	foreach($spisok as $id => $r)
 		$send .=
 		'<tr val="'.$id.'">'.
 			'<td class="name">'.
 				'<div>'.$r['name'].'</div>'.
 				'<pre>'.$r['about'].'</pre>'.
-			'<td class="type">'.
-				(isset($r['type_name']) ? implode('<br />', $r['type_name']) : '').
-				'<input type="hidden" class="type_id" value="'.(isset($r['type_id']) ? implode(',', $r['type_id']) : 0).'" />'.
-			'<td class="visible">'.
+			'<td class="confirm">'.
+				($r['confirm_income'] ? 'поступления на счёт' : '').
+				($r['confirm_transfer'] ? ($r['confirm_income'] ? ',<br />' : '').'переводы' : '').
+				'<input type="hidden" class="confirm_income" value="'.$r['confirm_income'].'" />'.
+				'<input type="hidden" class="confirm_transfer" value="'.$r['confirm_transfer'].'" />'.
+		'<td class="visible">'.
 				implode('<br />', $r['worker']).
 				'<input type="hidden" class="visible_id" value="'.(empty($r['worker']) ? 0 : $r['visible']).'" />'.
 		'<td class="set">'.
@@ -384,65 +370,6 @@ function setup_invoice_spisok() {
 	$send .= '</table>';
 	return $send;
 }//setup_invoice_spisok()
-
-function setup_income() {
-	if(!RULES_INCOME)
-		return _norules('Настройки счетов или видов платежей');
-	return
-	'<div id="setup_income">'.
-		'<div class="headName">Настройки видов платежей<a class="add">Добавить</a></div>'.
-		'<div class="spisok">'.setup_income_spisok().'</div>'.
-	'</div>';
-}//setup_income()
-function setup_income_spisok() {
-	$sql = "SELECT `p`.*,
-				   COUNT(`m`.`id`) AS `money`
-			FROM `setup_income` AS `p`
-			  LEFT JOIN `money` AS `m`
-			  ON `p`.`id`=`m`.`income_id`
-			GROUP BY `p`.`id`
-			ORDER BY `p`.`sort`";
-	$q = query($sql);
-	if(!mysql_num_rows($q))
-		return 'Список пуст.';
-
-	$prihod = array();
-	while($r = mysql_fetch_assoc($q))
-		$prihod[$r['id']] = $r;
-
-	$sql = "SELECT `p`.`id`,
-				   COUNT(`m`.`id`) AS `del`
-			FROM `setup_income` AS `p`,`money` AS `m`
-			WHERE `p`.`id`=`m`.`income_id` AND `m`.`deleted`=1
-			GROUP BY `p`.`id`";
-	$q = query($sql);
-	while($r = mysql_fetch_assoc($q))
-		$prihod[$r['id']]['del'] = $r['del'];
-
-	$send =
-	'<table class="_spisok">'.
-		'<tr><th class="name">Наименование'.
-			'<th class="confirm">Подтверждение<br />поступления<br />на счёт'.
-			'<th class="money">Кол-во<br />платежей'.
-			'<th class="set">'.
-	'</table>'.
-	'<dl class="_sort" val="setup_income">';
-	foreach($prihod as $id => $r) {
-		$money = $r['money'] ? '<b>'.$r['money'].'</b>' : '';
-		$money .= isset($r['del']) ? ' <span class="del" title="В том числе удалённые">('.$r['del'].')</span>' : '';
-		$send .='<dd val="'.$id.'">'.
-			'<table class="_spisok">'.
-				'<tr><td class="name">'.$r['name'].
-					'<td class="confirm">'.($r['confirm'] ? 'да' : '').
-					'<td class="money">'.$money.
-					'<td class="set">'.
-						'<div class="img_edit'._tooltip('Изменить', -33).'</div>'.
-						(!$r['money'] && $id > 1 ? '<div class="img_del'._tooltip('Удалить', -29).'</div>' : '').
-			'</table>';
-	}
-	$send .= '</dl>';
-	return $send;
-}//setup_income_spisok()
 
 function setup_expense() {
 	return
