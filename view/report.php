@@ -1659,7 +1659,7 @@ function salary_monthList($v) {
 			GROUP BY DATE_FORMAT(`mon`,'%m')";
 	$q = query($sql);
 	while($r = mysql_fetch_assoc($q))
-		$acc[intval($r['mon'])] = $r['sum'];
+		$acc[intval($r['mon'])] = _cena($r['sum']);
 
 	//Получение сумм зп
 	$sql = "SELECT
@@ -1974,14 +1974,16 @@ function salary_worker_list($v) {
 		'<tr><th>Наименование'.
 			'<th>Сумма начислений'.
 			'<th>Дата создания'.
-			(VIEWER_ADMIN ? '<th>' : '');
+			'<th>';
+			//(VIEWER_ADMIN ? '<th>' : '');
 	$n = 1;
 	while($r = mysql_fetch_assoc($q))
 		$send .=
 			'<tr><td class="about"><a class="salary-list" val="'.$r['ids'].'">Лист выдачи з/п '.($n++).'</a>'.
 				'<td class="sum">'.$r['sum'].
 				'<td class="dtime">'.FullData($r['dtime_add']).
-				(VIEWER_ADMIN ? '<td class="ed"><div val="'.$r['id'].'" class="img_del list_del'._tooltip('Удалить', -29).'</div>' : '');
+				'<td class="ed"><div val="'.$r['id'].'" class="img_del list_del'._tooltip('Удалить', -29).'</div>';
+				//(VIEWER_ADMIN ? '<td class="ed"><div val="'.$r['id'].'" class="img_del list_del'._tooltip('Удалить', -29).'</div>' : '');
 	$send .= '</table>';
 	return $send;
 }//salary_worker_list()

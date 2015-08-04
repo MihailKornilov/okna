@@ -785,11 +785,11 @@ $.fn.zayavExpense = function(o) {
 				var u = units.eq(n),
 					attr = id + u.attr('val'),
 					cat_id = $('#' + attr + 'cat').val(),
-					sum = u.find('.zrsum').val(),
+					sum = _cena(u.find('.zrsum').val()),
 					dop = '';
 				if(cat_id == 0)
 					continue;
-				if(!REGEXP_NUMERIC.test(sum) || sum == 0)
+				if(!sum)
 					return 'sum_error';
 				if(ZAYAVEXPENSE_TXT[cat_id])
 					dop = u.find('.zrtxt').val();
@@ -3504,7 +3504,7 @@ $(document)
 						zayav_id:ZAYAV.id,
 						rashod:$('#zrs').zayavExpense('get')
 					};
-					if(send.rashod == 'sum_error') err('Некорректно указана сумма');
+					if(send.rashod == 'sum_error') dialog.err('Некорректно указана сумма');
 					else {
 						dialog.process();
 						$.post(AJAX_MAIN, send, function(res) {
@@ -3518,16 +3518,6 @@ $(document)
 								dialog.abort();
 						}, 'json');
 					}
-				}
-				function err(msg) {
-					dialog.bottom.vkHint({
-						msg:'<SPAN class="red">' + msg + '</SPAN>',
-						top:-47,
-						left:167,
-						indent:40,
-						show:1,
-						remove:1
-					});
 				}
 			});
 			$('.zakaz-to-set').click(function() {

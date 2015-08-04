@@ -352,7 +352,7 @@ function _mainLinks() {
 
 	_remindActiveSet();
 
-	if(VIEWER_ADMIN && $count = query_value("SELECT COUNT(`id`) FROM `invoice_transfer` WHERE !`deleted` AND `confirm`=1"))
+	if($count = query_value("SELECT COUNT(`id`) FROM `invoice_transfer` WHERE !`deleted` AND `confirm`=1"))
 		define('TRANSFER_CONFIRM', $count);
 	else
 		define('TRANSFER_CONFIRM', 0);
@@ -1258,12 +1258,12 @@ function zayav_expense_test($v) {// Проверка корректности данных расходов заявки
 			return false;
 		if(_zayavExpense($ids[0], 'worker') && !preg_match(REGEXP_NUMERIC, $ids[1]))
 			return false;
-		if(!preg_match(REGEXP_NUMERIC, $ids[2]) || !$ids[2])
+		if(!_cena($ids[2]))
 			return false;
 		if(!preg_match(REGEXP_NUMERIC, $ids[3]))
 			return false;
 		if(_zayavExpense($ids[0], 'txt'))
-			$ids[1] = win1251(htmlspecialchars(trim($ids[1])));
+			$ids[1] = _txt($ids[1]);
 		if(!_zayavExpense($ids[0], 'txt') && !_zayavExpense($ids[0], 'worker'))
 			$ids[1] = '';
 		$send[] = $ids;
@@ -1294,6 +1294,7 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 	$array = array();
 	foreach($arr as $r) {
 		$mon = explode('-', $r['mon']);
+		$sum = round($r['sum'], 2);
 		$send .= '<tr'.($r['category_id'] == 2 && !$r['acc'] ? ' class="noacc"' : '').'>'.
 					'<td class="name">'._zayavExpense($r['category_id']).
 					'<td>'.(_zayavExpense($r['category_id'], 'txt') ? $r['txt'] : '').
@@ -1305,26 +1306,26 @@ function zayav_expense_spisok($zayav_id, $type='html') {//Получение списка расхо
 									_viewer($r['worker_id'], 'name')
 							   )
 						   : '').
-					'<td class="sum'.($r['acc'] ? _tooltip(_monthCut($mon[1]).' '.$mon[0], -7) : '">').$r['sum'].' р.';
+					'<td class="sum'.($r['acc'] ? _tooltip(_monthCut($mon[1]).' '.$mon[0], -7) : '">').$sum.' р.';
 		$json[] = '['.
 					$r['category_id'].',"'.
 					(_zayavExpense($r['category_id'], 'txt') ? $r['txt'] : '').
 					(_zayavExpense($r['category_id'], 'worker') ? $r['worker_id'] : '').'",'.
-					$r['sum'].','.
+					$sum.','.
 					$r['salary_list_id'].
 				  ']';
 		$array[] = array(
 			intval($r['category_id']),
 			(_zayavExpense($r['category_id'], 'txt') ? $r['txt'] : '').
 			(_zayavExpense($r['category_id'], 'worker') ? intval($r['worker_id']) : ''),
-			intval($r['sum']),
+			$sum,
 			intval($r['salary_list_id'])
 		);
 	}
 	if(!empty($arr)) {
-		$z = query_assoc("SELECT * FROM `zayav` WHERE `id`=".$zayav_id." LIMIT 1");
-		$send .= '<tr><td colspan="2" class="itog">Итог:<td class="sum"><b>'.$z['expense_sum'].'</b> р.'.
-				 '<tr><td colspan="2" class="itog">Остаток:<td class="sum">'.$z['net_profit'].' р.';
+		$z = query_assoc("SELECT * FROM `zayav` WHERE `id`=".$zayav_id);
+		$send .= '<tr><td colspan="2" class="itog">Итог:<td class="sum"><b>'.round($z['expense_sum'], 2).'</b> р.'.
+				 '<tr><td colspan="2" class="itog">Остаток:<td class="sum">'.round($z['net_profit'], 2).' р.';
 	}
 	$send .= '</table>';
 	switch($type) {

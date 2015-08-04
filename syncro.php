@@ -15,3 +15,4 @@ define('APP_HTML', '/.vkapp/okna');
 define('APP_PATH', 'c:/www/nyandoma'.APP_HTML);
 
 $_GET['viewer_id'] = 982006;
+//$_GET['viewer_id'] = 172136415; // Губинская Вера

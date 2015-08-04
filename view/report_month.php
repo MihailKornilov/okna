@@ -192,8 +192,9 @@ function contentShow() {
 	//Номер договора и сумма. Берутся из расходов по заявке.
 	$sql = "SELECT * FROM `zayav_expense` WHERE `zayav_id` IN (".$zayav_ids.")";
 	$q = query($sql);
-	while($r = mysql_fetch_assoc($q))
-		switch($r['category_id']) {
+	while($r = mysql_fetch_assoc($q)) {
+		$r['sum'] = _cena($r['sum']);
+		switch ($r['category_id']) {
 			case 1:
 				$zayav[$r['zayav_id']]['invoice_nomer'][] = utf8($r['txt']);
 				$zayav[$r['zayav_id']]['invoice_sum'] += $r['sum'];
@@ -203,6 +204,7 @@ function contentShow() {
 					$zayav[$r['zayav_id']]['zp_'.(_viewer($r['worker_id'], 'sex') == 1 ? 'wo' : '').'men'] += $r['sum'];
 				break;
 		}
+	}
 
 	//Начисления (вставляются в сумму договора)
 	$sql = "SELECT `z`.`id`,
@@ -391,7 +393,7 @@ function zp($sex=2) {
 			$line++;
 		}
 		$sheet->setCellValueByColumnAndRow(0, $line, 'Сумма:');
-		$sheet->setCellValueByColumnAndRow(1, $line, $zp[$id]);
+		$sheet->setCellValueByColumnAndRow(1, $line, round($zp[$id], 2));
 		$sheet->setSharedStyle(styleContent(), 'A'.$start.':B'.$line);
 		$sheet->getStyle('A'.$start.':A'.($line - 1))->getFont()->getColor()->setRGB('000088');
 		$sheet->getStyle('A'.$line)->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
@@ -712,8 +714,7 @@ function revenue() {
 			FROM `invoice_transfer`
 			WHERE !`deleted`
 			  AND `invoice_from`=1
-			  AND `invoice_to`=1
-			  AND `worker_to`=94283921
+			  AND (`invoice_to`=4 OR `invoice_to`=5)
 			  AND `dtime_add` LIKE '".MON."%'
 	        ORDER BY `id`";
 	$q = query($sql);

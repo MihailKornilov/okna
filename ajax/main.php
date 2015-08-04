@@ -1135,7 +1135,7 @@ switch(@$_POST['op']) {
 							".$r[0].",
 							'".(_zayavExpense($r[0], 'txt') ? addslashes($r[1]) : '')."',
 							".(_zayavExpense($r[0], 'worker') ? intval($r[1]) : 0).",
-							".$r[2].",
+							".round($r[2], 2).",
 							".$acc.",
 							'".($acc ? strftime('%Y-%m-%d') : '0000-00-00')."'
 						)";
@@ -1969,14 +1969,14 @@ switch(@$_POST['op']) {
 		jsonSuccess($send);
 		break;
 	case 'transfer_confirm_get':
-		if(!VIEWER_ADMIN)
-			jsonError();
+//		if(!VIEWER_ADMIN)
+//			jsonError();
 		$send['html'] = utf8('<div class="transfer-spisok">'.transfer_spisok(array('confirm'=>1)).'</div>');
 		jsonSuccess($send);
 		break;
 	case 'transfer_confirm':
-		if(!VIEWER_ADMIN)
-			jsonError();
+//		if(!VIEWER_ADMIN)
+//			jsonError();
 		if(empty($_POST['ids']))
 			jsonError();
 		$ids = $_POST['ids'];
@@ -2771,11 +2771,10 @@ switch(@$_POST['op']) {
 		jsonSuccess();
 		break;
 	case 'salary_list_del':
-		if(!VIEWER_ADMIN)
+//		if(!VIEWER_ADMIN)
+//			jsonError();
+		if(!$id = _num($_POST['id']))
 			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
-			jsonError();
-		$id = intval($_POST['id']);
 
 		$sql = "SELECT * FROM `salary_list` WHERE `id`=".$id;
 		if(!$r = mysql_fetch_assoc(query($sql)))
