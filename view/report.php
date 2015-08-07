@@ -320,6 +320,9 @@ function history_types($v) {
 			' для заявки '.$v['zayav_link'].'.'.
 			($v['value'] ? ' <em>(Причина: '.$v['value'].'.)</em>' : '');
 
+		case 60: return 'Закрыт счёт <span class="oplata">'._invoice($v['value']).'</span>.';
+
+
 		case 501: return '<a href="'.URL.'&p=setup&d=product">В настройках</a>: внесение нового наименования изделия "'.$v['value'].'".';
 		case 502: return '<a href="'.URL.'&p=setup&d=product">В настройках</a>: изменение данных изделия "'.$v['value1'].'":<div class="changes">'.$v['value'].'</div>';
 		case 503: return '<a href="'.URL.'&p=setup&d=product">В настройках</a>: удаление наименования изделия "'.$v['value'].'".';
@@ -416,6 +419,37 @@ function invoice_transfer_confirm() {//Подтверждение переводов для руководителя
 			'</div>';
 	return '';
 }//invoice_transfer_confirm()
+function invoice_transfer_sql($invoice_from, $invoice_to, $sum) {//внесение перевода между счетами
+	$sql = "INSERT INTO `invoice_transfer` (
+				`invoice_from`,
+				`invoice_to`,
+				`sum`,
+				`confirm`,
+				`viewer_id_add`
+			) VALUES (
+				".$invoice_from.",
+				".$invoice_to.",
+				".$sum.",
+				".(_invoice($invoice_from, 'confirm_transfer') || _invoice($invoice_to, 'confirm_transfer') ? 1 : 0).",
+				".VIEWER_ID."
+			)";
+	query($sql);
+
+	invoice_history_insert(array(
+		'action' => 4,
+		'table' => 'invoice_transfer',
+		'id' => mysql_insert_id()
+	));
+
+	_historyInsert(
+		39,
+		array(
+			'value' => $sum,
+			'value1' => $invoice_from,
+			'value2' => $invoice_to
+		)
+	);
+}//invoice_transfer_sql()
 function invoice_spisok() {
 	$invoice = _invoice();
 	if(empty($invoice))
@@ -431,7 +465,7 @@ function invoice_spisok() {
 					break;
 				}
 
-		if(!VIEWER_ADMIN && $continue)
+		if($r['deleted'] || !VIEWER_ADMIN && $continue)
 			continue;
 
 		$send .= '<tr>'.
@@ -442,7 +476,11 @@ function invoice_spisok() {
 					(VIEWER_ADMIN ? '' : '<a class="invoice_set" val="'.$r['id'].'">Установить<br />текущую<br />сумму</a>')
 				).
 			'<td><div val="'.$r['id'].'" class="img_note'._tooltip('Посмотреть историю операций', -95).'</div>'.
-			(VIEWER_ADMIN ? '<td><a class="invoice_set" val="'.$r['id'].'">Установить<br />текущую<br />сумму</a>' : '');
+			(VIEWER_ADMIN ?
+				'<td><a class="invoice_set" val="'.$r['id'].'">Установить<br />текущую<br />сумму</a>'.
+				'<td><a class="invoice_close" val="'.$r['id'].'">Закрыть<br />счёт</a>'
+				: ''
+			);
 	}
 	$send .= '</table>';
 	return $send;
@@ -561,6 +599,10 @@ function invoiceHistoryAction($id, $i='name') {//Варианты действий в истории сче
 		),
 		14 => array(
 			'name' => 'Удаление возврата',
+			'znak' => ''
+		),
+		15 => array(
+			'name' => 'Закрытие счёта',
 			'znak' => ''
 		)
 	);

@@ -330,7 +330,7 @@ function setup_invoice() {
 	'</div>';
 }//setup_invoice()
 function setup_invoice_spisok() {
-	$sql = "SELECT * FROM `invoice` ORDER BY `id`";
+	$sql = "SELECT * FROM `invoice` WHERE  !`deleted` ORDER BY `id`";
 	$q = query($sql);
 	if(!mysql_num_rows($q))
 		return 'Список пуст.';

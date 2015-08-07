@@ -152,10 +152,10 @@ function GvaluesCreate() {//Составление файла G_values.js
 		"\n".'WORKER_ASS=_toAss(WORKER_SPISOK),'.
 		"\n".'PRODUCT_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_product` ORDER BY `name`").','.
 		"\n".'PRODUCT_ASS=_toAss(PRODUCT_SPISOK),'.
-		"\n".'INVOICE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `invoice` ORDER BY `id`").','.
+		"\n".'INVOICE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `invoice` WHERE !`deleted` ORDER BY `id`").','.
 		"\n".'INVOICE_ASS=_toAss(INVOICE_SPISOK),'.
-		"\n".'INVOICE_CONFIRM_INCOME='.query_ptpJson("SELECT `id`,1 FROM `invoice` WHERE `confirm_income`").','.
-		"\n".'INVOICE_CONFIRM_TRANSFER='.query_ptpJson("SELECT `id`,1 FROM `invoice` WHERE `confirm_transfer`").','.
+		"\n".'INVOICE_CONFIRM_INCOME='.query_ptpJson("SELECT `id`,1 FROM `invoice` WHERE !`deleted` AND `confirm_income`").','.
+		"\n".'INVOICE_CONFIRM_TRANSFER='.query_ptpJson("SELECT `id`,1 FROM `invoice` WHERE !`deleted` AND `confirm_transfer`").','.
 		"\n".'EXPENSE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_expense` ORDER BY `sort`").','.
 		"\n".'EXPENSE_WORKER='.query_ptpJson("SELECT `id`,`show_worker` FROM `setup_expense` WHERE `show_worker`").','.
 		"\n".'ZAYAVEXPENSE_SPISOK='.query_selJson("SELECT `id`,`name` FROM `setup_zayavexpense` ORDER BY `sort`").','.

@@ -831,7 +831,7 @@ $.fn.zayavExpense = function(o) {
 							(v[0] && ZAYAVEXPENSE_TXT[v[0]] ? '<input type="text" class="zrtxt" placeholder="описание не указано" tabindex="' + (num * 10 - 1) + '" value="' + v[1] + '" />' : '') +
 							(v[0] && ZAYAVEXPENSE_WORKER[v[0]] ? '<input type="hidden" id="' + attr_worker + '" value="' + v[1] + '" />' : '') +
 						'<td class="tdsum' + (v[0] ? '' : ' dn') + '">' +
-							'<input type="text" class="zrsum" maxlength="6"' + (v[3] ? ' disabled' : '') + ' tabindex="' + (num * 10) + '" value="' + v[2] + '" />руб.' +
+							'<input type="text" class="zrsum" maxlength="9"' + (v[3] ? ' disabled' : '') + ' tabindex="' + (num * 10) + '" value="' + v[2] + '" />руб.' +
 							'<input type="hidden" id="' + attr_list + '" value="' + v[3] + '" />' +
 					'</table>';
 		zr.append(html);
@@ -1647,6 +1647,56 @@ $(document)
 						$('#invoice-spisok').html(res.i);
 						dialog.close();
 						_msg('Текущая сумма счёта установлена');
+					} else
+						dialog.abort();
+				}, 'json');
+			}
+		}
+	})
+	.on('click', '.invoice_close', function() {
+		var t = $(this),
+			invoice_id = t.attr('val'),
+			ost = _cena(CASH_SUM[invoice_id]),
+			html =
+				'<table class="_dialog-tab">' +
+					'<tr><td class="label">Счёт:<td><b>' + INVOICE_ASS[invoice_id] + '</b>' +
+				(ost ?
+					'<tr><td class="label">Остаток:<td><b>' + CASH_SUM[invoice_id] + '</b> руб.' +
+					'<tr><td class="label">Перевести остаток на счёт:<td><input type="hidden" id="invoice_to" />'
+				: '') +
+				'</table>',
+			dialog = _dialog({
+				width:420,
+				head:'Закрытие счёта',
+				content:html,
+				butSubmit:'Закрыть счёт',
+				submit:submit
+			});
+
+		$('#invoice_to')._select({
+			width:200,
+			title0:'Счёт не выбран',
+			spisok:INVOICE_SPISOK
+		});
+
+
+		function submit() {
+			var send = {
+				op:'invoice_close',
+				invoice_id:invoice_id,
+				invoice_to:ost ? _num($('#invoice_to').val()) : 0
+			};
+			if(ost && !send.invoice_to)
+				dialog.err('Не указан номер счёта-получателя');
+			else if(ost && send.invoice_to == invoice_id)
+				dialog.err('Выберите другой счёт');
+			else {
+				dialog.process();
+				$.post(AJAX_MAIN, send, function(res) {
+					if(res.success) {
+						$('#invoice-spisok').html(res.i);
+						dialog.close();
+						_msg('Счёт закрыт');
 					} else
 						dialog.abort();
 				}, 'json');

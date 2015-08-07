@@ -1829,7 +1829,7 @@ switch(@$_POST['op']) {
 
 		$sum = _cena($_POST['sum']);
 
-		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
+		$sql = "SELECT * FROM `invoice` WHERE !`deleted` AND `id`=".$invoice_id;
 		if(!$r = query_assoc($sql))
 			jsonError();
 
@@ -1845,6 +1845,48 @@ switch(@$_POST['op']) {
 			array(
 				'value' => $sum,
 				'value1' => $invoice_id
+			)
+		);
+
+		$send['i'] = utf8(invoice_spisok());
+		jsonSuccess($send);
+		break;
+	case 'invoice_close':
+		if(!VIEWER_ADMIN)
+			jsonError();
+		if(!$invoice_id = _num($_POST['invoice_id']))
+			jsonError();
+
+		$invoice_to = _num($_POST['invoice_to']);
+
+		if($invoice_id == $invoice_to) // если счета одинаковые
+			jsonError();
+
+		$sql = "SELECT * FROM `invoice` WHERE !`deleted` AND `id`=".$invoice_id;
+		if(!$r = query_assoc($sql))
+			jsonError();
+
+		$balans = _invoiceBalans($invoice_id);
+		if($balans) {//перевод средств, если деньги остались на закрываемом счёте
+			if(!$invoice_to)
+				jsonError();
+
+			invoice_transfer_sql($invoice_id, $invoice_to, $balans);
+		}
+
+		query("UPDATE `invoice` SET `deleted`=1 WHERE `id`=".$invoice_id);
+
+		xcache_unset(CACHE_PREFIX.'invoice');
+		GvaluesCreate();
+		invoice_history_insert(array(
+			'action' => 15,
+			'invoice_id' => $invoice_id
+		));
+
+		_historyInsert(
+			60,
+			array(
+				'value' => $invoice_id
 			)
 		);
 
@@ -1878,35 +1920,7 @@ switch(@$_POST['op']) {
 		if($balans !== false && $sum > $balans) // если сумма перевода больше, чем сумма на исходном счёте
 			jsonError();
 
-		$sql = "INSERT INTO `invoice_transfer` (
-					`invoice_from`,
-					`invoice_to`,
-					`sum`,
-					`confirm`,
-					`viewer_id_add`
-				) VALUES (
-					".$invoice_from.",
-					".$invoice_to.",
-					".$sum.",
-					".(_invoice($invoice_from, 'confirm_transfer') || _invoice($invoice_to, 'confirm_transfer') ? 1 : 0).",
-					".VIEWER_ID."
-				)";
-		query($sql);
-
-		invoice_history_insert(array(
-			'action' => 4,
-			'table' => 'invoice_transfer',
-			'id' => mysql_insert_id()
-		));
-
-		_historyInsert(
-			39,
-			array(
-				'value' => $sum,
-				'value1' => $invoice_from,
-				'value2' => $invoice_to
-			)
-		);
+		invoice_transfer_sql($invoice_from, $invoice_to, $sum);
 
 		$send['i'] = utf8(invoice_spisok());
 		$send['t'] = utf8(transfer_spisok());
@@ -3355,7 +3369,7 @@ switch(@$_POST['op']) {
 					jsonError();
 
 
-		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
+		$sql = "SELECT * FROM `invoice` WHERE !`deleted` AND `id`=".$invoice_id;
 		if(!$r = query_assoc($sql))
 			jsonError();
 
@@ -3403,28 +3417,6 @@ switch(@$_POST['op']) {
 				'value' => $name,
 				'value1' => '<table>'.$changes.'</table>'
 			));
-
-		$send['html'] = utf8(setup_invoice_spisok());
-		jsonSuccess($send);
-		break;
-	case 'setup_invoice_del':
-		if(!RULES_INVOICE)
-			jsonError();
-		if(!preg_match(REGEXP_NUMERIC, $_POST['id']))
-			jsonError();
-		$invoice_id = intval($_POST['id']);
-
-		$sql = "SELECT * FROM `invoice` WHERE `id`=".$invoice_id;
-		if(!$r = mysql_fetch_assoc(query($sql)))
-			jsonError();
-
-		query("DELETE FROM `invoice` WHERE `id`=".$invoice_id);
-		query("UPDATE `setup_income` SET `invoice_id`=0 WHERE `invoice_id`=".$invoice_id);
-
-		xcache_unset(CACHE_PREFIX.'invoice');
-		GvaluesCreate();
-
-		_historyInsert(517, array('value'=>$r['name']));
 
 		$send['html'] = utf8(setup_invoice_spisok());
 		jsonSuccess($send);
